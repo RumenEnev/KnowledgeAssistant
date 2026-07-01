@@ -1,0 +1,50 @@
+<div class="app-container">
+  <div class="sidebar">
+    <div class="conversations-header">
+      <h3>Conversations</h3>
+      <button (click)="newConversation()">+</button>
+    </div>
+    <div class ="conversations-list">
+      <ul class="conversations">
+        @for (conv of conversations(); track conv) {
+          <li class="conversation" >
+            {{ conv }}
+          </li>
+        }
+      </ul>
+    </div>
+  </div>
+
+  <div class="main-content">
+    <div class="models-bar">
+      <select class="model-select" [(ngModel)]="selectedModel">
+          @for (model of models(); track model) {
+            <option>{{ model }}</option>
+          }
+      </select>
+    </div>
+
+    <div class="message-list">
+      @for (msg of messages(); track msg) {
+        <div class="message" [class.user]="msg.role === 'user'" [class.assistant]="msg.role === 'assistant'">
+          <span class="message-text">{{ msg.text }}</span>
+          @if (msg.role === 'assistant') {
+            <button class="copy-btn" (click)="copyMessage(msg.text)">
+              <span class="material-icons">content_copy</span>
+              <span class="tooltip">Copy to clipboard</span>
+            </button>
+          }
+        </div>
+      }
+    </div>
+
+    <textarea 
+      class="prompt-input" 
+      placeholder="Type your message here..." 
+      [(ngModel)]="userPrompt">
+    </textarea>
+
+    <div class="send-button">
+      <button (click)="send()" [disabled]="isStreaming()">Send</button>
+    </div>
+  </div>

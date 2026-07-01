@@ -1,0 +1,175 @@
+.app-container {
+  display: flex;
+  height: 100vh;
+  gap: 10px;
+}
+
+.sidebar {
+  flex: 0 0 20%;
+  display: flex;
+  flex-direction: column;
+}
+
+.conversations-header {
+  display: flex;
+  align-items: center;
+  padding: 8px 2px;
+  justify-content: space-between;
+} 
+
+.conversations-header h3 {
+  margin: 0;         
+  font-size: 18px;      
+}
+
+.conversations-header button {
+  padding: 4px 8px;
+  cursor: pointer;
+  flex-shrink: 0;          
+  white-space: nowrap;     
+}
+
+.conversations-list {
+  flex: 1;
+  flex-direction: column;
+  margin: 2px 2px 20px 2px;
+  padding: 2px;
+  display: flex;
+  overflow-y: auto;
+  border: 1px solid #ccc;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.models-bar {
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  border-bottom: 1px solid #eaeaea;
+}
+
+.model-select {
+  padding: 2px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 14px;
+  color: #444;
+  width: 100%;
+}
+
+.message-list {
+  flex: 1;
+  flex-direction: column;
+  margin: 2px;
+  display: flex;
+  overflow-y: auto;
+  border: 1px solid #ccc;
+}
+
+.message {
+  display: flex;
+  position: relative;
+  border-radius: 5px;
+}
+
+.message.user {
+  min-height: 40px;
+  margin: 2px 2px 2px 20%;
+  padding: 10px;
+  align-items: center;
+  background: #f0f0f0;
+  color: #2a2a2a;
+  border-radius:5px;
+}
+
+.message.assistant {
+  min-height: 56px;
+  margin: 2px 2px 2px 2px;
+  padding: 15px 10px;
+  display: flex;
+  align-items: center;
+  background: #e8e8e8;
+  border: 1px solid #c8c8c8;
+  color: #2a2a2a;  
+  border-radius:5px;
+}
+
+.copy-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  color: #666;
+}
+
+.copy-btn:hover {
+  background: #f0f0f0;
+}
+
+.copy-btn .material-icons {
+  font-size: 16px;
+}
+
+.copy-btn .tooltip {
+  position: absolute;
+  top: 28px;
+  right: 0;
+  background: #333;
+  color: #fff;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+
+.copy-btn:hover .tooltip {
+  opacity: 1;
+}
+
+.prompt-input {
+  margin: 2px;
+  padding: 10px;
+  resize: none;
+  min-height: 100px;
+}
+
+.send-button {
+  display: flex;
+  align-items: center;
+  padding: 0 20% 16px;
+}
+
+.send-button button {
+  width: 100%;
+  margin: 2px;
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  background: #f0f0f0;
+  color: #2a2a2a;   
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.send-button button:hover {
+  background: #e2e2e2;
+}

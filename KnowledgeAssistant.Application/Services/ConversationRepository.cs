@@ -1,0 +1,79 @@
+﻿using Dapper;
+using KnowledgeAssistant.Application.Abstraction;
+using KnowledgeAssistant.Domain.Conversation;
+using Microsoft.Extensions.Configuration;
+using Npgsql;
+
+namespace KnowledgeAssistant.Application.Services
+{
+    public class ConversationRepository : IConversationRepository
+    {
+        private readonly string _connectionString;
+
+        public ConversationRepository(IConfiguration configuration)
+        {
+            _connectionString = configuration.GetConnectionString("KnowledgeAssistant")
+                ?? throw new InvalidOperationException("Connection string is missing.");
+        }
+
+        public async Task<IEnumerable<Conversation>> GetAllAsync(CancellationToken cancellationToken)
+        {
+            await using (NpgsqlConnection connection = new NpgsqlConnection(_connectionString))
+            {
+                await connection.OpenAsync();
+                var query = "SELECT id, title, created_at AS CreatedOn, updated_at AS UpdatedOn FROM ai_interactions.conversations";
+                return await connection.QueryAsync<Conversation>(query);
+            }
+        }
+
+        public async Task CreateAsync(Conversation conversation, CancellationToken cancellationToken)
+        {
+            using (NpgsqlConnection connection = new NpgsqlConnection(_connectionString))
+            {
+                connection.Open();
+                var query = $"INSERT INTO ai_interactions.conversations (id, title, created_at, updated_at, selected_model_id) VALUES " +
+                    $"(@Id, @Title, @CreatedAt, @UpdatedAt, @SelectedModelId)";
+                
+                await connection.ExecuteAsync(query, new
+                {
+                    Id = conversation.Id,
+                    Title = conversation.Title,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
+                    SelectedModelId = Guid.Empty,
+                });
+            }
+        }
+
+        public Task DeleteAsync(Guid id, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
+
+        public async Task<Conversation?> GetAsync(Guid id, CancellationToken cancellationToken)
+        {
+            await using var connection = new NpgsqlConnection(_connectionString);
+            await connection.OpenAsync(cancellationToken);
+            var query = "SELECT * FROM ai_interactions.conversations WHERE id = @Id";
+            return await connection.QuerySingleOrDefaultAsync<Conversation>(query, new { Id = id });
+        }
+
+        public async Task UpdateAsync(Conversation conversation, CancellationToken cancellationToken)
+        {
+            await using var connection = new NpgsqlConnection(_connectionString);
+            await connection.OpenAsync(cancellationToken);
+            var query = "UPDATE ai_interactions.conversations SET " +
+                "title = @Title, " +
+                "updated_at = @UpdatedAt " +
+                "WHERE id = @Id";
+
+            await connection.ExecuteAsync(query, new
+            {
+                Id = conversation.Id,
+                Title = conversation.Title,
+                UpdatedAt = DateTime.UtcNow,
+            });
+        }
+    }
+}

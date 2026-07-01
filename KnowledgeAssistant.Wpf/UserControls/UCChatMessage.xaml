@@ -1,0 +1,39 @@
+﻿<UserControl
+    x:Class="KnowledgeAssistant.Wpf.UserControls.UCChatMessage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    MinHeight="70"
+    SizeChanged="UserControl_SizeChanged">
+
+    <Grid x:Name="MainGrid" Background="Wheat">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="30" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Button
+            Grid.Row="0"
+            Width="30"
+            Margin="2"
+            Padding="5,0"
+            HorizontalAlignment="Right"
+            Background="Wheat"
+            BorderThickness="0"
+            Click="Copy_Click"
+            ToolTip="Copy">
+            <TextBlock
+                FontFamily="Segoe MDL2 Assets"
+                FontSize="14"
+                Text="&#xE8C8;" />
+        </Button>
+
+        <TextBlock
+            x:Name="MessageTextBlock"
+            Grid.Row="1"
+            Margin="5"
+            VerticalAlignment="Top"
+            Background="Wheat"
+            Text="{Binding Message, UpdateSourceTrigger=PropertyChanged}"
+            TextWrapping="Wrap" />
+    </Grid>
+</UserControl>

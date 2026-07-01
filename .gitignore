@@ -1,0 +1,15 @@
+﻿## .NET
+bin/
+obj/
+.vs/
+*.user
+*.suo
+
+## Angular (in case anything sits outside KnowledgeAssistant.Web's own .gitignore)
+node_modules/
+dist/
+.angular/
+
+## OS
+.DS_Store
+Thumbs.db

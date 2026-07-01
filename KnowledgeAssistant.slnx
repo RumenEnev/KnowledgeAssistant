@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="KnowledgeAssistant.Api/KnowledgeAssistant.Api.csproj" />
+  <Project Path="KnowledgeAssistant.Application/KnowledgeAssistant.Application.csproj" />
+  <Project Path="KnowledgeAssistant.Contracts/KnowledgeAssistant.Contracts.csproj" />
+  <Project Path="KnowledgeAssistant.Domain/KnowledgeAssistant.Domain.csproj" />
+  <Project Path="KnowledgeAssistant.Infrastructure/KnowledgeAssistant.Infrastructure.csproj" />
+  <Project Path="KnowledgeAssistant.Wpf/KnowledgeAssistant.Wpf.csproj" />
+</Solution>
