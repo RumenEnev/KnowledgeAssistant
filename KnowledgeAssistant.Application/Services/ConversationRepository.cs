@@ -74,7 +74,15 @@ namespace KnowledgeAssistant.Application.Services
             await using var connection = new NpgsqlConnection(_connectionString);
             await connection.OpenAsync(cancellationToken);
             var query = "SELECT * FROM ai_interactions.conversations WHERE id = @Id";
-            return await connection.QuerySingleOrDefaultAsync<Conversation>(query, new { Id = id });
+            var conversation = await connection.QuerySingleOrDefaultAsync<Conversation>(query, new { Id = id });
+            if (conversation != null)
+            {
+                var messagesQuery = "SELECT * FROM ai_interactions.chat_messages WHERE conversation_id = @ConversationId";
+                var messages = await connection.QueryAsync<ChatMessage>(messagesQuery, new { ConversationId = id });
+                conversation.Messages = messages;
+            }
+
+            return conversation;
         }
 
         public async Task UpdateAsync(Conversation conversation, CancellationToken cancellationToken)

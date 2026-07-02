@@ -46,6 +46,13 @@ namespace KnowledgeAssistant.Api.Controllers
                 Id = conversation.Id,
                 Title = conversation.Title,
                 CreatedAt = conversation.CreatedAt,
+                Messages = conversation.Messages?.Select(message => new MessageDto
+                {
+                    Id = message.Id,
+                    Role = message.Role,
+                    Content = message.Content,
+                    CreatedAt = message.CreatedAt
+                })
             };
 
             return Ok(conversationDto);
