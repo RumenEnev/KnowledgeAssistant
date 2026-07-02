@@ -2,8 +2,8 @@
 using KnowledgeAssistant.Application.Services;
 using KnowledgeAssistant.Contracts.Definitions;
 using KnowledgeAssistant.Contracts.Dto;
+using KnowledgeAssistant.Domain.Conversation;
 using Microsoft.AspNetCore.Mvc;
-using System.Text.Json;
 
 namespace KnowledgeAssistant.Api.Controllers
 {
@@ -23,6 +23,15 @@ namespace KnowledgeAssistant.Api.Controllers
         {
             var writer = new SseWriter(Response);
             var conversationId = await _conversationService.EnsureConversationAsync(request, cancellationToken);
+            await _conversationService.CreateMessageAsync(conversationId, new ChatMessage()
+            {
+                Id = Guid.NewGuid(),
+                Content = request.Message,
+                ConversationId = conversationId,
+                Role = "user",
+                CreatedAt = DateTime.UtcNow
+            }, cancellationToken);
+
             await writer.WriteAsync(SseEvents.ConversationUpdated, new { conversationId }, cancellationToken);
             await foreach (var token in _conversationService.SendMessageAsync(conversationId, request.Message, request.Model, cancellationToken))
             {

@@ -45,6 +45,24 @@ namespace KnowledgeAssistant.Application.Services
             }
         }
 
+        public async Task CreateMessageAsync(Guid conversationId, ChatMessage message, CancellationToken cancellationToken)
+        {
+            await using var connection = new NpgsqlConnection(_connectionString);
+            await connection.OpenAsync(cancellationToken);
+            var query = "INSERT INTO ai_interactions.chat_messages (id, conversation_id, role, content, created_at) VALUES " +
+                        "(@Id, @ConversationId, @Role, @Content, @CreatedAt)";
+
+            await connection.ExecuteAsync(query, new
+            {
+                Id = message.Id,
+                ConversationId = conversationId,
+                Role = message.Role,
+                Content = message.Content,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+
+
         public Task DeleteAsync(Guid id, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();

@@ -57,6 +57,11 @@ namespace KnowledgeAssistant.Application.Services
             return conversation.Id;
         }
 
+        public async Task CreateMessageAsync(Guid conversationId, ChatMessage message, CancellationToken cancellationToken)
+        {
+            await _repository.CreateMessageAsync(conversationId, message, cancellationToken);
+        }
+
         public async IAsyncEnumerable<string> SendMessageAsync(Guid? conversationId, string message, string? model, [EnumeratorCancellation] CancellationToken cancellationToken)
         {
             // 1. Ensure conversation exists
