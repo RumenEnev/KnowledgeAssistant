@@ -19,7 +19,7 @@ export class AppComponent implements OnInit {
   models = signal<string[]>([]);
   selectedModel = signal<string>('');
   userPrompt = signal<string>('');
-  messages = signal([{ role: 'system', text: ''}]);
+  messages = signal([{ role: 'user', text: ''}]);
   conversations = signal<ConversationInfo[]>([]);
   selectedConversation = signal<ConversationInfo | null>(null);
 
@@ -40,6 +40,9 @@ export class AppComponent implements OnInit {
 
   async selectConversation(conv: ConversationInfo) {
     const conversation = await this.chatService.getConversation(conv.id);
+    if (conversation.messages != null) {
+        this.messages.set(conversation.messages.map(msg => ({ role: msg.role, text: msg.content })));
+    }
     this.selectedConversation.set(conversation);
   }
 

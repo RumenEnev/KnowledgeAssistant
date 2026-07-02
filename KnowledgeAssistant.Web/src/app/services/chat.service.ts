@@ -10,7 +10,7 @@ export interface ConversationInfo {
   selectedModelId: string;
   createdOn: string;
   updatedOn: string;
-  version: number;
+  messages?: Message[];
 }
 
 export interface ChatRequest {
