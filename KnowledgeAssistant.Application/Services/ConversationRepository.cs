@@ -21,7 +21,7 @@ namespace KnowledgeAssistant.Application.Services
             await using (NpgsqlConnection connection = new NpgsqlConnection(_connectionString))
             {
                 await connection.OpenAsync();
-                var query = "SELECT id, title, created_at AS CreatedOn, updated_at AS UpdatedOn FROM ai_interactions.conversations";
+                var query = "SELECT id, title, created_at AS CreatedAt, updated_at AS UpdatedAt FROM ai_interactions.conversations";
                 return await connection.QueryAsync<Conversation>(query);
             }
         }
