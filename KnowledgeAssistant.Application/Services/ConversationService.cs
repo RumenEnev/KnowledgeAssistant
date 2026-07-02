@@ -104,7 +104,7 @@ namespace KnowledgeAssistant.Application.Services
                 CreatedAt = DateTime.UtcNow
             };
 
-           // await _repository.AddMessageAsync(assistantMessage, cancellationToken);
+            await _repository.CreateMessageAsync(resolvedConversationId, assistantMessage, cancellationToken);
         }
     }
 }
