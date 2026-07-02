@@ -8,18 +8,18 @@ namespace KnowledgeAssistant.Wpf.UserControls
 {
     public partial class UCChatMessage : UserControl, INotifyPropertyChanged, IMessageServiceSubscriber
     {
-        private readonly MessageService _messageService;
+        private readonly MessageService? _messageService;
         private bool _assistantMessageCompleted;
         private bool _isUserMessage;
         private string? _message;
 
-        public UCChatMessage(MessageService messageService)
+        public UCChatMessage(MessageService? messageService)
         {
             InitializeComponent();
             DataContext = this;
 
             _messageService = messageService;
-            _messageService.Subscribe<ChunkReceivedEvent>(this, ChunkReceivedEventReceived);
+            _messageService?.Subscribe<ChunkReceivedEvent>(this, ChunkReceivedEventReceived);
         }
 
         public bool IsUserMessage

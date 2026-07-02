@@ -1,4 +1,6 @@
-﻿namespace KnowledgeAssistant.Wpf.Models
+﻿using KnowledgeAssistant.Domain.Conversation;
+
+namespace KnowledgeAssistant.Wpf.Models
 {
     public class ConversationCompositionModel
     {
@@ -9,5 +11,7 @@
         public DateTime CreatedOn { get; set; }
 
         public DateTime UpdatedOn { get; set; }
+
+        public IEnumerable<ChatMessage>? Messages { get; set; }
     }
 }

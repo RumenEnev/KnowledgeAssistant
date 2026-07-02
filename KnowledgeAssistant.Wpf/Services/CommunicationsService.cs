@@ -41,6 +41,10 @@ namespace KnowledgeAssistant.Wpf.Services
                 try
                 {
                     var conversation = await _httpClient.GetFromJsonAsync<ConversationDto>($"api/conversations/{request.ConversationId}", _cancellationToken);
+                    if (conversation != null)
+                    {
+                        _messageService.Publish(new ConversationLoadedEvent(conversation));
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -125,7 +129,8 @@ namespace KnowledgeAssistant.Wpf.Services
                 if (!string.IsNullOrWhiteSpace(responseDto?.Title))
                 {
                     await UpdateTitle(responseDto.Title, request.ConversationId);
-                };
+                }
+                ;
 
                 _messageService.Publish(new TitleGeneratedEvent(responseDto?.Title ?? string.Empty, request.ConversationId));
             }

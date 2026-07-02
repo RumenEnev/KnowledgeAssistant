@@ -31,11 +31,12 @@ namespace KnowledgeAssistant.Wpf
             _conversations = new ObservableCollection<Conversation>();
 
             _messageService = messageService;
+            _messageService.Subscribe<UserMessage>(this, UserMessageReceived);
             _messageService.Subscribe<AvailableModelsUpdatedEvent>(this, AvailableModelsUpdatedEventReceived);
             _messageService.Subscribe<ChatCompletedEvent>(this, ChatCompletedEventReceived);
             _messageService.Subscribe<TitleGeneratedEvent>(this, TitleGeneratedEventReceived);
             _messageService.Subscribe<ConversationsUpdatedEvent>(this, ConversationsUpdatedEventReceived);
-            _messageService.Subscribe<UserMessage>(this, UserMessageReceived);
+            _messageService.Subscribe<UpdateConversationMessages>(this, UpdateConversationMessagesReceived);
         }
 
         public string? SelectedModel
@@ -138,6 +139,27 @@ namespace KnowledgeAssistant.Wpf
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
+        private void UpdateConversationMessagesReceived(MessageBase message)
+        {
+            Application.Current.Dispatcher.Invoke(ChatMessages.Clear);
+            if (message is UpdateConversationMessages request && request.Conversation?.Messages?.Any() == true)
+            {
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    foreach (var msg in request.Conversation.Messages)
+                    {
+                        var ucMessage = new UCChatMessage(null)
+                        {
+                            Message = msg.Content,
+                            IsUserMessage = msg.Role == "user",
+                            MessageCompleted = true
+                        };
+                        ChatMessages.Add(ucMessage);
+                    }
+                });
+            }
+        }
+
         private void UserMessageReceived(MessageBase message)
         {
             if (message is UserMessage userMessage)
@@ -215,7 +237,7 @@ namespace KnowledgeAssistant.Wpf
         {
             if (!string.IsNullOrWhiteSpace(UserPrompt) && !string.IsNullOrWhiteSpace(SelectedModel))
             {
-                var userMessage = new UCChatMessage(_messageService)
+                var userMessage = new UCChatMessage(null)
                 {
                     Message = UserPrompt,
                     MessageCompleted = true,
