@@ -30,7 +30,23 @@ namespace KnowledgeAssistant.Wpf.Services
             _messageService.Subscribe<SendUserMessageRequest>(this, SendPromptReceived);
             _messageService.Subscribe<GetAvailableModelsRequest>(this, GetAvailableModelsReceived);
             _messageService.Subscribe<GetConversationsRequest>(this, GetConversationsReceived);
+            _messageService.Subscribe<GetConversationRequest>(this, GetConversationReceived);
             _messageService.SubscribeAsync<CreateConversationsRequest>(this, CreateConversationsReceived);
+        }
+
+        private async void GetConversationReceived(MessageBase message)
+        {
+            if (message is GetConversationRequest request)
+            {
+                try
+                {
+                    var conversation = await _httpClient.GetFromJsonAsync<ConversationDto>($"api/conversations/{request.ConversationId}", _cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    _messageService.Publish(new UserMessage("Error", $"Error fetching conversation: {ex.Message}", MessageType.Information));
+                }
+            }
         }
 
         private async void GetConversationsReceived(MessageBase message)

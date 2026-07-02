@@ -57,15 +57,18 @@ export class ChatService {
     return response.json();
   }
 
-  async newConversation(): Promise<string> {
+  async getConversation(conversationId: string): Promise<ConversationInfo> {
+    const response = await fetch(`${this.baseUrl}/api/conversations/${conversationId}`);
+    return response.json();
+  }
+
+  async newConversation(): Promise<ConversationInfo> {
     const response = await fetch(`${this.baseUrl}/api/conversations`, {
       method: 'POST',
       body: null,
       headers: { 'Content-Type': 'application/json' }
     });
-    // const data = await response.json();
-    //return data;
-    return '';
+    return response.json();
   }
   
   async streamChat(

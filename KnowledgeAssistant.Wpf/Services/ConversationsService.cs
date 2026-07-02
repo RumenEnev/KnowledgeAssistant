@@ -1,5 +1,4 @@
-﻿using KnowledgeAssistant.Domain.Conversation;
-using KnowledgeAssistant.Wpf.Messages;
+﻿using KnowledgeAssistant.Wpf.Messages;
 using KnowledgeAssistant.Wpf.Messages.Conversations;
 using KnowledgeAssistant.Wpf.Models;
 using MessageServices;
@@ -19,6 +18,15 @@ namespace KnowledgeAssistant.Wpf.Services
 
             _messageService.Subscribe<SendUserMessageRequest>(this, SendUserMessageReceived);
             _messageService.Subscribe<TitleGeneratedEvent>(this, TitleGeneratedReceived);
+            _messageService.Subscribe<SelectedConversationChangedRequest>(this, SelectedConversationChangedReceived);
+        }
+
+        private void SelectedConversationChangedReceived(MessageBase message)
+        {
+            if (message is SelectedConversationChangedRequest request)
+            {
+                _messageService.Publish(new GetConversationRequest(request.ConversationId));
+            }
         }
 
         private void TitleGeneratedReceived(MessageBase message)

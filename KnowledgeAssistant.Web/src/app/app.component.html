@@ -6,9 +6,9 @@
     </div>
     <div class ="conversations-list">
       <ul class="conversations">
-        @for (conv of conversations(); track conv) {
-          <li class="conversation" >
-            {{ conv }}
+        @for (conv of conversations(); track conv.id) {
+          <li class="conversation" [class.selected]="selectedConversation()?.id === conv.id" (click)="selectConversation(conv)">
+            {{ conv.title ?? 'Untitled' }}
           </li>
         }
       </ul>

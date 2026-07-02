@@ -1,5 +1,5 @@
 import { Component, inject, NgZone, OnInit, signal } from '@angular/core';
-import { ChatResponseChunk, ChatService, ModelInfo } from './services/chat.service';
+import { ChatResponseChunk, ChatService, ConversationInfo, ModelInfo } from './services/chat.service';
 import { FormsModule } from '@angular/forms';
 import { SseEvents } from './shared/events/sse-events';
 
@@ -20,7 +20,8 @@ export class AppComponent implements OnInit {
   selectedModel = signal<string>('');
   userPrompt = signal<string>('');
   messages = signal([{ role: 'system', text: ''}]);
-  conversations= signal<string[]>([]);
+  conversations = signal<ConversationInfo[]>([]);
+  selectedConversation = signal<ConversationInfo | null>(null);
 
   copyMessage(text: string) {
     navigator.clipboard.writeText(text);
@@ -34,14 +35,19 @@ export class AppComponent implements OnInit {
       }
 
       const conversations = await this.chatService.getConversations();
-      this.conversations.set(conversations.map(conversation => conversation.title ?? 'Untitled' ));
+      this.conversations.set(conversations);
+  }
+
+  async selectConversation(conv: ConversationInfo) {
+    const conversation = await this.chatService.getConversation(conv.id);
+    this.selectedConversation.set(conversation);
   }
 
   async newConversation() {
-     const conversation = await this.chatService.newConversation();
-     console.log('New conversation created with ID:', conversation);
-     this.conversations.update(current => [...current, conversation]);
-    }
+    const conversation = await this.chatService.newConversation();
+    this.conversations.update(current => [conversation, ...current]);
+    this.selectedConversation.set(conversation);
+  }
 
   async send() {
     const text = this.userPrompt().trim();

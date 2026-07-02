@@ -83,6 +83,11 @@ namespace KnowledgeAssistant.Wpf
                 {
                     _selectedConversation = value;
                     OnPropertyChanged(nameof(SelectedConversation));
+
+                    if (_selectedConversation != null)
+                    {
+                        _messageService.Publish(new SelectedConversationChangedRequest(_selectedConversation.Id));
+                    }
                 }
             }
         }

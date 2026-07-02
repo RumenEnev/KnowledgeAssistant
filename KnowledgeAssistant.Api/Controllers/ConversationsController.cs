@@ -31,6 +31,26 @@ namespace KnowledgeAssistant.Api.Controllers
             return Ok(conversationDtos.OrderByDescending(c => c.CreatedAt));
         }
 
+        [HttpGet]
+        [Route("{conversationId}")]
+        public async Task<IActionResult> GetConversation(Guid conversationId, CancellationToken cancellationToken)
+        {
+            var conversation = await _repository.GetAsync(conversationId, cancellationToken);
+            if (conversation == null)
+            {
+                return NotFound();
+            }
+
+            var conversationDto = new ConversationDto
+            {
+                Id = conversation.Id,
+                Title = conversation.Title,
+                CreatedAt = conversation.CreatedAt,
+            };
+
+            return Ok(conversationDto);
+        }
+
         [HttpPost]
         public async Task<IActionResult> CreateConversation(CancellationToken cancellationToken)
         {
