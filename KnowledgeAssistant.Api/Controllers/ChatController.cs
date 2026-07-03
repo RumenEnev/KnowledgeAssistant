@@ -21,7 +21,6 @@ namespace KnowledgeAssistant.Api.Controllers
         [HttpPost]
         public async Task Chat([FromBody] ChatRequestDto request, CancellationToken cancellationToken)
         {
-            var writer = new SseWriter(Response);
             var conversationId = await _conversationService.EnsureConversationAsync(request, cancellationToken);
             await _conversationService.CreateMessageAsync(conversationId, new ChatMessage()
             {
@@ -32,6 +31,7 @@ namespace KnowledgeAssistant.Api.Controllers
                 CreatedAt = DateTime.UtcNow
             }, cancellationToken);
 
+            var writer = new SseWriter(Response);
             await writer.WriteAsync(SseEvents.ConversationUpdated, new { conversationId }, cancellationToken);
             await foreach (var token in _conversationService.SendMessageAsync(conversationId, request.Message, request.Model, cancellationToken))
             {
