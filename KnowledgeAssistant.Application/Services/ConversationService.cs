@@ -62,27 +62,10 @@ namespace KnowledgeAssistant.Application.Services
             await _repository.CreateMessageAsync(conversationId, message, cancellationToken);
         }
 
-        public async IAsyncEnumerable<string> SendMessageAsync(Guid? conversationId, string message, string? model, [EnumeratorCancellation] CancellationToken cancellationToken)
+        public async IAsyncEnumerable<string> SendMessageAsync(Guid conversationId, string message, string? model, [EnumeratorCancellation] CancellationToken cancellationToken)
         {
-            // 1. Ensure conversation exists
-            var request = new ChatRequestDto
-            {
-                ConversationId = conversationId,
-                Message = message,
-                Model = model
-            };
-
-            var resolvedConversationId = await EnsureConversationAsync(request, cancellationToken);
-
-            // 2. Build LLM input
-            var messages = new List<ChatMessage>
-            {
-                new ChatMessage
-                {
-                    Role = "user",
-                    Content = message
-                }
-            };
+            var conversation = await _repository.GetAsync(conversationId, cancellationToken);
+            var messages = conversation!.Messages?.ToList() ?? new List<ChatMessage>();
 
             var selectedModel = model ?? "llama3";
             var buffer = new StringBuilder();
@@ -98,13 +81,13 @@ namespace KnowledgeAssistant.Application.Services
             var assistantMessage = new ChatMessage
             {
                 Id = Guid.NewGuid(),
-                ConversationId = resolvedConversationId,
+                ConversationId = conversationId,
                 Role = "assistant",
                 Content = buffer.ToString(),
                 CreatedAt = DateTime.UtcNow
             };
 
-            await _repository.CreateMessageAsync(resolvedConversationId, assistantMessage, cancellationToken);
+            await _repository.CreateMessageAsync(conversationId, assistantMessage, cancellationToken);
         }
     }
 }
