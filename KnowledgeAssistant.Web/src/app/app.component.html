@@ -8,7 +8,10 @@
       <ul class="conversations">
         @for (conv of conversations(); track conv.id) {
           <li class="conversation" [class.selected]="selectedConversation()?.id === conv.id" (click)="selectConversation(conv)">
-            {{ conv.title ?? 'Untitled' }}
+            <app-conversation-title
+              [item]="conv"
+              (rename)="renameConversation(conv, $event)"
+              (delete)="deleteConversation(conv)" />
           </li>
         }
       </ul>

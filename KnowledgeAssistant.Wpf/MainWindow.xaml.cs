@@ -8,6 +8,7 @@ using MessageServices.Messages;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows;
+using UI.Windows;
 
 namespace KnowledgeAssistant.Wpf
 {
@@ -37,6 +38,7 @@ namespace KnowledgeAssistant.Wpf
             _messageService.Subscribe<TitleGeneratedEvent>(this, TitleGeneratedEventReceived);
             _messageService.Subscribe<ConversationsUpdatedEvent>(this, ConversationsUpdatedEventReceived);
             _messageService.Subscribe<UpdateConversationMessages>(this, UpdateConversationMessagesReceived);
+            _messageService.Subscribe<ConversationUpdatedEvent>(this, ConversationUpdatedEventReceived);
         }
 
         public string? SelectedModel
@@ -111,11 +113,8 @@ namespace KnowledgeAssistant.Wpf
             get => _conversations;
             set
             {
-                if (_conversations != value)
-                {
-                    _conversations = value;
-                    OnPropertyChanged(nameof(Conversations));
-                }
+                _conversations = value;
+                OnPropertyChanged(nameof(Conversations));
             }
         }
 
@@ -137,6 +136,23 @@ namespace KnowledgeAssistant.Wpf
         protected virtual void OnPropertyChanged(string propertyName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        private void ConversationUpdatedEventReceived(MessageBase message)
+        {
+            if (message is ConversationUpdatedEvent request)
+            {
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    var conversationToUpdate = Conversations.FirstOrDefault(c => c.Id == request.Conversation.Id);
+                    if (conversationToUpdate != null)
+                    {
+                        conversationToUpdate.Title = request.Conversation.Title;
+                        Conversations = new ObservableCollection<Conversation>(Conversations);
+                        SelectedConversation = conversationToUpdate;
+                    }
+                });
+            }
         }
 
         private void UpdateConversationMessagesReceived(MessageBase message)
@@ -258,7 +274,19 @@ namespace KnowledgeAssistant.Wpf
 
         private void RenameConversation_Click(object sender, RoutedEventArgs e)
         {
-
+            if (SelectedConversation != null)
+            {
+                var window = new StringInputWindow("Rename Conversation", "Enter new conversation title:", SelectedConversation.Title ?? string.Empty);
+                window.Owner = this;
+                window.ShowDialog();
+                if (window.Result == UI.Enums.DialogResult.OK)
+                {
+                    if (!string.IsNullOrWhiteSpace(window.Value))
+                    {
+                        _messageService.Publish(new UpdateConversationTitleRequest(SelectedConversation.Id, window.Value));
+                    }
+                }
+            }
         }
     }
 }

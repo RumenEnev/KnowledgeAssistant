@@ -1,43 +1,8 @@
 import { Injectable } from '@angular/core';
-
-export interface ModelInfo {
-  name: string;
-}
-
-export interface ConversationInfo {
-  id: string;
-  title?: string;
-  selectedModelId: string;
-  createdOn: string;
-  updatedOn: string;
-  messages?: Message[];
-}
-
-export interface ChatRequest {
-  conversationId?: string;
-  message: string;
-  model?: string;
-  temperature?: number;
-}
-
-export interface ChatResponseChunk {
-  Type: string; // set from SSE event line, not from JSON body
-  content?: string;
-  conversationId?: string;
-  messageId?: string;
-}
-
-export interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-  streaming?: boolean;
-}
-
-export interface Conversation {
-  id: string;
-  title: string;
-  messages: Message[];
-}
+import { ChatRequest } from '../models/chat-request';
+import { ModelInfo } from '../models/model-info';
+import { Conversation } from '../models/conversation';
+import { ChatResponseChunk } from '../models/chat-response-chunk';
 
 @Injectable({
   providedIn: 'root'
@@ -52,17 +17,17 @@ export class ChatService {
     return response.json();
   }
 
-  async getConversations(): Promise<ConversationInfo[]> {
+  async getConversations(): Promise<Conversation[]> {
     const response = await fetch(`${this.baseUrl}/api/conversations`);
     return response.json();
   }
 
-  async getConversation(conversationId: string): Promise<ConversationInfo> {
+  async getConversation(conversationId: string): Promise<Conversation> {
     const response = await fetch(`${this.baseUrl}/api/conversations/${conversationId}`);
     return response.json();
   }
 
-  async newConversation(): Promise<ConversationInfo> {
+  async newConversation(): Promise<Conversation> {
     const response = await fetch(`${this.baseUrl}/api/conversations`, {
       method: 'POST',
       body: null,
@@ -71,6 +36,12 @@ export class ChatService {
     return response.json();
   }
   
+  async renameConversation(conversationId: string, newTitle: string): Promise<void> {
+    await fetch(`${this.baseUrl}/api/conversations/${conversationId}/title?newTitle=${encodeURIComponent(newTitle)}`, {
+      method: 'PATCH'
+    });
+  }
+
   async streamChat(
   request: ChatRequest,
   onEvent: (event: ChatResponseChunk) => void

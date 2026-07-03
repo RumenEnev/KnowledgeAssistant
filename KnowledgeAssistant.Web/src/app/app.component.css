@@ -50,9 +50,6 @@
   border-radius: 5px;
   cursor: pointer;
   font-size: 14px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .conversation:hover {

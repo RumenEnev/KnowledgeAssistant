@@ -21,6 +21,7 @@ namespace KnowledgeAssistant.Wpf.Services
             _messageService.Subscribe<TitleGeneratedEvent>(this, TitleGeneratedReceived);
             _messageService.Subscribe<SelectedConversationChangedRequest>(this, SelectedConversationChangedReceived);
             _messageService.Subscribe<ConversationLoadedEvent>(this, ConversationLoadedReceived);
+            
         }
 
         private void ConversationLoadedReceived(MessageBase message)

@@ -1,0 +1,21 @@
+@if (isEditing) {
+  <input
+    #editInput
+    class="title-input"
+    [(ngModel)]="editValue"
+    (click)="$event.stopPropagation()"
+    (keydown.enter)="commitRename()"
+    (keydown.escape)="cancelRename()"
+    (blur)="commitRename()" />
+} @else {
+  <span class="title">{{ item.title || 'Untitled' }}</span>
+  <div class="menu-wrapper">
+    <button (click)="toggleMenu($event)">⋮</button>
+    @if (showMenu) {
+      <ul class="menu" [style.top.px]="menuTop" [style.left.px]="menuLeft">
+        <li (click)="onRename($event)">Rename</li>
+        <li (click)="onDelete($event)">Delete</li>
+      </ul>
+    }
+  </div>
+}

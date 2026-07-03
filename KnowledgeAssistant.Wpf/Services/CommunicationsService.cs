@@ -31,7 +31,28 @@ namespace KnowledgeAssistant.Wpf.Services
             _messageService.Subscribe<GetAvailableModelsRequest>(this, GetAvailableModelsReceived);
             _messageService.Subscribe<GetConversationsRequest>(this, GetConversationsReceived);
             _messageService.Subscribe<GetConversationRequest>(this, GetConversationReceived);
+            _messageService.Subscribe<UpdateConversationTitleRequest>(this, UpdateConversationTitleReceived);
             _messageService.SubscribeAsync<CreateConversationsRequest>(this, CreateConversationsReceived);
+        }
+
+        private async void UpdateConversationTitleReceived(MessageBase message)
+        {
+            if (message is UpdateConversationTitleRequest request)
+            {
+                var httpRequest = new HttpRequestMessage(HttpMethod.Patch, $"http://localhost:5299/api/conversations/{request.ConversationId}/title?newTitle={Uri.EscapeDataString(request.NewTitle)}");
+                var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, _cancellationToken);
+                response.EnsureSuccessStatusCode();
+
+                var conversation = await response.Content.ReadFromJsonAsync<ConversationDto>(_cancellationToken);
+                if (conversation != null)
+                {
+                    _messageService.Publish(new ConversationUpdatedEvent(new Conversation
+                    {
+                        Id = conversation.Id,
+                        Title = conversation.Title
+                    }));
+                }
+            }
         }
 
         private async void GetConversationReceived(MessageBase message)

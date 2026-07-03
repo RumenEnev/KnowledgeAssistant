@@ -1,13 +1,16 @@
 import { Component, inject, NgZone, OnInit, signal } from '@angular/core';
-import { ChatResponseChunk, ChatService, ConversationInfo, ModelInfo } from './services/chat.service';
+import { ChatResponseChunk } from './models/chat-response-chunk';
+import { Conversation } from './models/conversation';
+import { ChatService } from './services/chat.service';
 import { FormsModule } from '@angular/forms';
 import { SseEvents } from './shared/events/sse-events';
+import { ConversationTitleComponent } from './components/conversation.title/conversation.title.component';
 
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, ConversationTitleComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css'
 })
@@ -20,8 +23,8 @@ export class AppComponent implements OnInit {
   selectedModel = signal<string>('');
   userPrompt = signal<string>('');
   messages = signal([{ role: 'user', text: ''}]);
-  conversations = signal<ConversationInfo[]>([]);
-  selectedConversation = signal<ConversationInfo | null>(null);
+  conversations = signal<Conversation[]>([]);
+  selectedConversation = signal<Conversation | null>(null);
 
   copyMessage(text: string) {
     navigator.clipboard.writeText(text);
@@ -38,12 +41,29 @@ export class AppComponent implements OnInit {
       this.conversations.set(conversations);
   }
 
-  async selectConversation(conv: ConversationInfo) {
+  async selectConversation(conv: Conversation) {
     const conversation = await this.chatService.getConversation(conv.id);
     if (conversation.messages != null) {
         this.messages.set(conversation.messages.map(msg => ({ role: msg.role, text: msg.content })));
     }
     this.selectedConversation.set(conversation);
+  }
+
+  async renameConversation(conv: Conversation, newTitle: string) {
+    await this.chatService.renameConversation(conv.id, newTitle);
+    this.conversations.update(current =>
+      current.map(c => c.id === conv.id ? { ...c, title: newTitle } : c)
+    );
+    if (this.selectedConversation()?.id === conv.id) {
+      this.selectedConversation.update(c => c ? { ...c, title: newTitle } : c);
+    }
+  }
+
+  deleteConversation(conv: Conversation) {
+    this.conversations.update(current => current.filter(c => c.id !== conv.id));
+    if (this.selectedConversation()?.id === conv.id) {
+      this.selectedConversation.set(null);
+    }
   }
 
   async newConversation() {
