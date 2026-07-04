@@ -62,6 +62,7 @@ export class AppComponent implements OnInit {
   deleteConversation(conv: Conversation) {
     this.conversations.update(current => current.filter(c => c.id !== conv.id));
     if (this.selectedConversation()?.id === conv.id) {
+      this.chatService.deleteConversation(conv.id);
       this.selectedConversation.set(null);
     }
   }
@@ -135,5 +136,4 @@ export class AppComponent implements OnInit {
       console.error('Streaming failed', err);
     }
   }
-
 }

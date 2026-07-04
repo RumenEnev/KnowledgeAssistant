@@ -41,6 +41,12 @@ export class ChatService {
       method: 'PATCH'
     });
   }
+  
+  async deleteConversation(conversationId: string): Promise<void> {
+    await fetch(`${this.baseUrl}/api/conversations/${conversationId}`, {
+      method: 'DELETE'
+    });
+  }
 
   async streamChat(
   request: ChatRequest,
