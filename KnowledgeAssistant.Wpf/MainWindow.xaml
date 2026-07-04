@@ -21,23 +21,25 @@
             <ColumnDefinition Width="4*" />
         </Grid.ColumnDefinitions>
 
-        <StackPanel
+        <Grid
             Grid.Row="0"
             Grid.Column="0"
-            Margin="2"
-            Orientation="Horizontal">
+            Margin="2">
             <TextBlock
                 Margin="2"
                 HorizontalAlignment="Stretch"
                 Text="Conversations" />
             <Button
-                Width="25"
+                Width="20"
+                Height="20"
                 Margin="2"
+                Padding="0,0,0,5"
                 HorizontalAlignment="Right"
                 VerticalAlignment="Center"
                 Click="CreateConversation_Click"
-                Content="+" />
-        </StackPanel>
+                Content="+"
+                ToolTip="Add conversation" />
+        </Grid>
 
         <ListBox
             Grid.Row="1"
@@ -50,7 +52,7 @@
             <ListBox.ContextMenu>
                 <ContextMenu>
                     <MenuItem Click="RenameConversation_Click" Header="Rename" />
-                    <MenuItem Header="Delete" Click="DeleteConversation_Click"/>
+                    <MenuItem Click="DeleteConversation_Click" Header="Delete" />
                 </ContextMenu>
             </ListBox.ContextMenu>
         </ListBox>
