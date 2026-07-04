@@ -39,6 +39,7 @@ namespace KnowledgeAssistant.Wpf
             _messageService.Subscribe<ConversationsUpdatedEvent>(this, ConversationsUpdatedEventReceived);
             _messageService.Subscribe<UpdateConversationMessages>(this, UpdateConversationMessagesReceived);
             _messageService.Subscribe<ConversationUpdatedEvent>(this, ConversationUpdatedEventReceived);
+            _messageService.Subscribe<ConversationDeletedEvent>(this, ConversationDeletedEventReceived);
         }
 
         public string? SelectedModel
@@ -136,6 +137,25 @@ namespace KnowledgeAssistant.Wpf
         protected virtual void OnPropertyChanged(string propertyName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        private void ConversationDeletedEventReceived(MessageBase message)
+        {
+            if (message is ConversationDeletedEvent deleteEvent)
+            {
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    var conversationToDelete = Conversations.FirstOrDefault(c => c.Id == deleteEvent.ConversationId);
+                    if (conversationToDelete != null)
+                    {
+                        Conversations.Remove(conversationToDelete);
+                        if (SelectedConversation?.Id == deleteEvent.ConversationId)
+                        {
+                            SelectedConversation = Conversations.FirstOrDefault();
+                        }
+                    }
+                });
+            }
         }
 
         private void ConversationUpdatedEventReceived(MessageBase message)
@@ -285,6 +305,18 @@ namespace KnowledgeAssistant.Wpf
                     {
                         _messageService.Publish(new UpdateConversationTitleRequest(SelectedConversation.Id, window.Value));
                     }
+                }
+            }
+        }
+
+        private void DeleteConversation_Click(object sender, RoutedEventArgs e)
+        {
+            if (SelectedConversation != null)
+            {
+                var result = MessageBox.Show("Are you sure you want to delete this conversation?", "Delete Conversation", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                if (result == MessageBoxResult.Yes)
+                {
+                    _messageService.Publish(new DeleteConversationRequest(SelectedConversation.Id));
                 }
             }
         }

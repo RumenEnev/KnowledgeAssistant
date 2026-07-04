@@ -62,12 +62,10 @@ namespace KnowledgeAssistant.Application.Services
             });
         }
 
-
         public Task DeleteAsync(Guid id, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
         }
-
 
         public async Task<Conversation?> GetAsync(Guid id, CancellationToken cancellationToken)
         {
@@ -100,6 +98,26 @@ namespace KnowledgeAssistant.Application.Services
                 Title = conversation.Title,
                 UpdatedAt = DateTime.UtcNow,
             });
+        }
+
+        public async Task<Guid> DeleteConversationAsync(Guid conversationId, CancellationToken cancellationToken)
+        {
+            try
+            {
+                await using var connection = new NpgsqlConnection(_connectionString);
+                await connection.OpenAsync(cancellationToken);
+                var deleteMessagesQuery = "DELETE FROM ai_interactions.chat_messages WHERE conversation_id = @ConversationId";
+                await connection.ExecuteAsync(deleteMessagesQuery, new { ConversationId = conversationId });
+
+                var deleteConversationQuery = "DELETE FROM ai_interactions.conversations WHERE id = @Id";
+                await connection.ExecuteAsync(deleteConversationQuery, new { Id = conversationId });
+            }
+            catch 
+            {
+                return Guid.Empty;
+            }
+
+            return conversationId;
         }
     }
 }

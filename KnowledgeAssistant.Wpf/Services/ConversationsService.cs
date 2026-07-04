@@ -21,7 +21,19 @@ namespace KnowledgeAssistant.Wpf.Services
             _messageService.Subscribe<TitleGeneratedEvent>(this, TitleGeneratedReceived);
             _messageService.Subscribe<SelectedConversationChangedRequest>(this, SelectedConversationChangedReceived);
             _messageService.Subscribe<ConversationLoadedEvent>(this, ConversationLoadedReceived);
-            
+            _messageService.Subscribe<ConversationDeletedEvent>(this, ConversationDeletedEventReceived);
+
+        }
+
+        private void ConversationDeletedEventReceived(MessageBase message)
+        {
+            if (message is ConversationDeletedEvent @event)
+            {
+                if (_conversation != null && _conversation.Id == @event.ConversationId)
+                {
+                    _conversation = null;
+                }
+            }
         }
 
         private void ConversationLoadedReceived(MessageBase message)

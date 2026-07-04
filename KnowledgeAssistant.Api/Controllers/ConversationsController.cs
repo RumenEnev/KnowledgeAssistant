@@ -97,5 +97,23 @@ namespace KnowledgeAssistant.Api.Controllers
                 CreatedAt = conversation.CreatedAt
             });
         }
+
+        [HttpDelete("{conversationId}")]
+        public async Task<IActionResult> DeleteConversation(Guid conversationId, CancellationToken cancellationToken)
+        {
+            var conversation = await _repository.GetAsync(conversationId, cancellationToken);
+            if (conversation == null)
+            {
+                return NotFound();
+            }
+
+            var deletedConversationId = await _repository.DeleteConversationAsync(conversationId, cancellationToken);
+            if (deletedConversationId == Guid.Empty)
+            {
+                return StatusCode(500, "An error occurred while deleting the conversation.");
+            }
+
+            return Ok(deletedConversationId);
+        }
     }
 }

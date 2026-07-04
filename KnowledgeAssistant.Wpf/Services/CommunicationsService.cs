@@ -33,6 +33,22 @@ namespace KnowledgeAssistant.Wpf.Services
             _messageService.Subscribe<GetConversationRequest>(this, GetConversationReceived);
             _messageService.Subscribe<UpdateConversationTitleRequest>(this, UpdateConversationTitleReceived);
             _messageService.SubscribeAsync<CreateConversationsRequest>(this, CreateConversationsReceived);
+            _messageService.Subscribe<DeleteConversationRequest>(this, DeleteConversationReceived);
+        }
+
+        private async void DeleteConversationReceived(MessageBase message)
+        {
+            if (message is DeleteConversationRequest request)
+            {
+                var httpRequest = new HttpRequestMessage(HttpMethod.Delete, $"http://localhost:5299/api/conversations/{request.ConversationId}");
+                var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, _cancellationToken);
+                response.EnsureSuccessStatusCode();
+                var deletedConversationId = request.ConversationId;
+                if (deletedConversationId != Guid.Empty)
+                {
+                    _messageService.Publish(new ConversationDeletedEvent(deletedConversationId));
+                }
+            }
         }
 
         private async void UpdateConversationTitleReceived(MessageBase message)

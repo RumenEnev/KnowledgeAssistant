@@ -50,7 +50,7 @@
             <ListBox.ContextMenu>
                 <ContextMenu>
                     <MenuItem Click="RenameConversation_Click" Header="Rename" />
-                    <MenuItem Header="Delete" />
+                    <MenuItem Header="Delete" Click="DeleteConversation_Click"/>
                 </ContextMenu>
             </ListBox.ContextMenu>
         </ListBox>
