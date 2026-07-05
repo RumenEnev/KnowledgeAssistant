@@ -22,14 +22,14 @@ namespace KnowledgeAssistant.Api.Controllers
         public async Task Chat([FromBody] ChatRequestDto request, CancellationToken cancellationToken)
         {
             var conversationId = await _conversationService.EnsureConversationAsync(request, cancellationToken);
-            await _conversationService.CreateMessageAsync(conversationId, new ChatMessage()
-            {
-                Id = Guid.NewGuid(),
-                Content = request.Message,
-                ConversationId = conversationId,
-                Role = "user",
-                CreatedAt = DateTime.UtcNow
-            }, cancellationToken);
+            //await _conversationService.CreateMessageAsync(conversationId, new ChatMessage()
+            //{
+            //    Id = Guid.NewGuid(),
+            //    Content = request.Message,
+            //    ConversationId = conversationId,
+            //    Role = "user",
+            //    CreatedAt = DateTime.UtcNow
+            //}, cancellationToken);
 
             var writer = new SseWriter(Response);
             await writer.WriteAsync(SseEvents.ConversationUpdated, new { conversationId }, cancellationToken);

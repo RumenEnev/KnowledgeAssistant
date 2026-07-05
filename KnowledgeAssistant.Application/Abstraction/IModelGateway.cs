@@ -7,5 +7,7 @@ namespace KnowledgeAssistant.Application.Abstraction
         IAsyncEnumerable<string> StreamAsync(string model, List<ChatMessage> messages, CancellationToken cancellationToken);
         
         Task<string> GenerateAsync(string model, ChatMessage userMessage, ChatMessage systemMessage, CancellationToken cancellationToken);
+    
+        (int, int) GetTokenConsumption(); 
     }
 }

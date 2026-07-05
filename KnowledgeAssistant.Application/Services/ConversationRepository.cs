@@ -49,8 +49,8 @@ namespace KnowledgeAssistant.Application.Services
         {
             await using var connection = new NpgsqlConnection(_connectionString);
             await connection.OpenAsync(cancellationToken);
-            var query = "INSERT INTO ai_interactions.chat_messages (id, conversation_id, role, content, created_at) VALUES " +
-                        "(@Id, @ConversationId, @Role, @Content, @CreatedAt)";
+            var query = "INSERT INTO ai_interactions.chat_messages (id, conversation_id, role, content, created_at, tokens_count) VALUES " +
+                        "(@Id, @ConversationId, @Role, @Content, @CreatedAt, @TokensCount)";
 
             await connection.ExecuteAsync(query, new
             {
@@ -58,13 +58,9 @@ namespace KnowledgeAssistant.Application.Services
                 ConversationId = conversationId,
                 Role = message.Role,
                 Content = message.Content,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                TokensCount = message.TokensCount
             });
-        }
-
-        public Task DeleteAsync(Guid id, CancellationToken cancellationToken)
-        {
-            throw new NotImplementedException();
         }
 
         public async Task<Conversation?> GetAsync(Guid id, CancellationToken cancellationToken)

@@ -9,11 +9,19 @@ namespace KnowledgeAssistant.Infrastructure
 {
     public class OllamaModelGateway : IModelGateway
     {
+        private int _promptTokensCount { get; set; }
+        private int _responseTokensCount { get; set; }
+
         private readonly HttpClient _httpClient;
 
         public OllamaModelGateway(HttpClient httpClient)
         {
             _httpClient = httpClient;
+        }
+
+        public (int, int) GetTokenConsumption()
+        {
+            return (_promptTokensCount, _responseTokensCount);
         }
 
         public async Task<string> GenerateAsync(string model, ChatMessage userMessage, ChatMessage systemMessage, CancellationToken cancellationToken)
@@ -41,6 +49,8 @@ namespace KnowledgeAssistant.Infrastructure
 
         public async IAsyncEnumerable<string> StreamAsync(string model, List<ChatMessage> messages, [EnumeratorCancellation] CancellationToken cancellationToken)
         {
+            _promptTokensCount = 0;
+            _responseTokensCount = 0;
             var request = new
             {
                 model,
@@ -75,6 +85,8 @@ namespace KnowledgeAssistant.Infrastructure
 
                 if (chunk?.Done == true)
                 {
+                    _promptTokensCount = chunk.PromptEvalCount;
+                    _responseTokensCount = chunk.EvalCount;
                     yield break;
                 }
             }

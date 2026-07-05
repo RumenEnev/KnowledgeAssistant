@@ -11,5 +11,7 @@
         public required string Content { get; init; }
 
         public DateTime CreatedAt { get; init; }
+
+        public int TokensCount { get; set; }
     }
 }

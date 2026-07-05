@@ -64,8 +64,18 @@ namespace KnowledgeAssistant.Application.Services
 
         public async IAsyncEnumerable<string> SendMessageAsync(Guid conversationId, string message, string? model, [EnumeratorCancellation] CancellationToken cancellationToken)
         {
+            var userMessage = new ChatMessage
+            {
+                Id = Guid.NewGuid(),
+                Content = message,
+                ConversationId = conversationId,
+                Role = "user",
+                CreatedAt = DateTime.UtcNow
+            };
+
             var conversation = await _repository.GetAsync(conversationId, cancellationToken);
             var messages = conversation!.Messages?.ToList() ?? new List<ChatMessage>();
+            messages.Add(userMessage);
 
             var selectedModel = model ?? "llama3";
             var buffer = new StringBuilder();
@@ -78,15 +88,19 @@ namespace KnowledgeAssistant.Application.Services
             }
 
             // 4. Persist assistant message (optional but recommended)
+            var (inputTokens, outputTokens) = _modelGateway.GetTokenConsumption();
+            userMessage.TokensCount = inputTokens;
             var assistantMessage = new ChatMessage
             {
                 Id = Guid.NewGuid(),
                 ConversationId = conversationId,
                 Role = "assistant",
                 Content = buffer.ToString(),
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                TokensCount = outputTokens,
             };
 
+            await _repository.CreateMessageAsync(conversationId, userMessage, cancellationToken);
             await _repository.CreateMessageAsync(conversationId, assistantMessage, cancellationToken);
         }
     }
