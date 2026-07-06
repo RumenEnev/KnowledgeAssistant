@@ -252,7 +252,7 @@ namespace KnowledgeAssistant.Wpf
             {
                 ChatMessages.Last().MessageCompleted = true;
                 StatusMessage = $"Prompt Tokens: {completedEvent.PromptTokens}, Response Tokens: {completedEvent.ResponseTokens}";
-                _messageService.Publish(new GetConversationsRequest());
+           //     _messageService.Publish(new GetConversationsRequest());
             }
         }
 

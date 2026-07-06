@@ -26,7 +26,6 @@ namespace KnowledgeAssistant.Api.Controllers
         {
             var conversationId = await _conversationService.EnsureConversationAsync(request, cancellationToken);
             var writer = new SseWriter(Response);
-            await writer.WriteAsync(SseEvents.ConversationUpdated, new { conversationId }, cancellationToken);
             await foreach (var token in _conversationService.SendMessageAsync(conversationId, request.Message, request.Model, cancellationToken))
             {
                 await writer.WriteAsync(SseEvents.Token, new { conversationId, content = token }, cancellationToken);
