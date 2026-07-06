@@ -34,7 +34,6 @@ namespace KnowledgeAssistant.Api.Controllers
 
             var lastAssistantMessage = await _conversationRepository.GetLastAssistantMessageAsync(conversationId, cancellationToken);
             var (promptTokens, responseTokens) = _conversationService.GetTokenConsumption();
-            //await writer.WriteAsync(SseEvents.MessageCompleted, new  { lastAssistantMessage?.Id }, cancellationToken);
             await writer.WriteAsync(SseEvents.MessageCompleted, new ChatResponseChunkDto()
             {
                 ConversationId = conversationId,

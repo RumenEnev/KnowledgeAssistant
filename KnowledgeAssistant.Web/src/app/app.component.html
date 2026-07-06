@@ -39,6 +39,11 @@
           }
         </div>
       }
+      @if (tokenConsumption()) {
+        <div class="token-consumption">
+          Tokens used: {{ tokenConsumption()!.total }} (prompt: {{ tokenConsumption()!.prompt }}, response: {{ tokenConsumption()!.response }})
+        </div>
+      }
     </div>
 
     <textarea 

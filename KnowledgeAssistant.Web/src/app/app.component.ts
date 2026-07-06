@@ -25,6 +25,7 @@ export class AppComponent implements OnInit {
   messages = signal([{ role: 'user', text: ''}]);
   conversations = signal<Conversation[]>([]);
   selectedConversation = signal<Conversation | null>(null);
+  tokenConsumption = signal<{ prompt: number; response: number; total: number } | null>(null);
 
   copyMessage(text: string) {
     navigator.clipboard.writeText(text);
@@ -121,6 +122,14 @@ export class AppComponent implements OnInit {
 
             case SseEvents.Done:
               this.isStreaming.set(false);
+              if (event.PromptTokens != null && event.ResponseTokens != null) {
+                this.tokenConsumption.set({
+                  prompt: event.PromptTokens,
+                  response: event.ResponseTokens,
+                  total: event.PromptTokens + event.ResponseTokens
+                });
+                setTimeout(() => this.ngZone.run(() => this.tokenConsumption.set(null)), 2500);
+              }
               break;
 
             case SseEvents.Error:

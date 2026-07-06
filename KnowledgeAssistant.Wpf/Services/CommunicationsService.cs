@@ -206,7 +206,6 @@ namespace KnowledgeAssistant.Wpf.Services
                 while (!reader.EndOfStream && !_cancellationToken.IsCancellationRequested)
                 {
                     var line = await reader.ReadLineAsync();
-
                     if (string.IsNullOrWhiteSpace(line))
                     {
                         continue;

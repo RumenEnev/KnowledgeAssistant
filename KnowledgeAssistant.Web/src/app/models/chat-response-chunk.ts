@@ -3,4 +3,6 @@ export interface ChatResponseChunk {
   content?: string;
   conversationId?: string;
   messageId?: string;
+  PromptTokens?: number;
+  ResponseTokens?: number;
 }

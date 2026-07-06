@@ -27,7 +27,6 @@
   cursor: pointer;
   flex-shrink: 0;          
   white-space: nowrap;     
-  tooltip: "Add Conversation";
 }
 
 .conversations-list {

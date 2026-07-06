@@ -77,20 +77,23 @@ export class ChatService {
 
     const lines = buffer.split('\n');
     buffer = lines.pop() ?? '';
-
     for (const line of lines) {
       if (!line.trim()) continue;
-
+      
       if (line.startsWith('event: ')) {
         currentEvent = line.slice(7).trim();
         continue;
       }
-
+      
       if (line.startsWith('data: ')) {
         const data = line.slice(6).trim();
-
         const chunk: ChatResponseChunk = JSON.parse(data);
-
+        if (currentEvent === 'done') {
+          const tokenConsumption = JSON.parse(data);
+          chunk.PromptTokens = tokenConsumption.PromptTokens;
+          chunk.ResponseTokens = tokenConsumption.ResponseTokens;
+        }
+        
         // attach SSE event type into payload if needed
         const enrichedEvent: ChatResponseChunk = {
           ...chunk,
