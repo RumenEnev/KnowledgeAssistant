@@ -163,7 +163,7 @@ namespace KnowledgeAssistant.Wpf
                     if (conversationToDelete != null)
                     {
                         Conversations.Remove(conversationToDelete);
-                        if (SelectedConversation?.Id == deleteEvent.ConversationId)
+                        if (Conversations.Any())
                         {
                             SelectedConversation = Conversations.FirstOrDefault();
                         }
@@ -252,7 +252,6 @@ namespace KnowledgeAssistant.Wpf
             {
                 ChatMessages.Last().MessageCompleted = true;
                 StatusMessage = $"Prompt Tokens: {completedEvent.PromptTokens}, Response Tokens: {completedEvent.ResponseTokens}";
-           //     _messageService.Publish(new GetConversationsRequest());
             }
         }
 
