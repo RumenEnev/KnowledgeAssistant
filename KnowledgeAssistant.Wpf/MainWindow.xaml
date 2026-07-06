@@ -15,16 +15,18 @@
             <RowDefinition Height="*" />
             <RowDefinition Height="150" />
             <RowDefinition Height="30" />
+            <RowDefinition Height="30" />
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="4*" />
+            <ColumnDefinition Width="80*" />
+            <ColumnDefinition Width="103*" />
+            <ColumnDefinition Width="217*" />
         </Grid.ColumnDefinitions>
 
         <Grid
             Grid.Row="0"
             Grid.Column="0"
-            Margin="2">
+            Margin="2,2,2,2">
             <TextBlock
                 Margin="2"
                 HorizontalAlignment="Stretch"
@@ -45,7 +47,7 @@
             Grid.Row="1"
             Grid.RowSpan="3"
             Grid.Column="0"
-            Margin="2"
+            Margin="2,2,2,2"
             DisplayMemberPath="Title"
             ItemsSource="{Binding Conversations}"
             SelectedItem="{Binding SelectedConversation}">
@@ -60,14 +62,16 @@
         <ComboBox
             Grid.Row="0"
             Grid.Column="1"
-            Margin="2"
+            Grid.ColumnSpan="2"
+            Margin="2,2,2,2"
             ItemsSource="{Binding Models}"
             SelectedItem="{Binding SelectedModel}" />
 
         <ListView
             Grid.Row="1"
             Grid.Column="1"
-            Margin="2"
+            Grid.ColumnSpan="2"
+            Margin="2,2,2,2"
             ItemsSource="{Binding ChatMessages}">
             <ListView.ItemContainerStyle>
                 <Style TargetType="ListViewItem">
@@ -82,14 +86,26 @@
         <TextBox
             Grid.Row="2"
             Grid.Column="1"
-            Margin="2"
+            Grid.ColumnSpan="2"
+            Margin="2,2,2,2"
             Text="{Binding UserPrompt, UpdateSourceTrigger=PropertyChanged}" />
 
         <Button
             Grid.Row="3"
             Grid.Column="1"
-            Margin="2"
+            Grid.ColumnSpan="2"
+            Margin="2,2,2,2"
             Click="Send_Click"
             Content="Send" />
+
+        <StatusBar
+            Grid.Row="4"
+            Grid.Column="0"
+            Grid.ColumnSpan="3"
+            Margin="2">
+            <StatusBarItem>
+                <TextBlock Text="{Binding StatusMessage}" />
+            </StatusBarItem>
+        </StatusBar>
     </Grid>
 </Window>

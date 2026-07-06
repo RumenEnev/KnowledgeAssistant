@@ -4,13 +4,13 @@ namespace KnowledgeAssistant.Wpf.Messages
 {
     public record ChatCompletedEvent : MessageBase
     {
-        public ChatCompletedEvent(int prompTokens, int responseTokens)
+        public ChatCompletedEvent(int promptTokens, int responseTokens)
         {
-            PrompTokens = prompTokens;
+            PromptTokens = promptTokens;
             ResponseTokens = responseTokens;
         }
 
-        public int PrompTokens { get; }
+        public int PromptTokens { get; }
 
         public int ResponseTokens { get; }
     }

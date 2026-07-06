@@ -17,6 +17,7 @@ namespace KnowledgeAssistant.Wpf
         private readonly MessageService _messageService;
         private string? _selectedModel;
         private string? _userPrompt;
+        private string? _statusMessage;
         private Thickness _chatMessageMargin;
         private Conversation? _selectedConversation;
         private Guid? _lastConversationId;
@@ -66,6 +67,19 @@ namespace KnowledgeAssistant.Wpf
                     OnPropertyChanged(nameof(UserPrompt));
                 }
             }
+        }
+
+        public string? StatusMessage
+        {
+            get => _statusMessage;
+            set
+            {
+                if (_statusMessage != value)
+                {
+                    _statusMessage = value;
+                    OnPropertyChanged(nameof(StatusMessage));
+                }
+            }   
         }
 
         public Thickness ChatMessageMargin
@@ -200,8 +214,15 @@ namespace KnowledgeAssistant.Wpf
         {
             if (message is UserMessage userMessage)
             {
-                MessageBox.Show(userMessage.Message, userMessage.Title, MessageBoxButton.OK,
-                    userMessage.MessageType == MessageType.Error ? MessageBoxImage.Error : MessageBoxImage.Information);
+                if (userMessage.MessageType == MessageType.ShortInfo)
+                {
+                    StatusMessage = userMessage.Message;
+                }
+                else
+                {
+                    MessageBox.Show(userMessage.Message, userMessage.Title, MessageBoxButton.OK,
+                        userMessage.MessageType == MessageType.Error ? MessageBoxImage.Error : MessageBoxImage.Information);
+                }
             }
         }
 
@@ -230,7 +251,7 @@ namespace KnowledgeAssistant.Wpf
             if (message is ChatCompletedEvent completedEvent)
             {
                 ChatMessages.Last().MessageCompleted = true;
-                //_lastConversationId = completedEvent.ConversationId;
+                StatusMessage = $"Prompt Tokens: {completedEvent.PromptTokens}, Response Tokens: {completedEvent.ResponseTokens}";
                 _messageService.Publish(new GetConversationsRequest());
             }
         }
