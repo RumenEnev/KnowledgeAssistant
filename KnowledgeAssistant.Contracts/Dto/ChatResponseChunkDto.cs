@@ -1,8 +1,8 @@
 ﻿namespace KnowledgeAssistant.Contracts.Dto
 {
-    public class ChatResponseChunkDto
+    public record ChatResponseChunkDto
     {
-        public string Type { get; set; } = default!; // token | done
+        public string Type { get; set; } = default!; 
 
         public string? Content { get; set; }
 

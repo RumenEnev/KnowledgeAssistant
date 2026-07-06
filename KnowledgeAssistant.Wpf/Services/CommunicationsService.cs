@@ -1,4 +1,5 @@
-﻿using KnowledgeAssistant.Contracts.Dto;
+﻿using KnowledgeAssistant.Contracts.Definitions;
+using KnowledgeAssistant.Contracts.Dto;
 using KnowledgeAssistant.Domain.Conversation;
 using KnowledgeAssistant.Wpf.Messages;
 using KnowledgeAssistant.Wpf.Messages.Conversations;
@@ -220,12 +221,22 @@ namespace KnowledgeAssistant.Wpf.Services
                     if (line.StartsWith("data: "))
                     {
                         var data = line["data: ".Length..];
-                        var chunk = JsonSerializer.Deserialize<ChatResponseChunkDto>(data, jsonOptions);
+                        ChatResponseChunkDto? chunk;
                         switch (currentEvent)
                         {
-                            case "conversation-updated": conversationId = chunk?.ConversationId; break;
-                            case "token": _messageService.Publish(new ChunkReceivedEvent(chunk?.Content ?? string.Empty)); break;
-                            case "done": _messageService.Publish(new ChatCompletedEvent(conversationId)); break;
+                            case SseEvents.ConversationUpdated:
+                                chunk = JsonSerializer.Deserialize<ChatResponseChunkDto>(data, jsonOptions);
+                                conversationId = chunk?.ConversationId; 
+                                break;
+                            case SseEvents.Token:
+                                chunk = JsonSerializer.Deserialize<ChatResponseChunkDto>(data, jsonOptions);
+                                _messageService.Publish(new ChunkReceivedEvent(chunk?.Content ?? string.Empty)); 
+                                break;
+                            case SseEvents.Done: 
+                                var metadata = JsonSerializer.Deserialize<MessageDoneDto>(data, jsonOptions);
+                                _messageService.Publish(new ChatCompletedEvent(metadata?.PromptTokens ?? 0, metadata?.ResponseTokens ?? 0)); 
+                                break;
+                        //    case SseEvents.MessageCompleted: _messageService.Publish(new ChatCompletedEvent(conversationId)); break;
                         }
                     }
                 }

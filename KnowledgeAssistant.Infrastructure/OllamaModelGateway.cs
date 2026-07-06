@@ -9,8 +9,8 @@ namespace KnowledgeAssistant.Infrastructure
 {
     public class OllamaModelGateway : IModelGateway
     {
-        private int _promptTokensCount { get; set; }
-        private int _responseTokensCount { get; set; }
+        private int _promptTokensCount;
+        private int _responseTokensCount;
 
         private readonly HttpClient _httpClient;
 

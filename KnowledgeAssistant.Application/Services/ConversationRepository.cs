@@ -115,5 +115,14 @@ namespace KnowledgeAssistant.Application.Services
 
             return conversationId;
         }
+
+        public async Task<ChatMessage?> GetLastAssistantMessageAsync(Guid conversationId, CancellationToken cancellationToken)
+        {
+            await using var connection = new NpgsqlConnection(_connectionString);
+            await connection.OpenAsync(cancellationToken);
+            var query = "SELECT * FROM ai_interactions.chat_messages WHERE conversation_id = @ConversationId AND role = 'assistant' ORDER BY created_at DESC LIMIT 1";
+            var message = await connection.QuerySingleOrDefaultAsync<ChatMessage>(query, new { ConversationId = conversationId });
+            return message;
+        }
     }
 }

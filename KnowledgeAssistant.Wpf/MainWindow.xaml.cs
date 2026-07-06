@@ -230,7 +230,7 @@ namespace KnowledgeAssistant.Wpf
             if (message is ChatCompletedEvent completedEvent)
             {
                 ChatMessages.Last().MessageCompleted = true;
-                _lastConversationId = completedEvent.ConversationId;
+                //_lastConversationId = completedEvent.ConversationId;
                 _messageService.Publish(new GetConversationsRequest());
             }
         }

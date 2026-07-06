@@ -11,6 +11,9 @@ namespace KnowledgeAssistant.Application.Services
         private readonly IModelGateway _modelGateway;
         private readonly IConversationRepository _repository;
 
+        private int _promptTokensCount;
+        private int _responseTokensCount;
+
         public ConversationService(IModelGateway modelGateway, IConversationRepository repository)
         {
             _modelGateway = modelGateway;
@@ -88,8 +91,8 @@ namespace KnowledgeAssistant.Application.Services
             }
 
             // 4. Persist assistant message (optional but recommended)
-            var (inputTokens, outputTokens) = _modelGateway.GetTokenConsumption();
-            userMessage.TokensCount = inputTokens;
+            (_promptTokensCount, _responseTokensCount) = _modelGateway.GetTokenConsumption();
+            userMessage.TokensCount = _promptTokensCount;
             var assistantMessage = new ChatMessage
             {
                 Id = Guid.NewGuid(),
@@ -97,11 +100,16 @@ namespace KnowledgeAssistant.Application.Services
                 Role = "assistant",
                 Content = buffer.ToString(),
                 CreatedAt = DateTime.UtcNow,
-                TokensCount = outputTokens,
+                TokensCount = _responseTokensCount,
             };
 
             await _repository.CreateMessageAsync(conversationId, userMessage, cancellationToken);
             await _repository.CreateMessageAsync(conversationId, assistantMessage, cancellationToken);
+        }
+
+        public (int, int) GetTokenConsumption()
+        {
+            return (_promptTokensCount, _responseTokensCount);
         }
     }
 }

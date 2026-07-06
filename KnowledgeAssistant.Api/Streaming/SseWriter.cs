@@ -18,7 +18,9 @@ namespace KnowledgeAssistant.Api.Streaming
         public async Task WriteAsync(string eventName, object? data, CancellationToken ct)
         {
             if (ct.IsCancellationRequested)
+            {
                 return;
+            }
 
             var json = data is null
                 ? "{}"
