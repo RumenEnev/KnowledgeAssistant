@@ -22,7 +22,23 @@ namespace KnowledgeAssistant.Wpf.Services
             _messageService.Subscribe<SelectedConversationChangedRequest>(this, SelectedConversationChangedReceived);
             _messageService.Subscribe<ConversationLoadedEvent>(this, ConversationLoadedReceived);
             _messageService.Subscribe<ConversationDeletedEvent>(this, ConversationDeletedEventReceived);
+            _messageService.Subscribe<CreateConversationsRequest>(this, CreateConversationsReceived);
 
+        }
+
+        private async void CreateConversationsReceived(MessageBase message)
+        {
+            if (message is CreateConversationsRequest)
+            {
+                await CreateNewConversationAsync();
+                _messageService.Publish(new ConversationCreatedEvent(new Conversation()
+                {
+                    Id = _conversation?.Id ?? Guid.Empty,
+                    Title = _conversation?.Title ?? string.Empty,
+                    CreatedAt = _conversation?.CreatedOn ?? DateTime.UtcNow,
+                    UpdatedAt = _conversation?.UpdatedOn ?? DateTime.UtcNow
+                }));
+            }
         }
 
         private void ConversationDeletedEventReceived(MessageBase message)
@@ -85,25 +101,29 @@ namespace KnowledgeAssistant.Wpf.Services
             {
                 if (_conversation == null)
                 {
-                    var result = await _messageService.RequestAsync<CreateConversationsResponse>(new CreateConversationsRequest());
-                    var conversation = result.FirstOrDefault()?.Conversation;
-                    if (conversation == null || conversation.Id == Guid.Empty)
-                    {
-                        _messageService.Publish(new UserMessage("Error", "Failed to create a new conversation.", MessageType.Error));
-                        return;
-                    }
-
-                    _conversation = new ConversationCompositionModel
-                    {
-                        Id = conversation.Id,
-                        Title = conversation.Title,
-                        CreatedOn = conversation.CreatedAt,
-                        UpdatedOn = conversation.CreatedAt  
-                    };
-
+                    await CreateNewConversationAsync();
                     _messageService.Publish(new SendUserPromptRequest(request.Prompt, request.Model, null));
                 }
             }
+        }
+
+        private async Task CreateNewConversationAsync()
+        {
+            var result = await _messageService.RequestAsync<CreateConversationsResponse>(new CreateConversationsRequest());
+            var conversation = result.FirstOrDefault()?.Conversation;
+            if (conversation == null || conversation.Id == Guid.Empty)
+            {
+                _messageService.Publish(new UserMessage("Error", "Failed to create a new conversation.", MessageType.Error));
+                return;
+            }
+
+            _conversation = new ConversationCompositionModel
+            {
+                Id = conversation.Id,
+                Title = conversation.Title,
+                CreatedOn = conversation.CreatedAt,
+                UpdatedOn = conversation.CreatedAt
+            };
         }
     }
 }

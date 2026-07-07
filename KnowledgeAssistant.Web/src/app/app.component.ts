@@ -71,7 +71,7 @@ export class AppComponent implements OnInit {
   async newConversation() {
     const conversation = await this.chatService.newConversation();
     this.conversations.update(current => [conversation, ...current]);
-    this.selectedConversation.set(conversation);
+    await this.selectConversation(conversation);
   }
 
   async send() {

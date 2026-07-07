@@ -39,6 +39,7 @@ namespace KnowledgeAssistant.Wpf
             _messageService.Subscribe<TitleGeneratedEvent>(this, TitleGeneratedEventReceived);
             _messageService.Subscribe<ConversationsUpdatedEvent>(this, ConversationsUpdatedEventReceived);
             _messageService.Subscribe<UpdateConversationMessages>(this, UpdateConversationMessagesReceived);
+            _messageService.Subscribe<ConversationCreatedEvent>(this, ConversationCreatedEventReceived);
             _messageService.Subscribe<ConversationUpdatedEvent>(this, ConversationUpdatedEventReceived);
             _messageService.Subscribe<ConversationDeletedEvent>(this, ConversationDeletedEventReceived);
         }
@@ -151,6 +152,18 @@ namespace KnowledgeAssistant.Wpf
         protected virtual void OnPropertyChanged(string propertyName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        private void ConversationCreatedEventReceived(MessageBase message)
+        {
+            if (message is ConversationCreatedEvent request)
+            {
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    Conversations.Insert(0, request.Conversation);
+                    SelectedConversation = request.Conversation;
+                });
+            }
         }
 
         private void ConversationDeletedEventReceived(MessageBase message)
@@ -307,7 +320,7 @@ namespace KnowledgeAssistant.Wpf
             }
         }
 
-        private void CreateConversation_Click(object sender, RoutedEventArgs e)
+        private async void CreateConversation_Click(object sender, RoutedEventArgs e)
         {
             _messageService.Publish(new CreateConversationsRequest());
         }
