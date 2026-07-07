@@ -1,3 +1,13 @@
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
 .app-container {
   display: flex;
   height: 100vh;
@@ -37,6 +47,7 @@
   display: flex;
   overflow-y: auto;
   border: 1px solid #ccc;
+  min-height: 0;
 }
 
 .conversations {
@@ -87,83 +98,12 @@
 
 .message-list {
   flex: 1;
-  flex-direction: column;
   margin: 2px;
   display: flex;
+  flex-direction: column;
   overflow-y: auto;
   border: 1px solid #ccc;
-}
-
-.message {
-  display: flex;
-  position: relative;
-  border-radius: 5px;
-}
-
-.message.user {
-  min-height: 40px;
-  margin: 2px 2px 2px 20%;
-  padding: 10px;
-  align-items: center;
-  background: #f0f0f0;
-  color: #2a2a2a;
-  border-radius:5px;
-}
-
-.message.assistant {
-  min-height: 56px;
-  margin: 2px 2px 2px 2px;
-  padding: 15px 10px;
-  display: flex;
-  align-items: center;
-  background: #e8e8e8;
-  border: 1px solid #c8c8c8;
-  color: #2a2a2a;  
-  border-radius:5px;
-}
-
-.copy-btn {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  border-radius: 4px;
-  background: transparent;
-  cursor: pointer;
-  color: #666;
-}
-
-.copy-btn:hover {
-  background: #f0f0f0;
-}
-
-.copy-btn .material-icons {
-  font-size: 16px;
-}
-
-.copy-btn .tooltip {
-  position: absolute;
-  top: 28px;
-  right: 0;
-  background: #333;
-  color: #fff;
-  font-size: 12px;
-  padding: 4px 8px;
-  border-radius: 4px;
-  white-space: nowrap;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.15s;
-}
-
-.copy-btn:hover .tooltip {
-  opacity: 1;
+  min-height: 0;
 }
 
 .prompt-input {

@@ -1,0 +1,7 @@
+<span class="message-text">{{ msg.text }}</span>
+@if (msg.role === 'assistant') {
+  <button class="copy-btn" (click)="copyMessage(msg.text)">
+    <span class="material-icons">content_copy</span>
+    <span class="tooltip">Copy to clipboard</span>
+  </button>
+}

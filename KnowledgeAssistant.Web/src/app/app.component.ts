@@ -1,22 +1,25 @@
-import { Component, inject, NgZone, OnInit, signal } from '@angular/core';
+import { Component, effect, ElementRef, inject, NgZone, OnInit, signal, ViewChild } from '@angular/core';
 import { ChatResponseChunk } from './models/chat-response-chunk';
 import { Conversation } from './models/conversation';
 import { ChatService } from './services/chat.service';
 import { FormsModule } from '@angular/forms';
 import { SseEvents } from './shared/events/sse-events';
 import { ConversationTitleComponent } from './components/conversation.title/conversation.title.component';
+import { MessageComponent } from './components/message/message.component';
 
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [FormsModule, ConversationTitleComponent],
+  imports: [FormsModule, ConversationTitleComponent, MessageComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css'
 })
 export class AppComponent implements OnInit {
   private chatService = inject(ChatService);
   private ngZone = inject(NgZone);
+
+  @ViewChild('messageList') private messageListRef!: ElementRef<HTMLElement>;
 
   isStreaming = signal(false);
   models = signal<string[]>([]);
@@ -27,8 +30,16 @@ export class AppComponent implements OnInit {
   selectedConversation = signal<Conversation | null>(null);
   tokenConsumption = signal<{ prompt: number; response: number; total: number } | null>(null);
 
-  copyMessage(text: string) {
-    navigator.clipboard.writeText(text);
+  constructor() {
+    effect(() => {
+      this.messages();
+      setTimeout(() => {
+        if (this.messageListRef) {
+          const el = this.messageListRef.nativeElement;
+          el.scrollTop = el.scrollHeight;
+        }
+      }, 0);
+    });
   }
 
   async ngOnInit() {

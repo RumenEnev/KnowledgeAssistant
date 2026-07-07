@@ -27,17 +27,9 @@
       </select>
     </div>
 
-    <div class="message-list">
+    <div class="message-list" #messageList>
       @for (msg of messages(); track msg) {
-        <div class="message" [class.user]="msg.role === 'user'" [class.assistant]="msg.role === 'assistant'">
-          <span class="message-text">{{ msg.text }}</span>
-          @if (msg.role === 'assistant') {
-            <button class="copy-btn" (click)="copyMessage(msg.text)">
-              <span class="material-icons">content_copy</span>
-              <span class="tooltip">Copy to clipboard</span>
-            </button>
-          }
-        </div>
+        <app-message [msg]="msg" />
       }
       @if (tokenConsumption()) {
         <div class="token-consumption">
@@ -56,3 +48,4 @@
       <button (click)="send()" [disabled]="isStreaming()">Send</button>
     </div>
   </div>
+</div>  
