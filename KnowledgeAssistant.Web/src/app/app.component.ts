@@ -2,21 +2,24 @@ import { Component, effect, ElementRef, inject, NgZone, OnInit, signal, ViewChil
 import { ChatResponseChunk } from './models/chat-response-chunk';
 import { Conversation } from './models/conversation';
 import { ChatService } from './services/chat.service';
+import { NotificationService } from './services/notification.service';
 import { FormsModule } from '@angular/forms';
 import { SseEvents } from './shared/events/sse-events';
 import { ConversationTitleComponent } from './components/conversation.title/conversation.title.component';
 import { MessageComponent } from './components/message/message.component';
+import { NotificationToastComponent } from './components/notification-toast/notification-toast.component';
 
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [FormsModule, ConversationTitleComponent, MessageComponent],
+  imports: [FormsModule, ConversationTitleComponent, MessageComponent, NotificationToastComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css'
 })
 export class AppComponent implements OnInit {
   private chatService = inject(ChatService);
+  private notificationService = inject(NotificationService);
   private ngZone = inject(NgZone);
 
   @ViewChild('messageList') private messageListRef!: ElementRef<HTMLElement>;
@@ -43,6 +46,7 @@ export class AppComponent implements OnInit {
   }
 
   async ngOnInit() {
+    try {
       const models = await this.chatService.getModels();
       this.models.set(models.map(model => model.name));
       if (models.length > 0) {
@@ -51,38 +55,55 @@ export class AppComponent implements OnInit {
 
       const conversations = await this.chatService.getConversations();
       this.conversations.set(conversations);
+    } catch (err) {
+      this.notificationService.error(this.toMessage(err, 'Failed to load initial data.'));
+    }
   }
 
   async selectConversation(conv: Conversation) {
-    const conversation = await this.chatService.getConversation(conv.id);
-    if (conversation.messages != null) {
-        this.messages.set(conversation.messages.map(msg => ({ role: msg.role, text: msg.content })));
+    try {
+      const conversation = await this.chatService.getConversation(conv.id);
+      if (conversation.messages != null) {
+          this.messages.set(conversation.messages.map(msg => ({ role: msg.role, text: msg.content })));
+      }
+      this.selectedConversation.set(conversation);
+    } catch (err) {
+      this.notificationService.error(this.toMessage(err, 'Failed to load the conversation.'));
     }
-    this.selectedConversation.set(conversation);
   }
 
   async renameConversation(conv: Conversation, newTitle: string) {
-    await this.chatService.renameConversation(conv.id, newTitle);
-    this.conversations.update(current =>
-      current.map(c => c.id === conv.id ? { ...c, title: newTitle } : c)
-    );
-    if (this.selectedConversation()?.id === conv.id) {
-      this.selectedConversation.update(c => c ? { ...c, title: newTitle } : c);
+    try {
+      await this.chatService.renameConversation(conv.id, newTitle);
+      this.conversations.update(current =>
+        current.map(c => c.id === conv.id ? { ...c, title: newTitle } : c)
+      );
+      if (this.selectedConversation()?.id === conv.id) {
+        this.selectedConversation.update(c => c ? { ...c, title: newTitle } : c);
+      }
+    } catch (err) {
+      this.notificationService.error(this.toMessage(err, 'Failed to rename the conversation.'));
     }
   }
 
-  deleteConversation(conv: Conversation) {
+  async deleteConversation(conv: Conversation) {
     this.conversations.update(current => current.filter(c => c.id !== conv.id));
     if (this.selectedConversation()?.id === conv.id) {
-      this.chatService.deleteConversation(conv.id);
+      this.chatService.deleteConversation(conv.id).catch(err => {
+        this.notificationService.error(this.toMessage(err, 'Failed to delete the conversation.'));
+      });
       this.selectedConversation.set(null);
     }
   }
 
   async newConversation() {
-    const conversation = await this.chatService.newConversation();
-    this.conversations.update(current => [conversation, ...current]);
-    await this.selectConversation(conversation);
+    try {
+      const conversation = await this.chatService.newConversation();
+      this.conversations.update(current => [conversation, ...current]);
+      await this.selectConversation(conversation);
+    } catch (err) {
+      this.notificationService.error(this.toMessage(err, 'Failed to create a new conversation.'));
+    }
   }
 
   async send() {
@@ -145,7 +166,7 @@ export class AppComponent implements OnInit {
 
             case SseEvents.Error:
               this.isStreaming.set(false);
-              console.error('Streaming error:', event);
+              this.notificationService.error(event.Message ?? 'An error occurred while generating the response.');
               break;
           }
         })
@@ -153,7 +174,11 @@ export class AppComponent implements OnInit {
 
     } catch (err) {
       this.isStreaming.set(false);
-      console.error('Streaming failed', err);
+      this.notificationService.error(this.toMessage(err, 'Failed to send the message.'));
     }
+  }
+
+  private toMessage(err: unknown, fallback: string): string {
+    return err instanceof Error && err.message ? err.message : fallback;
   }
 }

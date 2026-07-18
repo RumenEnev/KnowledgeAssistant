@@ -14,36 +14,55 @@ namespace KnowledgeAssistant.Api.Controllers
     {
         private readonly ConversationService _conversationService;
         private readonly IConversationRepository _conversationRepository;
+        private readonly ILogger<ChatController> _logger;
 
-        public ChatController(ConversationService conversationService, IConversationRepository conversationRepository)
+        public ChatController(ConversationService conversationService, IConversationRepository conversationRepository, ILogger<ChatController> logger)
         {
             _conversationService = conversationService;
             _conversationRepository = conversationRepository;
+            _logger = logger;
         }
 
         [HttpPost]
         public async Task Chat([FromBody] ChatRequestDto request, CancellationToken cancellationToken)
         {
-            var conversationId = await _conversationService.EnsureConversationAsync(request, cancellationToken);
             var writer = new SseWriter(Response);
-            await foreach (var token in _conversationService.SendMessageAsync(conversationId, request.Message, request.Model, cancellationToken))
+
+            try
             {
-                await writer.WriteAsync(SseEvents.Token, new { conversationId, content = token }, cancellationToken);
+                var conversationId = await _conversationService.EnsureConversationAsync(request, cancellationToken);
+                await foreach (var token in _conversationService.SendMessageAsync(conversationId, request.Message, request.Model, cancellationToken))
+                {
+                    await writer.WriteAsync(SseEvents.Token, new { conversationId, content = token }, cancellationToken);
+                }
+
+                var lastAssistantMessage = await _conversationRepository.GetLastAssistantMessageAsync(conversationId, cancellationToken);
+                var (promptTokens, responseTokens) = _conversationService.GetTokenConsumption();
+                await writer.WriteAsync(SseEvents.MessageCompleted, new ChatResponseChunkDto()
+                {
+                    ConversationId = conversationId,
+                    MessageId = lastAssistantMessage?.Id
+                }, cancellationToken);
+
+                await writer.WriteAsync(SseEvents.Done, new MessageDoneDto
+                {
+                    PromptTokens = promptTokens,
+                    ResponseTokens = responseTokens
+                }, cancellationToken);
             }
-
-            var lastAssistantMessage = await _conversationRepository.GetLastAssistantMessageAsync(conversationId, cancellationToken);
-            var (promptTokens, responseTokens) = _conversationService.GetTokenConsumption();
-            await writer.WriteAsync(SseEvents.MessageCompleted, new ChatResponseChunkDto()
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
-                ConversationId = conversationId,
-                MessageId = lastAssistantMessage?.Id
-            }, cancellationToken);
-
-            await writer.WriteAsync(SseEvents.Done, new MessageDoneDto
+                // Client disconnected or cancelled the request; nothing to notify.
+            }
+            catch (Exception ex)
             {
-                PromptTokens = promptTokens,
-                ResponseTokens = responseTokens
-            }, cancellationToken);
+                _logger.LogError(ex, "Unhandled exception while streaming chat response.");
+
+                await writer.WriteAsync(SseEvents.Error, new ErrorEventDto
+                {
+                    Message = "Something went wrong while processing your message. Please try again."
+                }, cancellationToken);
+            }
         }
     }
 }

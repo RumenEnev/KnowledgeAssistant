@@ -5,4 +5,5 @@ export interface ChatResponseChunk {
   messageId?: string;
   PromptTokens?: number;
   ResponseTokens?: number;
+  Message?: string; // populated on the 'error' event
 }

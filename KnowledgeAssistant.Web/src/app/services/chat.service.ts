@@ -12,18 +12,38 @@ export class ChatService {
 
   constructor() { }
 
+  /** Throws a human-readable error when a fetch response is not successful. */
+  private async assertOk(response: Response): Promise<void> {
+    if (response.ok) {
+      return;
+    }
+
+    let message = `Request failed with status ${response.status}.`;
+    try {
+      const body = await response.json();
+      message = body?.detail ?? body?.title ?? message;
+    } catch {
+      // response had no JSON body; keep the default message
+    }
+
+    throw new Error(message);
+  }
+
   async getModels(): Promise<ModelInfo[]> {
     const response = await fetch(`${this.baseUrl}/api/models`);
+    await this.assertOk(response);
     return response.json();
   }
 
   async getConversations(): Promise<Conversation[]> {
     const response = await fetch(`${this.baseUrl}/api/conversations`);
+    await this.assertOk(response);
     return response.json();
   }
 
   async getConversation(conversationId: string): Promise<Conversation> {
     const response = await fetch(`${this.baseUrl}/api/conversations/${conversationId}`);
+    await this.assertOk(response);
     return response.json();
   }
 
@@ -33,19 +53,22 @@ export class ChatService {
       body: null,
       headers: { 'Content-Type': 'application/json' }
     });
+    await this.assertOk(response);
     return response.json();
   }
   
   async renameConversation(conversationId: string, newTitle: string): Promise<void> {
-    await fetch(`${this.baseUrl}/api/conversations/${conversationId}/title?newTitle=${encodeURIComponent(newTitle)}`, {
+    const response = await fetch(`${this.baseUrl}/api/conversations/${conversationId}/title?newTitle=${encodeURIComponent(newTitle)}`, {
       method: 'PATCH'
     });
+    await this.assertOk(response);
   }
   
   async deleteConversation(conversationId: string): Promise<void> {
-    await fetch(`${this.baseUrl}/api/conversations/${conversationId}`, {
+    const response = await fetch(`${this.baseUrl}/api/conversations/${conversationId}`, {
       method: 'DELETE'
     });
+    await this.assertOk(response);
   }
 
   async streamChat(
@@ -58,6 +81,8 @@ export class ChatService {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(request)
   });
+
+  await this.assertOk(response);
 
   if (!response.body) {
     throw new Error('No response body received from server.');

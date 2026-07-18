@@ -196,48 +196,62 @@ namespace KnowledgeAssistant.Wpf.Services
                 var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
                 httpRequest.Content = new StringContent(JsonSerializer.Serialize(dto), Encoding.UTF8, "application/json");
-                using var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, _cancellationToken);
-                response.EnsureSuccessStatusCode();
 
-                await using var stream = await response.Content.ReadAsStreamAsync(_cancellationToken);
-                using var reader = new StreamReader(stream);
-                string? currentEvent = null;
-                Guid? conversationId = null;
-                while (!reader.EndOfStream && !_cancellationToken.IsCancellationRequested)
+                try
                 {
-                    var line = await reader.ReadLineAsync();
-                    if (string.IsNullOrWhiteSpace(line))
-                    {
-                        continue;
-                    }
+                    using var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, _cancellationToken);
+                    response.EnsureSuccessStatusCode();
 
-                    if (line.StartsWith("event: "))
+                    await using var stream = await response.Content.ReadAsStreamAsync(_cancellationToken);
+                    using var reader = new StreamReader(stream);
+                    string? currentEvent = null;
+                    Guid? conversationId = null;
+                    while (!reader.EndOfStream && !_cancellationToken.IsCancellationRequested)
                     {
-                        currentEvent = line["event: ".Length..];
-                        continue;
-                    }
-
-                    if (line.StartsWith("data: "))
-                    {
-                        var data = line["data: ".Length..];
-                        ChatResponseChunkDto? chunk;
-                        switch (currentEvent)
+                        var line = await reader.ReadLineAsync();
+                        if (string.IsNullOrWhiteSpace(line))
                         {
-                            case SseEvents.ConversationUpdated:
-                                chunk = JsonSerializer.Deserialize<ChatResponseChunkDto>(data, jsonOptions);
-                                conversationId = chunk?.ConversationId; 
-                                break;
-                            case SseEvents.Token:
-                                chunk = JsonSerializer.Deserialize<ChatResponseChunkDto>(data, jsonOptions);
-                                _messageService.Publish(new ChunkReceivedEvent(chunk?.Content ?? string.Empty)); 
-                                break;
-                            case SseEvents.Done: 
-                                var metadata = JsonSerializer.Deserialize<MessageDoneDto>(data, jsonOptions);
-                                _messageService.Publish(new ChatCompletedEvent(metadata?.PromptTokens ?? 0, metadata?.ResponseTokens ?? 0)); 
-                                break;
-                        //    case SseEvents.MessageCompleted: _messageService.Publish(new ChatCompletedEvent(conversationId)); break;
+                            continue;
+                        }
+
+                        if (line.StartsWith("event: "))
+                        {
+                            currentEvent = line["event: ".Length..];
+                            continue;
+                        }
+
+                        if (line.StartsWith("data: "))
+                        {
+                            var data = line["data: ".Length..];
+                            ChatResponseChunkDto? chunk;
+                            switch (currentEvent)
+                            {
+                                case SseEvents.ConversationUpdated:
+                                    chunk = JsonSerializer.Deserialize<ChatResponseChunkDto>(data, jsonOptions);
+                                    conversationId = chunk?.ConversationId; 
+                                    break;
+                                case SseEvents.Token:
+                                    chunk = JsonSerializer.Deserialize<ChatResponseChunkDto>(data, jsonOptions);
+                                    _messageService.Publish(new ChunkReceivedEvent(chunk?.Content ?? string.Empty)); 
+                                    break;
+                                case SseEvents.Done: 
+                                    var metadata = JsonSerializer.Deserialize<MessageDoneDto>(data, jsonOptions);
+                                    _messageService.Publish(new ChatCompletedEvent(metadata?.PromptTokens ?? 0, metadata?.ResponseTokens ?? 0)); 
+                                    break;
+                                case SseEvents.Error:
+                                    var error = JsonSerializer.Deserialize<ErrorEventDto>(data, jsonOptions);
+                                    _messageService.Publish(new UserMessage("Error", error?.Message ?? "An error occurred while generating the response.", MessageType.Error));
+                                    _messageService.Publish(new ChatCompletedEvent(0, 0));
+                                    break;
+                            //    case SseEvents.MessageCompleted: _messageService.Publish(new ChatCompletedEvent(conversationId)); break;
+                            }
                         }
                     }
+                }
+                catch (Exception ex)
+                {
+                    _messageService.Publish(new UserMessage("Error", $"Error sending message: {ex.Message}", MessageType.Error));
+                    _messageService.Publish(new ChatCompletedEvent(0, 0));
                 }
             }
         }
