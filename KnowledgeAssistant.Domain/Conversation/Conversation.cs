@@ -10,6 +10,8 @@
 
         public DateTime UpdatedAt { get; set; }
 
+        public Guid? SelectedModelId { get; set; }
+
         public IEnumerable<ChatMessage>? Messages { get; set; }
     }
 }

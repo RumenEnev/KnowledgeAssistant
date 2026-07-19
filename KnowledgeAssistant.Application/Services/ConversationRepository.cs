@@ -40,7 +40,7 @@ namespace KnowledgeAssistant.Application.Services
                     Title = conversation.Title,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow,
-                    SelectedModelId = Guid.Empty,
+                    SelectedModelId = conversation.SelectedModelId ?? Guid.Empty,
                 });
             }
         }
@@ -123,6 +123,19 @@ namespace KnowledgeAssistant.Application.Services
             var query = "SELECT * FROM ai_interactions.chat_messages WHERE conversation_id = @ConversationId AND role = 'assistant' ORDER BY created_at DESC LIMIT 1";
             var message = await connection.QuerySingleOrDefaultAsync<ChatMessage>(query, new { ConversationId = conversationId });
             return message;
+        }
+
+        public async Task UpdateSelectedModelAsync(Guid conversationId, Guid modelId, CancellationToken cancellationToken)
+        {
+            await using var connection = new NpgsqlConnection(_connectionString);
+            await connection.OpenAsync(cancellationToken);
+            var query = "UPDATE ai_interactions.conversations SET selected_model_id = @ModelId, updated_at = @UpdatedAt WHERE id = @Id";
+            await connection.ExecuteAsync(query, new
+            {
+                Id = conversationId,
+                ModelId = modelId,
+                UpdatedAt = DateTime.UtcNow
+            });
         }
     }
 }

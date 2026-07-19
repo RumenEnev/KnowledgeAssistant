@@ -12,6 +12,8 @@ namespace KnowledgeAssistant.Wpf.Models
 
         public DateTime UpdatedOn { get; set; }
 
+        public string? SelectedModel { get; set; }
+
         public IEnumerable<ChatMessage>? Messages { get; set; }
     }
 }

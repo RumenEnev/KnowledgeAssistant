@@ -18,6 +18,7 @@ builder.Services.AddScoped<ConversationService>();
 builder.Services.AddScoped<ModelCatalogService>();
 builder.Services.AddScoped<IConversationRepository, ConversationRepository>();
 builder.Services.AddScoped<IConfigurationRepository, ConfigurationRepository>();
+builder.Services.AddScoped<IModelRepository, ModelRepository>();
 
 builder.Services.AddHttpClient<IModelGateway, OllamaModelGateway>(client =>
 {

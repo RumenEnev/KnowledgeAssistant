@@ -62,6 +62,7 @@ namespace KnowledgeAssistant.Wpf.Services
                     Id = dto.Id,
                     Title = dto.Title,
                     CreatedOn = dto.CreatedAt,
+                    SelectedModel = dto.SelectedModel,
                     Messages = dto.Messages?.Select(m => new ChatMessage
                     {
                         Id = m.Id,

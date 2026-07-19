@@ -211,19 +211,27 @@ namespace KnowledgeAssistant.Wpf
         private void UpdateConversationMessagesReceived(MessageBase message)
         {
             Application.Current.Dispatcher.Invoke(ChatMessages.Clear);
-            if (message is UpdateConversationMessages request && request.Conversation?.Messages?.Any() == true)
+            if (message is UpdateConversationMessages request)
             {
                 Application.Current.Dispatcher.Invoke(() =>
                 {
-                    foreach (var msg in request.Conversation.Messages)
+                    if (!string.IsNullOrWhiteSpace(request.Conversation?.SelectedModel) && Models != null && Models.Contains(request.Conversation.SelectedModel))
                     {
-                        var ucMessage = new UCChatMessage(null)
+                        SelectedModel = request.Conversation.SelectedModel;
+                    }
+
+                    if (request.Conversation?.Messages?.Any() == true)
+                    {
+                        foreach (var msg in request.Conversation.Messages)
                         {
-                            Message = msg.Content,
-                            IsUserMessage = msg.Role == "user",
-                            MessageCompleted = true
-                        };
-                        ChatMessages.Add(ucMessage);
+                            var ucMessage = new UCChatMessage(null)
+                            {
+                                Message = msg.Content,
+                                IsUserMessage = msg.Role == "user",
+                                MessageCompleted = true
+                            };
+                            ChatMessages.Add(ucMessage);
+                        }
                     }
                 });
             }

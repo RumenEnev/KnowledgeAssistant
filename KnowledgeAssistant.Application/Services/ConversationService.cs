@@ -10,14 +10,16 @@ namespace KnowledgeAssistant.Application.Services
     {
         private readonly IModelGateway _modelGateway;
         private readonly IConversationRepository _repository;
+        private readonly IModelRepository _modelRepository;
 
         private int _promptTokensCount;
         private int _responseTokensCount;
 
-        public ConversationService(IModelGateway modelGateway, IConversationRepository repository)
+        public ConversationService(IModelGateway modelGateway, IConversationRepository repository, IModelRepository modelRepository)
         {
             _modelGateway = modelGateway;
             _repository = repository;
+            _modelRepository = modelRepository;
         }
 
         public async Task<string> GenerateTitleAsync(string userMessage, string model, CancellationToken cancellationToken)
@@ -53,7 +55,8 @@ namespace KnowledgeAssistant.Application.Services
                 Id = Guid.NewGuid(),
                 Title = await GenerateTitleAsync(request.Message, request.Model ?? "llama3", cancellationToken),
                 CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
+                UpdatedAt = DateTime.UtcNow,
+                SelectedModelId = await _modelRepository.GetOrCreateModelIdAsync(request.Model ?? "llama3", cancellationToken)
             };
 
             await _repository.CreateAsync(conversation, cancellationToken);
@@ -82,6 +85,9 @@ namespace KnowledgeAssistant.Application.Services
 
             var selectedModel = model ?? "llama3";
             var buffer = new StringBuilder();
+
+            var modelId = await _modelRepository.GetOrCreateModelIdAsync(selectedModel, cancellationToken);
+            await _repository.UpdateSelectedModelAsync(conversationId, modelId, cancellationToken);
 
             // 3. Stream tokens from model
             await foreach (var token in _modelGateway.StreamAsync(selectedModel, messages, cancellationToken))

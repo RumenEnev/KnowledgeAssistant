@@ -11,10 +11,12 @@ namespace KnowledgeAssistant.Api.Controllers
     public class ConversationsController : Controller
     {
         private readonly IConversationRepository _repository;
+        private readonly IModelRepository _modelRepository;
 
-        public ConversationsController(IConversationRepository repository)
+        public ConversationsController(IConversationRepository repository, IModelRepository modelRepository)
         {
             _repository = repository;
+            _modelRepository = modelRepository;
         }
 
         [HttpGet]
@@ -41,11 +43,18 @@ namespace KnowledgeAssistant.Api.Controllers
                 return NotFound();
             }
 
+            string? selectedModel = null;
+            if (conversation.SelectedModelId.HasValue && conversation.SelectedModelId != Guid.Empty)
+            {
+                selectedModel = await _modelRepository.GetModelNameAsync(conversation.SelectedModelId.Value, cancellationToken);
+            }
+
             var conversationDto = new ConversationDto
             {
                 Id = conversation.Id,
                 Title = conversation.Title,
                 CreatedAt = conversation.CreatedAt,
+                SelectedModel = selectedModel,
                 Messages = conversation.Messages?.Select(message => new MessageDto
                 {
                     Id = message.Id,

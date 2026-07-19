@@ -83,6 +83,10 @@ export class AppComponent implements OnInit {
           this.messages.set(conversation.messages.map(msg => ({ role: msg.role, text: msg.content })));
       }
       this.selectedConversation.set(conversation);
+
+      if (conversation.selectedModel && this.models().includes(conversation.selectedModel)) {
+        this.selectedModel.set(conversation.selectedModel);
+      }
     } catch (err) {
       this.notificationService.error(this.toMessage(err, 'Failed to load the conversation.'));
     }

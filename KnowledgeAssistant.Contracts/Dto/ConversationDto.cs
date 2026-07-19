@@ -8,6 +8,8 @@
 
         public DateTime CreatedAt { get; set; }
 
+        public string? SelectedModel { get; set; }
+
         public IEnumerable<MessageDto>? Messages { get; set; }
     }
 }
