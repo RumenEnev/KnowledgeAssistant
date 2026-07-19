@@ -43,6 +43,17 @@ export class AppComponent implements OnInit {
         }
       }, 0);
     });
+
+    effect(() => {
+      const model = this.selectedModel();
+      if (!model) {
+        return;
+      }
+
+      this.chatService.updateSelectedModel(model).catch(err => {
+        this.notificationService.error(this.toMessage(err, 'Failed to save the selected model.'));
+      });
+    });
   }
 
   async ngOnInit() {
@@ -51,6 +62,11 @@ export class AppComponent implements OnInit {
       this.models.set(models.map(model => model.name));
       if (models.length > 0) {
         this.selectedModel.set(models[0].name);
+      }
+
+      const savedModel = await this.chatService.getSelectedModel();
+      if (savedModel && this.models().includes(savedModel)) {
+        this.selectedModel.set(savedModel);
       }
 
       const conversations = await this.chatService.getConversations();

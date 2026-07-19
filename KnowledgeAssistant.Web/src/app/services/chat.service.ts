@@ -71,6 +71,22 @@ export class ChatService {
     await this.assertOk(response);
   }
 
+  async updateSelectedModel(selectedModel: string): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/api/configuration/selected-model`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ selectedModel })
+    });
+    await this.assertOk(response);
+  }
+
+  async getSelectedModel(): Promise<string | null> {
+    const response = await fetch(`${this.baseUrl}/api/configuration/selected-model`);
+    await this.assertOk(response);
+    const dto = await response.json();
+    return dto?.selectedModel ?? null;
+  }
+
   async streamChat(
   request: ChatRequest,
   onEvent: (event: ChatResponseChunk) => void

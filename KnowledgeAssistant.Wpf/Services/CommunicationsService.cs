@@ -35,6 +35,44 @@ namespace KnowledgeAssistant.Wpf.Services
             _messageService.Subscribe<UpdateConversationTitleRequest>(this, UpdateConversationTitleReceived);
             _messageService.SubscribeAsync<CreateConversationsRequest>(this, CreateConversationsReceived);
             _messageService.Subscribe<DeleteConversationRequest>(this, DeleteConversationReceived);
+            _messageService.Subscribe<UpdateSelectedModelRequest>(this, UpdateSelectedModelReceived);
+            _messageService.Subscribe<GetSelectedModelRequest>(this, GetSelectedModelReceived);
+        }
+
+        private async void GetSelectedModelReceived(MessageBase message)
+        {
+            if (message is GetSelectedModelRequest)
+            {
+                try
+                {
+                    var dto = await _httpClient.GetFromJsonAsync<SelectedModelDto>("api/configuration/selected-model", _cancellationToken);
+                    _messageService.Publish(new SelectedModelUpdatedEvent(dto?.SelectedModel));
+                }
+                catch (Exception ex)
+                {
+                    _messageService.Publish(new UserMessage("Error", $"Error fetching selected model: {ex.Message}", MessageType.Error));
+                }
+            }
+        }
+
+        private async void UpdateSelectedModelReceived(MessageBase message)
+        {
+            if (message is UpdateSelectedModelRequest request)
+            {
+                try
+                {
+                    var httpRequest = new HttpRequestMessage(HttpMethod.Put, "http://localhost:5299/api/configuration/selected-model");
+                    var dto = new UpdateSelectedModelDto { SelectedModel = request.SelectedModel };
+                    httpRequest.Content = new StringContent(JsonSerializer.Serialize(dto), Encoding.UTF8, "application/json");
+
+                    using var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, _cancellationToken);
+                    response.EnsureSuccessStatusCode();
+                }
+                catch (Exception ex)
+                {
+                    _messageService.Publish(new UserMessage("Error", $"Error saving selected model: {ex.Message}", MessageType.Error));
+                }
+            }
         }
 
         private async void DeleteConversationReceived(MessageBase message)

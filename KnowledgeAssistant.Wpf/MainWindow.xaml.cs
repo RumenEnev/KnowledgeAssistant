@@ -42,6 +42,7 @@ namespace KnowledgeAssistant.Wpf
             _messageService.Subscribe<ConversationCreatedEvent>(this, ConversationCreatedEventReceived);
             _messageService.Subscribe<ConversationUpdatedEvent>(this, ConversationUpdatedEventReceived);
             _messageService.Subscribe<ConversationDeletedEvent>(this, ConversationDeletedEventReceived);
+            _messageService.Subscribe<SelectedModelUpdatedEvent>(this, SelectedModelUpdatedEventReceived);
         }
 
         public string? SelectedModel
@@ -53,6 +54,11 @@ namespace KnowledgeAssistant.Wpf
                 {
                     _selectedModel = value;
                     OnPropertyChanged(nameof(SelectedModel));
+
+                    if (!string.IsNullOrWhiteSpace(value))
+                    {
+                        _messageService.Publish(new UpdateSelectedModelRequest(value));
+                    }
                 }
             }
         }
@@ -256,6 +262,21 @@ namespace KnowledgeAssistant.Wpf
             {
                 Models = new ObservableCollection<string>(availableModelsUpdatedEvent.Models);
                 SelectedModel = Models.FirstOrDefault();
+                _messageService.Publish(new GetSelectedModelRequest());
+            }
+        }
+
+        private void SelectedModelUpdatedEventReceived(MessageBase message)
+        {
+            if (message is SelectedModelUpdatedEvent request)
+            {
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    if (!string.IsNullOrWhiteSpace(request.SelectedModel) && Models != null && Models.Contains(request.SelectedModel))
+                    {
+                        SelectedModel = request.SelectedModel;
+                    }
+                });
             }
         }
 

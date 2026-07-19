@@ -72,8 +72,8 @@
             Grid.Column="1"
             Grid.ColumnSpan="2"
             Margin="2,2,2,2"
-            ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-            ItemsSource="{Binding ChatMessages}">
+            ItemsSource="{Binding ChatMessages}"
+            ScrollViewer.HorizontalScrollBarVisibility="Disabled">
             <ListView.ItemContainerStyle>
                 <Style TargetType="ListViewItem">
                     <Setter Property="Margin" Value="{Binding ChatMessageMargin}" />
