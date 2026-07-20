@@ -8,6 +8,8 @@ namespace KnowledgeAssistant.Application.Abstraction
         
         Task<string> GenerateAsync(string model, ChatMessage userMessage, ChatMessage systemMessage, CancellationToken cancellationToken);
     
-        (int, int) GetTokenConsumption(); 
+        (int, int) GetTokenConsumption();
+
+        Task<float[]> GetEmbeddingAsync(string model, string text, CancellationToken cancellationToken);
     }
 }

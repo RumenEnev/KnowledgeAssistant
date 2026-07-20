@@ -1,5 +1,4 @@
 ﻿using KnowledgeAssistant.Application.Abstraction;
-using KnowledgeAssistant.Contracts;
 using KnowledgeAssistant.Contracts.Dto;
 using KnowledgeAssistant.Domain.Conversation;
 using Microsoft.AspNetCore.Mvc;

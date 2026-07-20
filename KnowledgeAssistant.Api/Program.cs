@@ -1,7 +1,9 @@
+using Dapper;
 using KnowledgeAssistant.Api.ErrorHandling;
 using KnowledgeAssistant.Application.Abstraction;
 using KnowledgeAssistant.Application.Services;
 using KnowledgeAssistant.Infrastructure;
+using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,9 +18,11 @@ builder.Services.AddProblemDetails();
 
 builder.Services.AddScoped<ConversationService>();
 builder.Services.AddScoped<ModelCatalogService>();
+builder.Services.AddScoped<DocumentIngestionService>();
 builder.Services.AddScoped<IConversationRepository, ConversationRepository>();
 builder.Services.AddScoped<IConfigurationRepository, ConfigurationRepository>();
 builder.Services.AddScoped<IModelRepository, ModelRepository>();
+builder.Services.AddScoped<IDocumentRepository, DocumentRepository>();
 
 builder.Services.AddHttpClient<IModelGateway, OllamaModelGateway>(client =>
 {
@@ -29,6 +33,13 @@ builder.Services.AddHttpClient<IModelCatalogGateway, OllamaModelCatalogGateway>(
 {
     client.BaseAddress = new Uri("http://192.168.0.200:11434");
 });
+
+var dataSourceBuilder = new NpgsqlDataSourceBuilder(builder.Configuration.GetConnectionString("KnowledgeAssistant"));
+dataSourceBuilder.UseVector();
+var dataSource = dataSourceBuilder.Build();
+builder.Services.AddSingleton(dataSource);
+
+builder.Services.AddSingleton(dataSource);
 
 builder.Services.AddCors(options =>
 {
@@ -56,4 +67,5 @@ app.MapControllers();
 
 app.UseCors("AllowAngularDev");
 
+SqlMapper.AddTypeHandler(new VectorTypeHandler());
 app.Run();

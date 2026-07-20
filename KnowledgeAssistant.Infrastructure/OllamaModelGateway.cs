@@ -91,5 +91,23 @@ namespace KnowledgeAssistant.Infrastructure
                 }
             }
         }
+
+        public async Task<float[]> GetEmbeddingAsync(string model, string text, CancellationToken cancellationToken)
+        {
+            var request = new
+            {
+                model,
+                prompt = text
+            };
+
+            using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "/api/embeddings");
+            httpRequest.Content = new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json");
+            using var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            response.EnsureSuccessStatusCode();
+
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            var result = JsonSerializer.Deserialize<OllamaEmbeddingResponseDto>(content);
+            return result?.Embedding ?? Array.Empty<float>();
+        }
     }
 }
