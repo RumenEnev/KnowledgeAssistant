@@ -26,20 +26,25 @@
         <Grid
             Grid.Row="0"
             Grid.Column="0"
-            Margin="2,2,2,2">
+            Margin="2">
             <TextBlock
                 Margin="2"
                 HorizontalAlignment="Stretch"
+                VerticalAlignment="Center"
+                FontSize="16"
+                FontWeight="Bold"
                 Text="Conversations" />
             <Button
                 Width="20"
                 Height="20"
                 Margin="2"
-                Padding="0,0,0,5"
+                Padding="0,-5,0,0"
                 HorizontalAlignment="Right"
                 VerticalAlignment="Center"
                 Click="CreateConversation_Click"
                 Content="+"
+                FontSize="16"
+                FontWeight="Bold"
                 ToolTip="Add conversation" />
         </Grid>
 
@@ -47,7 +52,7 @@
             Grid.Row="1"
             Grid.RowSpan="3"
             Grid.Column="0"
-            Margin="2,2,2,2"
+            Margin="2"
             DisplayMemberPath="Title"
             ItemsSource="{Binding Conversations}"
             SelectedItem="{Binding SelectedConversation}">
@@ -63,7 +68,7 @@
             Grid.Row="0"
             Grid.Column="1"
             Grid.ColumnSpan="2"
-            Margin="2,2,2,2"
+            Margin="2"
             ItemsSource="{Binding Models}"
             SelectedItem="{Binding SelectedModel}" />
 
@@ -71,7 +76,7 @@
             Grid.Row="1"
             Grid.Column="1"
             Grid.ColumnSpan="2"
-            Margin="2,2,2,2"
+            Margin="2"
             ItemsSource="{Binding ChatMessages}"
             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
             <ListView.ItemContainerStyle>
