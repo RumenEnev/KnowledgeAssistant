@@ -4,6 +4,7 @@ using KnowledgeAssistant.Application.Abstraction;
 using KnowledgeAssistant.Application.Services;
 using KnowledgeAssistant.Infrastructure;
 using Npgsql;
+using System.Text.RegularExpressions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,14 +25,17 @@ builder.Services.AddScoped<IConfigurationRepository, ConfigurationRepository>();
 builder.Services.AddScoped<IModelRepository, ModelRepository>();
 builder.Services.AddScoped<IDocumentRepository, DocumentRepository>();
 
+var ollamaBaseUrl = builder.Configuration["Ollama:BaseUrl"]
+    ?? throw new InvalidOperationException("Configuration value 'Ollama:BaseUrl' is missing.");
+
 builder.Services.AddHttpClient<IModelGateway, OllamaModelGateway>(client =>
 {
-    client.BaseAddress = new Uri("http://192.168.0.200:11434");
+    client.BaseAddress = new Uri(ollamaBaseUrl);
 });
 
 builder.Services.AddHttpClient<IModelCatalogGateway, OllamaModelCatalogGateway>(client =>
 {
-    client.BaseAddress = new Uri("http://192.168.0.200:11434");
+    client.BaseAddress = new Uri(ollamaBaseUrl);
 });
 
 var dataSourceBuilder = new NpgsqlDataSourceBuilder(builder.Configuration.GetConnectionString("KnowledgeAssistant"));
@@ -41,11 +45,22 @@ builder.Services.AddSingleton(dataSource);
 
 builder.Services.AddSingleton(dataSource);
 
+var allowedOriginPatterns = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+    ?? throw new InvalidOperationException("Configuration value 'Cors:AllowedOrigins' is missing.");
+
+// Patterns support '*' wildcards (e.g. "http://*:4200") so the API can be called
+// from any host on the network, not just localhost.
+var allowedOriginRegexes = allowedOriginPatterns
+    .Select(pattern => new Regex(
+        "^" + Regex.Escape(pattern).Replace("\\*", ".*") + "$",
+        RegexOptions.IgnoreCase))
+    .ToArray();
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAngularDev", policy =>
     {
-        policy.WithOrigins("http://localhost:4200")
+        policy.SetIsOriginAllowed(origin => allowedOriginRegexes.Any(regex => regex.IsMatch(origin)))
               .AllowAnyMethod()
               .AllowAnyHeader();
     });
