@@ -2,6 +2,7 @@
 using KnowledgeAssistant.Wpf.Messages;
 using KnowledgeAssistant.Wpf.Messages.Conversations;
 using KnowledgeAssistant.Wpf.UserControls;
+using KnowledgeAssistant.Wpf.Windows;
 using MessageServices;
 using MessageServices.Enums;
 using MessageServices.Messages;
@@ -381,6 +382,20 @@ namespace KnowledgeAssistant.Wpf
                     _messageService.Publish(new DeleteConversationRequest(SelectedConversation.Id));
                 }
             }
+        }
+
+        private void Exit_Click(object sender, RoutedEventArgs e)
+        {
+            Application.Current.Shutdown();
+        }
+
+        private void ManageDocuments_Click(object sender, RoutedEventArgs e)
+        {
+            var window = new DocumentsWindow
+            {
+                Owner = this
+            };
+            window.ShowDialog();
         }
     }
 }

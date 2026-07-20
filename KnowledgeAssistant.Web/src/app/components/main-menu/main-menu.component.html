@@ -1,0 +1,24 @@
+<nav class="main-menu" (click)="$event.stopPropagation()">
+  <button
+    type="button"
+    class="hamburger-btn"
+    [class.active]="isOpen()"
+    aria-label="Main menu"
+    (click)="toggleMenu($event)">
+    <span class="hamburger-line"></span>
+    <span class="hamburger-line"></span>
+    <span class="hamburger-line"></span>
+  </button>
+
+  @if (isOpen()) {
+    <ul class="menu-dropdown">
+      <li class="menu-section-label">File</li>
+      <li class="menu-option" (click)="onNewConversation($event)">New Conversation</li>
+      <li class="menu-option" (click)="onExit($event)">Exit</li>
+      <li class="menu-divider"></li>
+      <li class="menu-section-label">Documents</li>
+      <li class="menu-option" (click)="onManageDocuments($event)">Manage Documents</li>
+    </ul>
+  }
+</nav>
+

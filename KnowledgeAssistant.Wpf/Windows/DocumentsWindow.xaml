@@ -1,0 +1,87 @@
+﻿<Window
+    x:Class="KnowledgeAssistant.Wpf.Windows.DocumentsWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="Manage Documents"
+    Width="600"
+    Height="600"
+    Loaded="DocumentsWindow_Loaded"
+    WindowStartupLocation="CenterOwner">
+
+    <Grid Margin="8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <ListView
+            Grid.Row="0"
+            Margin="0,0,0,8"
+            ItemsSource="{Binding Documents}">
+            <ListView.View>
+                <GridView>
+                    <GridViewColumn Width="200" DisplayMemberBinding="{Binding Title}" Header="Title" />
+                    <GridViewColumn Width="200" DisplayMemberBinding="{Binding TopicsDisplay}" Header="Topics" />
+                    <GridViewColumn Width="100">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <Button
+                                    Padding="8,2"
+                                    Click="DeleteDocument_Click"
+                                    Content="Delete"
+                                    Tag="{Binding}" />
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+                </GridView>
+            </ListView.View>
+        </ListView>
+
+        <GroupBox
+            Grid.Row="1"
+            Margin="0,0,0,8"
+            Header="Add Document">
+            <Grid Margin="4">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="100" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <TextBox
+                    Grid.Row="0"
+                    Margin="0,2"
+                    Text="{Binding NewTitle, UpdateSourceTrigger=PropertyChanged}"
+                    ToolTip="Title" />
+                <TextBox
+                    Grid.Row="1"
+                    Margin="0,2"
+                    Text="{Binding NewTopics, UpdateSourceTrigger=PropertyChanged}"
+                    ToolTip="Topics (comma separated)" />
+                <TextBox
+                    Grid.Row="2"
+                    Margin="0,2"
+                    AcceptsReturn="True"
+                    Text="{Binding NewText, UpdateSourceTrigger=PropertyChanged}"
+                    TextWrapping="Wrap"
+                    ToolTip="Text"
+                    VerticalScrollBarVisibility="Auto" />
+                <Button
+                    Grid.Row="3"
+                    Margin="0,4,0,0"
+                    HorizontalAlignment="Right"
+                    Click="AddDocument_Click"
+                    Content="Add Document"
+                    Padding="10,4" />
+            </Grid>
+        </GroupBox>
+
+        <StatusBar Grid.Row="2">
+            <StatusBarItem>
+                <TextBlock Text="{Binding StatusMessage}" />
+            </StatusBarItem>
+        </StatusBar>
+    </Grid>
+</Window>

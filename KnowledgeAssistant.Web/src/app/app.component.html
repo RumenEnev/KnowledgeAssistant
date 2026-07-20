@@ -2,6 +2,10 @@
 <div class="app-container">
   <div class="sidebar">
     <div class="conversations-header">
+      <app-main-menu
+        (newConversation)="newConversation()"
+        (manageDocuments)="openDocumentsManager()"
+        (exit)="exitApp()" />
       <h3>Conversations</h3>
       <button title="Add conversation" (click)="newConversation()">+</button>
     </div>
@@ -49,4 +53,8 @@
       <button (click)="send()" [disabled]="isStreaming()">Send</button>
     </div>
   </div>
-</div>  
+</div>
+
+@if (showDocumentsManager()) {
+  <app-documents-manager (closed)="closeDocumentsManager()" />
+}

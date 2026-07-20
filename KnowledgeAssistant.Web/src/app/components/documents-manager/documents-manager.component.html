@@ -1,0 +1,51 @@
+<div class="modal-overlay" (click)="close()">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Manage Documents</h3>
+      <button type="button" class="close-btn" (click)="close()">&times;</button>
+    </div>
+
+    <div class="modal-body">
+      <section class="documents-list-section">
+        @if (isLoading()) {
+          <p>Loading documents...</p>
+        } @else if (documents().length === 0) {
+          <p>No documents yet.</p>
+        } @else {
+          <ul class="documents-list">
+            @for (doc of documents(); track doc.id) {
+              <li class="document-item">
+                <div class="document-info">
+                  <span class="document-title">{{ doc.title }}</span>
+                  <span class="document-topics">{{ doc.topics.join(', ') }}</span>
+                </div>
+                <button type="button" class="delete-btn" (click)="deleteDocument(doc)">Delete</button>
+              </li>
+            }
+          </ul>
+        }
+      </section>
+
+      <section class="add-document-section">
+        <h4>Add Document</h4>
+        <input
+          type="text"
+          placeholder="Title"
+          [ngModel]="title()"
+          (ngModelChange)="title.set($event)" />
+        <input
+          type="text"
+          placeholder="Topics (comma separated)"
+          [ngModel]="topics()"
+          (ngModelChange)="topics.set($event)" />
+        <textarea
+          placeholder="Text"
+          [ngModel]="text()"
+          (ngModelChange)="text.set($event)"></textarea>
+        <button type="button" [disabled]="isSaving()" (click)="addDocument()">
+          {{ isSaving() ? 'Adding...' : 'Add Document' }}
+        </button>
+      </section>
+    </div>
+  </div>
+</div>

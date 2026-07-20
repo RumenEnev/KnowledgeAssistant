@@ -8,12 +8,14 @@ import { SseEvents } from './shared/events/sse-events';
 import { ConversationTitleComponent } from './components/conversation.title/conversation.title.component';
 import { MessageComponent } from './components/message/message.component';
 import { NotificationToastComponent } from './components/notification-toast/notification-toast.component';
+import { MainMenuComponent } from './components/main-menu/main-menu.component';
+import { DocumentsManagerComponent } from './components/documents-manager/documents-manager.component';
 
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [FormsModule, ConversationTitleComponent, MessageComponent, NotificationToastComponent],
+  imports: [FormsModule, ConversationTitleComponent, MessageComponent, NotificationToastComponent, MainMenuComponent, DocumentsManagerComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css'
 })
@@ -32,6 +34,7 @@ export class AppComponent implements OnInit {
   conversations = signal<Conversation[]>([]);
   selectedConversation = signal<Conversation | null>(null);
   tokenConsumption = signal<{ prompt: number; response: number; total: number } | null>(null);
+  showDocumentsManager = signal(false);
 
   constructor() {
     effect(() => {
@@ -125,6 +128,20 @@ export class AppComponent implements OnInit {
     this.selectedConversation.set(null);
     this.messages.set([]);
     this.tokenConsumption.set(null);
+  }
+
+  openDocumentsManager(): void {
+    this.showDocumentsManager.set(true);
+  }
+
+  closeDocumentsManager(): void {
+    this.showDocumentsManager.set(false);
+  }
+
+  exitApp(): void {
+    // Browsers only allow scripts to close windows/tabs they opened themselves;
+    // this is a best-effort "exit" for when the app runs as a standalone window/PWA.
+    window.close();
   }
 
   private async attachNewConversation(conversationId: string) {

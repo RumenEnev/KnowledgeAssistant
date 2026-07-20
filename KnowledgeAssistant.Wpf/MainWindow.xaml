@@ -11,6 +11,7 @@
 
     <Grid>
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="30" />
             <RowDefinition Height="*" />
             <RowDefinition Height="150" />
@@ -23,8 +24,22 @@
             <ColumnDefinition Width="217*" />
         </Grid.ColumnDefinitions>
 
-        <Grid
+        <Menu
             Grid.Row="0"
+            Grid.Column="0"
+            Grid.ColumnSpan="3">
+            <MenuItem Header="_File">
+                <MenuItem Click="CreateConversation_Click" Header="_New Conversation" />
+                <Separator />
+                <MenuItem Click="Exit_Click" Header="E_xit" />
+            </MenuItem>
+            <MenuItem Header="_Documents">
+                <MenuItem Click="ManageDocuments_Click" Header="_Manage Documents" />
+            </MenuItem>
+        </Menu>
+
+        <Grid
+            Grid.Row="1"
             Grid.Column="0"
             Margin="2">
             <TextBlock
@@ -49,7 +64,7 @@
         </Grid>
 
         <ListBox
-            Grid.Row="1"
+            Grid.Row="2"
             Grid.RowSpan="3"
             Grid.Column="0"
             Margin="2"
@@ -65,7 +80,7 @@
         </ListBox>
 
         <ComboBox
-            Grid.Row="0"
+            Grid.Row="1"
             Grid.Column="1"
             Grid.ColumnSpan="2"
             Margin="2"
@@ -73,7 +88,7 @@
             SelectedItem="{Binding SelectedModel}" />
 
         <ListView
-            Grid.Row="1"
+            Grid.Row="2"
             Grid.Column="1"
             Grid.ColumnSpan="2"
             Margin="2"
@@ -90,14 +105,14 @@
         </ListView>
 
         <TextBox
-            Grid.Row="2"
+            Grid.Row="3"
             Grid.Column="1"
             Grid.ColumnSpan="2"
             Margin="2,2,2,2"
             Text="{Binding UserPrompt, UpdateSourceTrigger=PropertyChanged}" />
 
         <Button
-            Grid.Row="3"
+            Grid.Row="4"
             Grid.Column="1"
             Grid.ColumnSpan="2"
             Margin="2,2,2,2"
@@ -105,7 +120,7 @@
             Content="Send" />
 
         <StatusBar
-            Grid.Row="4"
+            Grid.Row="5"
             Grid.Column="0"
             Grid.ColumnSpan="3"
             Margin="2">
