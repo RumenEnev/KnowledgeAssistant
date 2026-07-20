@@ -71,7 +71,7 @@ namespace KnowledgeAssistant.Application.Services
             var conversation = await connection.QuerySingleOrDefaultAsync<Conversation>(query, new { Id = id });
             if (conversation != null)
             {
-                var messagesQuery = "SELECT * FROM ai_interactions.chat_messages WHERE conversation_id = @ConversationId";
+                var messagesQuery = "SELECT * FROM ai_interactions.chat_messages WHERE conversation_id = @ConversationId ORDER BY created_at";
                 var messages = await connection.QueryAsync<ChatMessage>(messagesQuery, new { ConversationId = id });
                 conversation.Messages = messages;
             }
