@@ -24,19 +24,59 @@ namespace KnowledgeAssistant.Application.Services
 
         public async Task<string> GenerateTitleAsync(string userMessage, string model, CancellationToken cancellationToken)
         {
-            return await _modelGateway.GenerateAsync(
-                model: model,
-                systemMessage: new ChatMessage
-                {
-                    Role = "system",
-                    Content = "Generate a short, meaningful conversation title (max 6 words)"
-                },
-                userMessage: new ChatMessage
-                {
-                    Role = "user",
-                    Content = userMessage
-                },
-                cancellationToken: cancellationToken);
+            const int maxTitleWords = 6;
+            const int maxTitleLength = 60;
+
+            string? generated = null;
+            try
+            {
+                generated = await _modelGateway.GenerateAsync(
+                    model: model,
+                    systemMessage: new ChatMessage
+                    {
+                        Role = "system",
+                        Content = "You generate short conversation titles. Reply with ONLY the title text: " +
+                                   $"at most {maxTitleWords} words, no quotes, no punctuation at the end, no explanations. " +
+                                   "Do not answer the user's message."
+                    },
+                    userMessage: new ChatMessage
+                    {
+                        Role = "user",
+                        Content = userMessage
+                    },
+                    cancellationToken: cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch
+            {
+                // Fall through to the fallback title below.
+            }
+
+            var title = SanitizeTitle(generated, maxTitleWords, maxTitleLength);
+            return !string.IsNullOrWhiteSpace(title) ? title : SanitizeTitle(userMessage, maxTitleWords, maxTitleLength);
+        }
+
+        private static string SanitizeTitle(string? text, int maxWords, int maxLength)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return string.Empty;
+            }
+
+            var firstLine = text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .FirstOrDefault() ?? string.Empty;
+
+            var trimmed = firstLine.Trim().Trim('"', '\'', '.', ' ');
+
+            var words = trimmed.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var title = words.Length > maxWords
+                ? string.Join(' ', words.Take(maxWords))
+                : string.Join(' ', words);
+
+            return title.Length > maxLength ? title[..maxLength].TrimEnd() : title;
         }
 
         public async Task<Guid> EnsureConversationAsync(ChatRequestDto request, CancellationToken cancellationToken)

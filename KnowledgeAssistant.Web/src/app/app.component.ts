@@ -109,20 +109,31 @@ export class AppComponent implements OnInit {
   async deleteConversation(conv: Conversation) {
     this.conversations.update(current => current.filter(c => c.id !== conv.id));
     if (this.selectedConversation()?.id === conv.id) {
-      this.chatService.deleteConversation(conv.id).catch(err => {
-        this.notificationService.error(this.toMessage(err, 'Failed to delete the conversation.'));
-      });
       this.selectedConversation.set(null);
+    }
+
+    try {
+      await this.chatService.deleteConversation(conv.id);
+    } catch (err) {
+      this.notificationService.error(this.toMessage(err, 'Failed to delete the conversation.'));
     }
   }
 
-  async newConversation() {
+  newConversation() {
+    // Don't create a conversation on the backend yet — the backend creates the
+    // real conversation (with a generated title) once the first message is sent.
+    this.selectedConversation.set(null);
+    this.messages.set([]);
+    this.tokenConsumption.set(null);
+  }
+
+  private async attachNewConversation(conversationId: string) {
     try {
-      const conversation = await this.chatService.newConversation();
+      const conversation = await this.chatService.getConversation(conversationId);
       this.conversations.update(current => [conversation, ...current]);
-      await this.selectConversation(conversation);
+      this.selectedConversation.set(conversation);
     } catch (err) {
-      this.notificationService.error(this.toMessage(err, 'Failed to create a new conversation.'));
+      this.notificationService.error(this.toMessage(err, 'Failed to load the new conversation.'));
     }
   }
 
@@ -132,6 +143,10 @@ export class AppComponent implements OnInit {
     if (!text || this.isStreaming()) {
       return;
     }
+
+    const isNewConversation = !this.selectedConversation();
+    const conversationId = this.selectedConversation()?.id;
+    let newConversationAttached = false;
 
     // 1. Add user message
     this.messages.update(current => [
@@ -152,6 +167,7 @@ export class AppComponent implements OnInit {
     try {
       await this.chatService.streamChat(
         {
+          conversationId,
           message: text,
           model: this.selectedModel()
         },
@@ -161,6 +177,11 @@ export class AppComponent implements OnInit {
           switch (event.Type) {
 
             case SseEvents.Token:
+              if (isNewConversation && !newConversationAttached && event.conversationId) {
+                newConversationAttached = true;
+                this.attachNewConversation(event.conversationId);
+              }
+
               this.messages.update(current => {
                 const updated = [...current];
                 const lastIndex = updated.length - 1;
