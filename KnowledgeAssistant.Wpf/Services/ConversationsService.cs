@@ -10,7 +10,10 @@ namespace KnowledgeAssistant.Wpf.Services
 {
     public class ConversationsService : IMessageServiceSubscriber
     {
+        private const string DefaultConversationTitle = "New Conversation";
+
         private readonly MessageService _messageService;
+        private readonly HashSet<Guid> _titleGenerationRequested = new();
         private ConversationCompositionModel? _conversation;
 
         public ConversationsService(MessageService messageService)
@@ -45,6 +48,7 @@ namespace KnowledgeAssistant.Wpf.Services
         {
             if (message is ConversationDeletedEvent @event)
             {
+                _titleGenerationRequested.Remove(@event.ConversationId);
                 if (_conversation != null && _conversation.Id == @event.ConversationId)
                 {
                     _conversation = null;
@@ -105,7 +109,19 @@ namespace KnowledgeAssistant.Wpf.Services
                     await CreateNewConversationAsync();
                     _messageService.Publish(new SendUserPromptRequest(request.Prompt, request.Model, null));
                 }
+
+                if (_conversation != null && ShouldGenerateTitle(_conversation))
+                {
+                    _titleGenerationRequested.Add(_conversation.Id);
+                    _messageService.Publish(new GenerateTitleRequest(request.Prompt, request.Model, _conversation.Id));
+                }
             }
+        }
+
+        private bool ShouldGenerateTitle(ConversationCompositionModel conversation)
+        {
+            return !_titleGenerationRequested.Contains(conversation.Id) &&
+                (string.IsNullOrWhiteSpace(conversation.Title) || conversation.Title == DefaultConversationTitle);
         }
 
         private async Task CreateNewConversationAsync()

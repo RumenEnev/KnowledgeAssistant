@@ -289,7 +289,7 @@ namespace KnowledgeAssistant.Wpf.Services
                 var dto = new ChatRequestDto
                 {
                     Message = request.UserPrompt,
-                    Model = request.Model, //  "mistral-nemo:12b-instruct-2407-q5_K_M"
+                    Model = request.Model, 
                 };
 
                 httpRequest.Content = new StringContent(JsonSerializer.Serialize(dto), Encoding.UTF8, "application/json");

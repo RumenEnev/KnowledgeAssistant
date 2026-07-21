@@ -40,7 +40,7 @@ namespace KnowledgeAssistant.Infrastructure
             using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "/api/chat");
             httpRequest.Content = new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json");
             using var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-            response.EnsureSuccessStatusCode();
+            await EnsureSuccessAsync(response, model, cancellationToken);
 
             var content = await response.Content.ReadAsStringAsync(cancellationToken);
             var result = JsonSerializer.Deserialize<OllamaChatResponseDto>(content);
@@ -65,7 +65,7 @@ namespace KnowledgeAssistant.Infrastructure
             using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "/api/chat");
             httpRequest.Content = new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json");
             using var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-            response.EnsureSuccessStatusCode();
+            await EnsureSuccessAsync(response, model, cancellationToken);
 
             await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
             using var reader = new StreamReader(stream);
@@ -103,11 +103,41 @@ namespace KnowledgeAssistant.Infrastructure
             using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "/api/embeddings");
             httpRequest.Content = new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json");
             using var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-            response.EnsureSuccessStatusCode();
+            await EnsureSuccessAsync(response, model, cancellationToken);
 
             var content = await response.Content.ReadAsStringAsync(cancellationToken);
             var result = JsonSerializer.Deserialize<OllamaEmbeddingResponseDto>(content);
             return result?.Embedding ?? Array.Empty<float>();
+        }
+
+        /// <summary>
+        /// Throws with the actual Ollama error body (e.g. "model 'llama3' not found") instead of the
+        /// generic HttpRequestException message from EnsureSuccessStatusCode, to make failures diagnosable.
+        /// </summary>
+        private static async Task EnsureSuccessAsync(HttpResponseMessage response, string model, CancellationToken cancellationToken)
+        {
+            if (response.IsSuccessStatusCode)
+            {
+                return;
+            }
+
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            var reason = body;
+            try
+            {
+                var error = JsonSerializer.Deserialize<OllamaErrorResponseDto>(body);
+                if (!string.IsNullOrWhiteSpace(error?.Error))
+                {
+                    reason = error.Error;
+                }
+            }
+            catch (JsonException)
+            {
+                // Body wasn't the expected JSON shape; fall back to the raw text.
+            }
+
+            throw new InvalidOperationException(
+                $"Ollama request for model '{model}' failed with status {(int)response.StatusCode} ({response.StatusCode}): {reason}");
         }
     }
 }

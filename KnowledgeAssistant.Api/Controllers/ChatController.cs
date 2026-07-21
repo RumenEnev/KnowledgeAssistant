@@ -28,6 +28,15 @@ namespace KnowledgeAssistant.Api.Controllers
         {
             var writer = new SseWriter(Response);
 
+            if (string.IsNullOrWhiteSpace(request.Model))
+            {
+                await writer.WriteAsync(SseEvents.Error, new ErrorEventDto
+                {
+                    Message = "Please select a model before sending a message."
+                }, cancellationToken);
+                return;
+            }
+
             try
             {
                 var conversationId = await _conversationService.EnsureConversationAsync(request, cancellationToken);
@@ -63,6 +72,19 @@ namespace KnowledgeAssistant.Api.Controllers
                     Message = "Something went wrong while processing your message. Please try again."
                 }, cancellationToken);
             }
+        }
+
+        [HttpPost("title")]
+        public async Task<IActionResult> GenerateTitle([FromBody] ChatRequestDto request, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace(request.Message))
+                return BadRequest("Message is required.");
+
+            if (string.IsNullOrWhiteSpace(request.Model))
+                return BadRequest("Model is required.");
+
+            var title = await _conversationService.GenerateTitleAsync(request.Message, request.Model, cancellationToken);
+            return Ok(new ConversationDto { Title = title });
         }
     }
 }

@@ -308,7 +308,7 @@ namespace KnowledgeAssistant.Wpf
                     if (conversationToUpdate != null)
                     {
                         conversationToUpdate.Title = request.Title;
-                        OnPropertyChanged(nameof(Conversations));
+                        Conversations = new ObservableCollection<Conversation>(Conversations);
                         SelectedConversation = conversationToUpdate;
                     }
                     else
