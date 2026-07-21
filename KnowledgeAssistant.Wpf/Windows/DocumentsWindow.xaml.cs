@@ -18,6 +18,9 @@ namespace KnowledgeAssistant.Wpf.Windows
         private string? _statusMessage;
         private int? _editingDocumentId;
         private bool _isSaving;
+        private int _chunkTargetSizeChars = 1000;
+        private int _chunkOverlapChars = 150;
+        private bool _isSavingChunkingSettings;
 
         public DocumentsWindow(MessageService messageService)
         {
@@ -30,6 +33,7 @@ namespace KnowledgeAssistant.Wpf.Windows
             _messageService.Subscribe<DocumentAddedEvent>(this, DocumentAddedEventReceived);
             _messageService.Subscribe<DocumentUpdatedEvent>(this, DocumentUpdatedEventReceived);
             _messageService.Subscribe<DocumentDeletedEvent>(this, DocumentDeletedEventReceived);
+            _messageService.Subscribe<ChunkingSettingsUpdatedEvent>(this, ChunkingSettingsUpdatedEventReceived);
             _messageService.Subscribe<UserMessage>(this, UserMessageReceived);
         }
 
@@ -97,6 +101,34 @@ namespace KnowledgeAssistant.Wpf.Windows
 
         public Visibility CancelButtonVisibility => EditingDocumentId is null ? Visibility.Collapsed : Visibility.Visible;
 
+        public int ChunkTargetSizeChars
+        {
+            get => _chunkTargetSizeChars;
+            set { _chunkTargetSizeChars = value; OnPropertyChanged(nameof(ChunkTargetSizeChars)); }
+        }
+
+        public int ChunkOverlapChars
+        {
+            get => _chunkOverlapChars;
+            set { _chunkOverlapChars = value; OnPropertyChanged(nameof(ChunkOverlapChars)); }
+        }
+
+        public bool IsSavingChunkingSettings
+        {
+            get => _isSavingChunkingSettings;
+            set
+            {
+                _isSavingChunkingSettings = value;
+                OnPropertyChanged(nameof(IsSavingChunkingSettings));
+                OnPropertyChanged(nameof(SaveChunkingSettingsButtonText));
+                OnPropertyChanged(nameof(CanSaveChunkingSettings));
+            }
+        }
+
+        public bool CanSaveChunkingSettings => !IsSavingChunkingSettings;
+
+        public string SaveChunkingSettingsButtonText => IsSavingChunkingSettings ? "Saving..." : "Save Settings";
+
         public event PropertyChangedEventHandler? PropertyChanged;
 
         protected void OnPropertyChanged(string propertyName)
@@ -108,6 +140,7 @@ namespace KnowledgeAssistant.Wpf.Windows
         {
             _messageService.Publish(new GetDocumentsRequest());
             _messageService.Publish(new GetTopicsRequest());
+            _messageService.Publish(new GetChunkingSettingsRequest());
         }
 
         private void DocumentsUpdatedEventReceived(MessageBase message)
@@ -173,6 +206,23 @@ namespace KnowledgeAssistant.Wpf.Windows
             if (message is UserMessage { Title: "Add Document Failed" or "Update Document Failed" })
             {
                 Application.Current.Dispatcher.Invoke(() => IsSaving = false);
+            }
+            else if (message is UserMessage { Title: "Save Chunking Settings Failed" })
+            {
+                Application.Current.Dispatcher.Invoke(() => IsSavingChunkingSettings = false);
+            }
+        }
+
+        private void ChunkingSettingsUpdatedEventReceived(MessageBase message)
+        {
+            if (message is ChunkingSettingsUpdatedEvent @event)
+            {
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    ChunkTargetSizeChars = @event.ChunkTargetSizeChars;
+                    ChunkOverlapChars = @event.ChunkOverlapChars;
+                    IsSavingChunkingSettings = false;
+                });
             }
         }
 
@@ -303,6 +353,29 @@ namespace KnowledgeAssistant.Wpf.Windows
             }
 
             _messageService.Publish(new DeleteDocumentRequest(document.Id));
+        }
+
+        private void SaveChunkingSettings_Click(object sender, RoutedEventArgs e)
+        {
+            if (IsSavingChunkingSettings)
+            {
+                return;
+            }
+
+            if (ChunkTargetSizeChars <= 0)
+            {
+                MessageBox.Show("Chunk size must be greater than zero.", "Chunking Settings", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (ChunkOverlapChars < 0 || ChunkOverlapChars >= ChunkTargetSizeChars)
+            {
+                MessageBox.Show("Chunk overlap must be zero or greater, and smaller than the chunk size.", "Chunking Settings", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            IsSavingChunkingSettings = true;
+            _messageService.Publish(new UpdateChunkingSettingsRequest(ChunkTargetSizeChars, ChunkOverlapChars));
         }
     }
 }

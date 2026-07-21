@@ -4,13 +4,14 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="Manage Documents"
     Width="600"
-    Height="680"
+    Height="760"
     Loaded="DocumentsWindow_Loaded"
     WindowStartupLocation="CenterOwner">
 
     <Grid Margin="8">
         <Grid.RowDefinitions>
             <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
@@ -143,7 +144,41 @@
             </Grid>
         </GroupBox>
 
-        <StatusBar Grid.Row="2">
+        <GroupBox
+            Grid.Row="2"
+            Margin="0,0,0,8"
+            Header="Chunking Settings">
+            <StackPanel Margin="4">
+                <TextBlock
+                    Margin="0,0,0,6"
+                    Text="Controls how document text is split before embedding. Chunk overlap must be smaller than chunk size. Changes apply the next time a document is added or updated."
+                    TextWrapping="Wrap" />
+                <StackPanel Orientation="Horizontal">
+                    <StackPanel Margin="0,0,16,0">
+                        <TextBlock FontWeight="Bold" Text="Chunk size (characters)" />
+                        <TextBox
+                            Width="140"
+                            Text="{Binding ChunkTargetSizeChars, UpdateSourceTrigger=PropertyChanged}"
+                            ToolTip="Target size, in characters, for each chunk before embedding." />
+                    </StackPanel>
+                    <StackPanel Margin="0,0,16,0">
+                        <TextBlock FontWeight="Bold" Text="Chunk overlap (characters)" />
+                        <TextBox
+                            Width="140"
+                            Text="{Binding ChunkOverlapChars, UpdateSourceTrigger=PropertyChanged}"
+                            ToolTip="Number of trailing characters carried over into the next chunk for context continuity." />
+                    </StackPanel>
+                    <Button
+                        Padding="10,4"
+                        VerticalAlignment="Bottom"
+                        Click="SaveChunkingSettings_Click"
+                        Content="{Binding SaveChunkingSettingsButtonText}"
+                        IsEnabled="{Binding CanSaveChunkingSettings}" />
+                </StackPanel>
+            </StackPanel>
+        </GroupBox>
+
+        <StatusBar Grid.Row="3">
             <StatusBarItem>
                 <TextBlock Text="{Binding StatusMessage}" />
             </StatusBarItem>

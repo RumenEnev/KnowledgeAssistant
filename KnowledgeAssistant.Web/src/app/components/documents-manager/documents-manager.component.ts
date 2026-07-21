@@ -1,6 +1,7 @@
 import { Component, EventEmitter, inject, OnInit, Output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DocumentsService } from '../../services/documents.service';
+import { ChatService } from '../../services/chat.service';
 import { NotificationService } from '../../services/notification.service';
 import { DocumentItem, Topic } from '../../models/document';
 
@@ -15,6 +16,7 @@ export class DocumentsManagerComponent implements OnInit {
   @Output() closed = new EventEmitter<void>();
 
   private documentsService = inject(DocumentsService);
+  private chatService = inject(ChatService);
   private notificationService = inject(NotificationService);
 
   documents = signal<DocumentItem[]>([]);
@@ -29,10 +31,14 @@ export class DocumentsManagerComponent implements OnInit {
 
   editingDocumentId = signal<number | null>(null);
 
+  chunkTargetSizeChars = signal(1000);
+  chunkOverlapChars = signal(150);
+  isSavingChunkingSettings = signal(false);
+
   private overlayMouseDownOnBackdrop = false;
 
   async ngOnInit() {
-    await Promise.all([this.loadDocuments(), this.loadTopics()]);
+    await Promise.all([this.loadDocuments(), this.loadTopics(), this.loadChunkingSettings()]);
   }
 
   async loadDocuments() {
@@ -53,6 +59,41 @@ export class DocumentsManagerComponent implements OnInit {
       this.availableTopics.set(topics);
     } catch (err) {
       this.notificationService.error(this.toMessage(err, 'Failed to load topics.'));
+    }
+  }
+
+  async loadChunkingSettings() {
+    try {
+      const settings = await this.chatService.getChunkingSettings();
+      this.chunkTargetSizeChars.set(settings.chunkTargetSizeChars);
+      this.chunkOverlapChars.set(settings.chunkOverlapChars);
+    } catch (err) {
+      this.notificationService.error(this.toMessage(err, 'Failed to load chunking settings.'));
+    }
+  }
+
+  async saveChunkingSettings() {
+    const targetSize = this.chunkTargetSizeChars();
+    const overlap = this.chunkOverlapChars();
+
+    if (targetSize <= 0) {
+      this.notificationService.error('Chunk size must be greater than zero.');
+      return;
+    }
+
+    if (overlap < 0 || overlap >= targetSize) {
+      this.notificationService.error('Chunk overlap must be zero or greater, and smaller than the chunk size.');
+      return;
+    }
+
+    this.isSavingChunkingSettings.set(true);
+    try {
+      await this.chatService.updateChunkingSettings(targetSize, overlap);
+      this.notificationService.success('Chunking settings saved. New/updated documents will use them.');
+    } catch (err) {
+      this.notificationService.error(this.toMessage(err, 'Failed to save chunking settings.'));
+    } finally {
+      this.isSavingChunkingSettings.set(false);
     }
   }
 

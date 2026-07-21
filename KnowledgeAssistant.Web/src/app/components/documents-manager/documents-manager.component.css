@@ -113,6 +113,60 @@
   padding-top: 12px;
 }
 
+.chunking-settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid #eaeaea;
+  padding-top: 12px;
+}
+
+.chunking-settings-section h4 {
+  margin: 0;
+}
+
+.chunking-settings-hint {
+  margin: 0;
+  font-size: 12px;
+  color: #777;
+}
+
+.chunking-settings-fields {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.chunking-settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.chunking-settings-field input {
+  width: 140px;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.chunking-settings-fields button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  background: #2a2a2a;
+  color: #fff;
+  cursor: pointer;
+}
+
+.chunking-settings-fields button:disabled {
+  background: #999;
+  cursor: not-allowed;
+}
+
 .add-document-section h4 {
   margin: 0;
 }

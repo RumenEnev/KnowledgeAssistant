@@ -82,6 +82,37 @@
           </button>
         </div>
       </section>
+
+      <section class="chunking-settings-section">
+        <h4>Chunking Settings</h4>
+        <p class="chunking-settings-hint">
+          Controls how document text is split before embedding. Chunk overlap must be smaller than chunk size.
+          Changes apply the next time a document is added or updated.
+        </p>
+        <div class="chunking-settings-fields">
+          <div class="chunking-settings-field">
+            <label class="field-label" for="chunk-size">Chunk size (characters)</label>
+            <input
+              id="chunk-size"
+              type="number"
+              min="1"
+              [ngModel]="chunkTargetSizeChars()"
+              (ngModelChange)="chunkTargetSizeChars.set($event)" />
+          </div>
+          <div class="chunking-settings-field">
+            <label class="field-label" for="chunk-overlap">Chunk overlap (characters)</label>
+            <input
+              id="chunk-overlap"
+              type="number"
+              min="0"
+              [ngModel]="chunkOverlapChars()"
+              (ngModelChange)="chunkOverlapChars.set($event)" />
+          </div>
+          <button type="button" [disabled]="isSavingChunkingSettings()" (click)="saveChunkingSettings()">
+            {{ isSavingChunkingSettings() ? 'Saving...' : 'Save Settings' }}
+          </button>
+        </div>
+      </section>
     </div>
   </div>
 </div>

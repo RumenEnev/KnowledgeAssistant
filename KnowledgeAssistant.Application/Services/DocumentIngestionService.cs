@@ -7,21 +7,19 @@ namespace KnowledgeAssistant.Application.Services
     {
         private readonly IModelGateway _modelGateway;
         private readonly IDocumentRepository _documentRepository;
+        private readonly IConfigurationRepository _configurationRepository;
 
         private const string EmbeddingModel = "nomic-embed-text";
 
-        // Chunking parameters — tune once tested against real documents.
-        private const int TargetChunkSizeChars = 1000;
-        private const int OverlapChars = 150;
-
-        public DocumentIngestionService(IModelGateway modelGateway, IDocumentRepository documentRepository)
+        public DocumentIngestionService(
+            IModelGateway modelGateway, IDocumentRepository documentRepository, IConfigurationRepository configurationRepository)
         {
             _modelGateway = modelGateway;
             _documentRepository = documentRepository;
+            _configurationRepository = configurationRepository;
         }
 
-        public async Task<int> IngestDocumentAsync(
-            string title, string originalText, IReadOnlyList<string> topicNames, CancellationToken cancellationToken)
+        public async Task<int> IngestDocumentAsync(string title, string originalText, IReadOnlyList<string> topicNames, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(originalText))
                 throw new ArgumentException("Document text cannot be empty.", nameof(originalText));
@@ -78,7 +76,8 @@ namespace KnowledgeAssistant.Application.Services
         {
             await _documentRepository.DeleteChunksByDocumentAsync(documentId, cancellationToken);
 
-            var chunks = ChunkByParagraphWithOverlap(originalText);
+            var (targetChunkSizeChars, overlapChars) = await _configurationRepository.GetChunkingSettingsAsync(cancellationToken);
+            var chunks = ChunkByParagraphWithOverlap(originalText, targetChunkSizeChars, overlapChars);
 
             for (int i = 0; i < chunks.Count; i++)
             {
@@ -87,7 +86,7 @@ namespace KnowledgeAssistant.Application.Services
             }
         }
 
-        private static List<string> ChunkByParagraphWithOverlap(string text)
+        private static List<string> ChunkByParagraphWithOverlap(string text, int targetChunkSizeChars, int overlapChars)
         {
             var paragraphs = text
                 .Replace("\r\n", "\n")
@@ -101,13 +100,13 @@ namespace KnowledgeAssistant.Application.Services
 
             foreach (var paragraph in paragraphs)
             {
-                if (currentChunk.Length > 0 && currentChunk.Length + paragraph.Length > TargetChunkSizeChars)
+                if (currentChunk.Length > 0 && currentChunk.Length + paragraph.Length > targetChunkSizeChars)
                 {
                     string finishedChunk = currentChunk.ToString();
                     chunks.Add(finishedChunk.Trim());
 
-                    string overlapText = finishedChunk.Length > OverlapChars
-                        ? finishedChunk[^OverlapChars..]
+                    string overlapText = finishedChunk.Length > overlapChars
+                        ? finishedChunk[^overlapChars..]
                         : finishedChunk;
 
                     currentChunk.Clear();

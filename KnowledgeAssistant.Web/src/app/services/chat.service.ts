@@ -87,6 +87,21 @@ export class ChatService {
     return dto?.selectedModel ?? null;
   }
 
+  async getChunkingSettings(): Promise<{ chunkTargetSizeChars: number; chunkOverlapChars: number }> {
+    const response = await fetch(`${this.baseUrl}/api/configuration/chunking-settings`);
+    await this.assertOk(response);
+    return response.json();
+  }
+
+  async updateChunkingSettings(chunkTargetSizeChars: number, chunkOverlapChars: number): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/api/configuration/chunking-settings`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chunkTargetSizeChars, chunkOverlapChars })
+    });
+    await this.assertOk(response);
+  }
+
   async streamChat(
   request: ChatRequest,
   onEvent: (event: ChatResponseChunk) => void
