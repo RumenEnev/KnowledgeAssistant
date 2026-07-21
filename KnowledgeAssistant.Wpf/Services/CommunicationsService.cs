@@ -1,12 +1,13 @@
 ﻿using KnowledgeAssistant.Contracts.Definitions;
 using KnowledgeAssistant.Contracts.Dto;
 using KnowledgeAssistant.Domain.Conversation;
+using KnowledgeAssistant.Domain.Documents;
 using KnowledgeAssistant.Wpf.Messages;
 using KnowledgeAssistant.Wpf.Messages.Conversations;
+using KnowledgeAssistant.Wpf.Messages.Documents;
 using MessageServices;
 using MessageServices.Enums;
 using MessageServices.Messages;
-using Serilog.Core;
 using System.IO;
 using System.Net.Http;
 using System.Net.Http.Json;
@@ -37,6 +38,100 @@ namespace KnowledgeAssistant.Wpf.Services
             _messageService.Subscribe<DeleteConversationRequest>(this, DeleteConversationReceived);
             _messageService.Subscribe<UpdateSelectedModelRequest>(this, UpdateSelectedModelReceived);
             _messageService.Subscribe<GetSelectedModelRequest>(this, GetSelectedModelReceived);
+            _messageService.Subscribe<GetDocumentsRequest>(this, GetDocumentsReceived);
+            _messageService.Subscribe<GetTopicsRequest>(this, GetTopicsReceived);
+            _messageService.Subscribe<AddDocumentRequest>(this, AddDocumentReceived);
+            _messageService.Subscribe<DeleteDocumentRequest>(this, DeleteDocumentReceived);
+        }
+
+        private async void GetDocumentsReceived(MessageBase message)
+        {
+            if (message is GetDocumentsRequest)
+            {
+                await LoadDocumentsAsync();
+            }
+        }
+
+        private async Task LoadDocumentsAsync()
+        {
+            try
+            {
+                var documents = await _httpClient.GetFromJsonAsync<List<Document>>("api/documents", _cancellationToken);
+                _messageService.Publish(new DocumentsUpdatedEvent(documents ?? Enumerable.Empty<Document>()));
+            }
+            catch (Exception ex)
+            {
+                _messageService.Publish(new UserMessage("Error", $"Error fetching documents: {ex.Message}", MessageType.Error));
+            }
+        }
+
+        private async void GetTopicsReceived(MessageBase message)
+        {
+            if (message is GetTopicsRequest)
+            {
+                try
+                {
+                    var topics = await _httpClient.GetFromJsonAsync<List<Topic>>("api/documents/topics", _cancellationToken);
+                    _messageService.Publish(new TopicsUpdatedEvent(topics ?? Enumerable.Empty<Topic>()));
+                }
+                catch (Exception ex)
+                {
+                    _messageService.Publish(new UserMessage("Error", $"Error fetching topics: {ex.Message}", MessageType.Error));
+                }
+            }
+        }
+
+        private async void AddDocumentReceived(MessageBase message)
+        {
+            if (message is AddDocumentRequest request)
+            {
+                try
+                {
+                    var dto = new IngestTextRequestDto
+                    {
+                        Title = request.Title,
+                        Text = request.Text,
+                        Topics = request.Topics.ToList()
+                    };
+
+                    using var response = await _httpClient.PostAsync(
+                        "api/documents",
+                        new StringContent(JsonSerializer.Serialize(dto), Encoding.UTF8, "application/json"),
+                        _cancellationToken);
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        var error = await response.Content.ReadAsStringAsync(_cancellationToken);
+                        _messageService.Publish(new UserMessage("Add Document Failed", error, MessageType.Error));
+                        return;
+                    }
+
+                    var result = await response.Content.ReadFromJsonAsync<AddDocumentResultDto>(_cancellationToken);
+                    _messageService.Publish(new DocumentAddedEvent(result?.DocumentId ?? 0));
+                    await LoadDocumentsAsync();
+                }
+                catch (Exception ex)
+                {
+                    _messageService.Publish(new UserMessage("Add Document Failed", ex.Message, MessageType.Error));
+                }
+            }
+        }
+
+        private async void DeleteDocumentReceived(MessageBase message)
+        {
+            if (message is DeleteDocumentRequest request)
+            {
+                try
+                {
+                    using var response = await _httpClient.DeleteAsync($"api/documents/{request.DocumentId}", _cancellationToken);
+                    response.EnsureSuccessStatusCode();
+                    _messageService.Publish(new DocumentDeletedEvent(request.DocumentId));
+                }
+                catch (Exception ex)
+                {
+                    _messageService.Publish(new UserMessage("Delete Document Failed", ex.Message, MessageType.Error));
+                }
+            }
         }
 
         private async void GetSelectedModelReceived(MessageBase message)

@@ -35,7 +35,7 @@ namespace KnowledgeAssistant.Api.Controllers
                 var documentId = await _ingestionService.IngestDocumentAsync(
                     request.Title, request.Text, request.Topics, cancellationToken);
 
-                return Ok(new { documentId });
+                return Ok(new AddDocumentResultDto { DocumentId = documentId });
             }
             catch (InvalidOperationException ex)
             {
@@ -72,7 +72,7 @@ namespace KnowledgeAssistant.Api.Controllers
                 var documentId = await _ingestionService.IngestDocumentAsync(
                     title, text, topicNames, cancellationToken);
 
-                return Ok(new { documentId });
+                return Ok(new AddDocumentResultDto { DocumentId = documentId });
             }
             catch (InvalidOperationException ex)
             {

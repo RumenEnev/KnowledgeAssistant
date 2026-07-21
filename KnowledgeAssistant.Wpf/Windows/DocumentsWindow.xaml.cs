@@ -1,52 +1,31 @@
-﻿using KnowledgeAssistant.Contracts.Dto;
-using KnowledgeAssistant.Domain.Documents;
+﻿using KnowledgeAssistant.Wpf.Messages.Documents;
+using KnowledgeAssistant.Wpf.Models;
+using MessageServices;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Net.Http;
-using System.Net.Http.Json;
-using System.Text;
-using System.Text.Json;
 using System.Windows;
 
 namespace KnowledgeAssistant.Wpf.Windows
 {
-    public class DocumentDisplayModel
+    public partial class DocumentsWindow : Window, INotifyPropertyChanged, IMessageServiceSubscriber
     {
-        public int Id { get; set; }
-
-        public string Title { get; set; } = string.Empty;
-
-        public IEnumerable<string> Topics { get; set; } = Array.Empty<string>();
-
-        public string TopicsDisplay => string.Join(", ", Topics);
-    }
-
-    /// <summary>Selectable topic shown as a checkbox item when adding a document.</summary>
-    public class TopicSelectionItem : INotifyPropertyChanged
-    {
-        private bool _isSelected;
-
-        public int Id { get; set; }
-
-        public string Name { get; set; } = string.Empty;
-
-        public bool IsSelected
-        {
-            get => _isSelected;
-            set { _isSelected = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSelected))); }
-        }
-
-        public event PropertyChangedEventHandler? PropertyChanged;
-    }
-
-    public partial class DocumentsWindow : Window, INotifyPropertyChanged
-    {
-        private readonly HttpClient _httpClient;
-        private readonly CancellationToken _cancellationToken = new CancellationToken();
+        private readonly MessageService _messageService;
 
         private string? _newTitle;
         private string? _newText;
         private string? _statusMessage;
+
+        public DocumentsWindow(MessageService messageService)
+        {
+            InitializeComponent();
+            DataContext = this;
+
+            _messageService = messageService;
+            _messageService.Subscribe<DocumentsUpdatedEvent>(this, DocumentsUpdatedEventReceived);
+            _messageService.Subscribe<TopicsUpdatedEvent>(this, TopicsUpdatedEventReceived);
+            _messageService.Subscribe<DocumentAddedEvent>(this, DocumentAddedEventReceived);
+            _messageService.Subscribe<DocumentDeletedEvent>(this, DocumentDeletedEventReceived);
+        }
 
         public ObservableCollection<DocumentDisplayModel> Documents { get; } = new ObservableCollection<DocumentDisplayModel>();
 
@@ -77,65 +56,82 @@ namespace KnowledgeAssistant.Wpf.Windows
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
-        public DocumentsWindow()
+        private void DocumentsWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            InitializeComponent();
-            DataContext = this;
-
-            _httpClient = new HttpClient
-            {
-                BaseAddress = new Uri("http://localhost:5299/")
-            };
+            _messageService.Publish(new GetDocumentsRequest());
+            _messageService.Publish(new GetTopicsRequest());
         }
 
-        private async void DocumentsWindow_Loaded(object sender, RoutedEventArgs e)
+        private void DocumentsUpdatedEventReceived(MessageBase message)
         {
-            await LoadDocumentsAsync();
-            await LoadTopicsAsync();
-        }
-
-        private async Task LoadTopicsAsync()
-        {
-            try
+            if (message is DocumentsUpdatedEvent @event)
             {
-                var topics = await _httpClient.GetFromJsonAsync<List<Topic>>("api/documents/topics", _cancellationToken);
-                AvailableTopics.Clear();
-                foreach (var topic in topics ?? Enumerable.Empty<Topic>())
+                Application.Current.Dispatcher.Invoke(() =>
                 {
-                    AvailableTopics.Add(new TopicSelectionItem { Id = topic.Id, Name = topic.Name });
-                }
-            }
-            catch (Exception ex)
-            {
-                StatusMessage = $"Error loading topics: {ex.Message}";
-            }
-        }
-
-        private async Task LoadDocumentsAsync()
-        {
-            try
-            {
-                var documents = await _httpClient.GetFromJsonAsync<List<Document>>("api/documents", _cancellationToken);
-                Documents.Clear();
-                foreach (var document in documents ?? Enumerable.Empty<Document>())
-                {
-                    Documents.Add(new DocumentDisplayModel
+                    Documents.Clear();
+                    foreach (var document in @event.Documents)
                     {
-                        Id = document.Id,
-                        Title = document.Title,
-                        Topics = document.Topics
-                    });
-                }
+                        Documents.Add(new DocumentDisplayModel
+                        {
+                            Id = document.Id,
+                            Title = document.Title,
+                            Topics = document.Topics
+                        });
+                    }
 
-                StatusMessage = $"{Documents.Count} document(s) loaded.";
-            }
-            catch (Exception ex)
-            {
-                StatusMessage = $"Error loading documents: {ex.Message}";
+                    StatusMessage = $"{Documents.Count} document(s) loaded.";
+                });
             }
         }
 
-        private async void AddDocument_Click(object sender, RoutedEventArgs e)
+        private void TopicsUpdatedEventReceived(MessageBase message)
+        {
+            if (message is TopicsUpdatedEvent @event)
+            {
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    AvailableTopics.Clear();
+                    foreach (var topic in @event.Topics)
+                    {
+                        AvailableTopics.Add(new TopicSelectionItem { Id = topic.Id, Name = topic.Name });
+                    }
+                });
+            }
+        }
+
+        private void DocumentAddedEventReceived(MessageBase message)
+        {
+            if (message is DocumentAddedEvent)
+            {
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    NewTitle = string.Empty;
+                    NewText = string.Empty;
+                    foreach (var topic in AvailableTopics)
+                    {
+                        topic.IsSelected = false;
+                    }
+                });
+            }
+        }
+
+        private void DocumentDeletedEventReceived(MessageBase message)
+        {
+            if (message is DocumentDeletedEvent @event)
+            {
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    var document = Documents.FirstOrDefault(d => d.Id == @event.DocumentId);
+                    if (document != null)
+                    {
+                        Documents.Remove(document);
+                        StatusMessage = $"Deleted '{document.Title}'.";
+                    }
+                });
+            }
+        }
+
+        private void AddDocument_Click(object sender, RoutedEventArgs e)
         {
             var title = NewTitle?.Trim();
             var text = NewText?.Trim();
@@ -150,42 +146,10 @@ namespace KnowledgeAssistant.Wpf.Windows
                 return;
             }
 
-            try
-            {
-                var dto = new IngestTextRequestDto
-                {
-                    Title = title,
-                    Text = text,
-                    Topics = topics
-                };
-
-                using var response = await _httpClient.PostAsync(
-                    "api/documents",
-                    new StringContent(JsonSerializer.Serialize(dto), Encoding.UTF8, "application/json"),
-                    _cancellationToken);
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    var error = await response.Content.ReadAsStringAsync(_cancellationToken);
-                    MessageBox.Show(error, "Add Document Failed", MessageBoxButton.OK, MessageBoxImage.Error);
-                    return;
-                }
-
-                NewTitle = string.Empty;
-                NewText = string.Empty;
-                foreach (var topic in AvailableTopics)
-                {
-                    topic.IsSelected = false;
-                }
-                await LoadDocumentsAsync();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(ex.Message, "Add Document Failed", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+            _messageService.Publish(new AddDocumentRequest(title, text, topics));
         }
 
-        private async void DeleteDocument_Click(object sender, RoutedEventArgs e)
+        private void DeleteDocument_Click(object sender, RoutedEventArgs e)
         {
             if (sender is not FrameworkElement { Tag: DocumentDisplayModel document })
             {
@@ -198,17 +162,7 @@ namespace KnowledgeAssistant.Wpf.Windows
                 return;
             }
 
-            try
-            {
-                using var response = await _httpClient.DeleteAsync($"api/documents/{document.Id}", _cancellationToken);
-                response.EnsureSuccessStatusCode();
-                Documents.Remove(document);
-                StatusMessage = $"Deleted '{document.Title}'.";
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(ex.Message, "Delete Document Failed", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+            _messageService.Publish(new DeleteDocumentRequest(document.Id));
         }
     }
 }

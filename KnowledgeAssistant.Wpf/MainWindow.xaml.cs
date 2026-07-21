@@ -391,7 +391,7 @@ namespace KnowledgeAssistant.Wpf
 
         private void ManageDocuments_Click(object sender, RoutedEventArgs e)
         {
-            var window = new DocumentsWindow
+            var window = new DocumentsWindow(_messageService)
             {
                 Owner = this
             };
