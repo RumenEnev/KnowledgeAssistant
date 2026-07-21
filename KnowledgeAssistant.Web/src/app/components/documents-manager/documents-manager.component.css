@@ -116,6 +116,38 @@
   font-family: inherit;
 }
 
+.field-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #444;
+}
+
+.topics-checklist {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.topic-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: normal;
+  cursor: pointer;
+}
+
+.topics-empty {
+  margin: 0;
+  font-size: 13px;
+  color: #777;
+}
+
 .add-document-section textarea {
   min-height: 100px;
   resize: vertical;

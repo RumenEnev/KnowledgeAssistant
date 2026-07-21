@@ -21,28 +21,41 @@ namespace KnowledgeAssistant.Wpf.Windows
         public string TopicsDisplay => string.Join(", ", Topics);
     }
 
+    /// <summary>Selectable topic shown as a checkbox item when adding a document.</summary>
+    public class TopicSelectionItem : INotifyPropertyChanged
+    {
+        private bool _isSelected;
+
+        public int Id { get; set; }
+
+        public string Name { get; set; } = string.Empty;
+
+        public bool IsSelected
+        {
+            get => _isSelected;
+            set { _isSelected = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSelected))); }
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+    }
+
     public partial class DocumentsWindow : Window, INotifyPropertyChanged
     {
         private readonly HttpClient _httpClient;
         private readonly CancellationToken _cancellationToken = new CancellationToken();
 
         private string? _newTitle;
-        private string? _newTopics;
         private string? _newText;
         private string? _statusMessage;
 
         public ObservableCollection<DocumentDisplayModel> Documents { get; } = new ObservableCollection<DocumentDisplayModel>();
 
+        public ObservableCollection<TopicSelectionItem> AvailableTopics { get; } = new ObservableCollection<TopicSelectionItem>();
+
         public string? NewTitle
         {
             get => _newTitle;
             set { _newTitle = value; OnPropertyChanged(nameof(NewTitle)); }
-        }
-
-        public string? NewTopics
-        {
-            get => _newTopics;
-            set { _newTopics = value; OnPropertyChanged(nameof(NewTopics)); }
         }
 
         public string? NewText
@@ -78,6 +91,24 @@ namespace KnowledgeAssistant.Wpf.Windows
         private async void DocumentsWindow_Loaded(object sender, RoutedEventArgs e)
         {
             await LoadDocumentsAsync();
+            await LoadTopicsAsync();
+        }
+
+        private async Task LoadTopicsAsync()
+        {
+            try
+            {
+                var topics = await _httpClient.GetFromJsonAsync<List<Topic>>("api/documents/topics", _cancellationToken);
+                AvailableTopics.Clear();
+                foreach (var topic in topics ?? Enumerable.Empty<Topic>())
+                {
+                    AvailableTopics.Add(new TopicSelectionItem { Id = topic.Id, Name = topic.Name });
+                }
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Error loading topics: {ex.Message}";
+            }
         }
 
         private async Task LoadDocumentsAsync()
@@ -108,8 +139,9 @@ namespace KnowledgeAssistant.Wpf.Windows
         {
             var title = NewTitle?.Trim();
             var text = NewText?.Trim();
-            var topics = (NewTopics ?? string.Empty)
-                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            var topics = AvailableTopics
+                .Where(t => t.IsSelected)
+                .Select(t => t.Name)
                 .ToList();
 
             if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(text) || topics.Count == 0)
@@ -140,8 +172,11 @@ namespace KnowledgeAssistant.Wpf.Windows
                 }
 
                 NewTitle = string.Empty;
-                NewTopics = string.Empty;
                 NewText = string.Empty;
+                foreach (var topic in AvailableTopics)
+                {
+                    topic.IsSelected = false;
+                }
                 await LoadDocumentsAsync();
             }
             catch (Exception ex)

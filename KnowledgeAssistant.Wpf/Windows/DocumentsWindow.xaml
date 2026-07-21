@@ -4,7 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="Manage Documents"
     Width="600"
-    Height="600"
+    Height="680"
     Loaded="DocumentsWindow_Loaded"
     WindowStartupLocation="CenterOwner">
 
@@ -46,30 +46,71 @@
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
-                    <RowDefinition Height="100" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="120" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <TextBox
+                <TextBlock
                     Grid.Row="0"
-                    Margin="0,2"
-                    Text="{Binding NewTitle, UpdateSourceTrigger=PropertyChanged}"
-                    ToolTip="Title" />
+                    Margin="0,2,0,0"
+                    FontWeight="Bold"
+                    Text="Title (required)" />
                 <TextBox
                     Grid.Row="1"
-                    Margin="0,2"
-                    Text="{Binding NewTopics, UpdateSourceTrigger=PropertyChanged}"
-                    ToolTip="Topics (comma separated)" />
-                <TextBox
+                    Margin="0,2,0,6"
+                    Text="{Binding NewTitle, UpdateSourceTrigger=PropertyChanged}"
+                    ToolTip="A short, descriptive name for the document." />
+
+                <TextBlock
                     Grid.Row="2"
-                    Margin="0,2"
+                    Margin="0,2,0,0"
+                    FontWeight="Bold"
+                    Text="Topics (select at least one, required)" />
+                <Border
+                    Grid.Row="3"
+                    Margin="0,2,0,6"
+                    Padding="4"
+                    BorderBrush="Gray"
+                    BorderThickness="1">
+                    <ItemsControl
+                        MaxHeight="90"
+                        ItemsSource="{Binding AvailableTopics}"
+                        ScrollViewer.VerticalScrollBarVisibility="Auto">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <CheckBox
+                                    Margin="4,2"
+                                    Content="{Binding Name}"
+                                    IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                    ToolTip="Documents are grouped and searched by topic." />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Border>
+
+                <TextBlock
+                    Grid.Row="4"
+                    Margin="0,2,0,0"
+                    FontWeight="Bold"
+                    Text="Text (required)" />
+                <TextBox
+                    Grid.Row="5"
+                    Margin="0,2,0,0"
                     AcceptsReturn="True"
                     Text="{Binding NewText, UpdateSourceTrigger=PropertyChanged}"
                     TextWrapping="Wrap"
-                    ToolTip="Text"
+                    ToolTip="The full document content to ingest and index."
                     VerticalScrollBarVisibility="Auto" />
                 <Button
-                    Grid.Row="3"
+                    Grid.Row="6"
                     Margin="0,4,0,0"
                     HorizontalAlignment="Right"
                     Click="AddDocument_Click"

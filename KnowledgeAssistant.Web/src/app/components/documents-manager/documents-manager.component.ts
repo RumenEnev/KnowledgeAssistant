@@ -2,7 +2,7 @@ import { Component, EventEmitter, inject, OnInit, Output, signal } from '@angula
 import { FormsModule } from '@angular/forms';
 import { DocumentsService } from '../../services/documents.service';
 import { NotificationService } from '../../services/notification.service';
-import { DocumentItem } from '../../models/document';
+import { DocumentItem, Topic } from '../../models/document';
 
 @Component({
   selector: 'app-documents-manager',
@@ -21,12 +21,14 @@ export class DocumentsManagerComponent implements OnInit {
   isLoading = signal(false);
   isSaving = signal(false);
 
+  availableTopics = signal<Topic[]>([]);
+  selectedTopicNames = signal<Set<string>>(new Set());
+
   title = signal('');
-  topics = signal('');
   text = signal('');
 
   async ngOnInit() {
-    await this.loadDocuments();
+    await Promise.all([this.loadDocuments(), this.loadTopics()]);
   }
 
   async loadDocuments() {
@@ -41,13 +43,36 @@ export class DocumentsManagerComponent implements OnInit {
     }
   }
 
+  async loadTopics() {
+    try {
+      const topics = await this.documentsService.getTopics();
+      this.availableTopics.set(topics);
+    } catch (err) {
+      this.notificationService.error(this.toMessage(err, 'Failed to load topics.'));
+    }
+  }
+
+  isTopicSelected(name: string): boolean {
+    return this.selectedTopicNames().has(name);
+  }
+
+  toggleTopic(name: string, event: Event): void {
+    const checked = (event.target as HTMLInputElement).checked;
+    this.selectedTopicNames.update(current => {
+      const next = new Set(current);
+      if (checked) {
+        next.add(name);
+      } else {
+        next.delete(name);
+      }
+      return next;
+    });
+  }
+
   async addDocument() {
     const title = this.title().trim();
     const text = this.text().trim();
-    const topics = this.topics()
-      .split(',')
-      .map(t => t.trim())
-      .filter(t => t.length > 0);
+    const topics = Array.from(this.selectedTopicNames());
 
     if (!title || !text || topics.length === 0) {
       this.notificationService.error('Title, text and at least one topic are required.');
@@ -58,7 +83,7 @@ export class DocumentsManagerComponent implements OnInit {
     try {
       await this.documentsService.ingestText(title, text, topics);
       this.title.set('');
-      this.topics.set('');
+      this.selectedTopicNames.set(new Set());
       this.text.set('');
       await this.loadDocuments();
     } catch (err) {

@@ -28,20 +28,39 @@
 
       <section class="add-document-section">
         <h4>Add Document</h4>
+
+        <label class="field-label" for="doc-title">Title (required)</label>
         <input
+          id="doc-title"
           type="text"
-          placeholder="Title"
+          placeholder="A short, descriptive name for the document"
           [ngModel]="title()"
           (ngModelChange)="title.set($event)" />
-        <input
-          type="text"
-          placeholder="Topics (comma separated)"
-          [ngModel]="topics()"
-          (ngModelChange)="topics.set($event)" />
+
+        <label class="field-label">Topics (select at least one, required)</label>
+        <div class="topics-checklist">
+          @if (availableTopics().length === 0) {
+            <p class="topics-empty">No topics available. Create one via the admin panel first.</p>
+          } @else {
+            @for (topic of availableTopics(); track topic.id) {
+              <label class="topic-checkbox">
+                <input
+                  type="checkbox"
+                  [checked]="isTopicSelected(topic.name)"
+                  (change)="toggleTopic(topic.name, $event)" />
+                {{ topic.name }}
+              </label>
+            }
+          }
+        </div>
+
+        <label class="field-label" for="doc-text">Text (required)</label>
         <textarea
-          placeholder="Text"
+          id="doc-text"
+          placeholder="The full document content to ingest and index"
           [ngModel]="text()"
           (ngModelChange)="text.set($event)"></textarea>
+
         <button type="button" [disabled]="isSaving()" (click)="addDocument()">
           {{ isSaving() ? 'Adding...' : 'Add Document' }}
         </button>
