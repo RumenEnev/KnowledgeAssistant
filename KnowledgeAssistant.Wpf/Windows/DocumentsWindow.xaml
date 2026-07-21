@@ -21,8 +21,14 @@
             ItemsSource="{Binding Documents}">
             <ListView.View>
                 <GridView>
-                    <GridViewColumn Width="200" DisplayMemberBinding="{Binding Title}" Header="Title" />
-                    <GridViewColumn Width="200" DisplayMemberBinding="{Binding TopicsDisplay}" Header="Topics" />
+                    <GridViewColumn
+                        Width="200"
+                        DisplayMemberBinding="{Binding Title}"
+                        Header="Title" />
+                    <GridViewColumn
+                        Width="200"
+                        DisplayMemberBinding="{Binding TopicsDisplay}"
+                        Header="Topics" />
                     <GridViewColumn Width="100">
                         <GridViewColumn.CellTemplate>
                             <DataTemplate>
@@ -109,13 +115,22 @@
                     TextWrapping="Wrap"
                     ToolTip="The full document content to ingest and index."
                     VerticalScrollBarVisibility="Auto" />
-                <Button
+                <StackPanel
                     Grid.Row="6"
                     Margin="0,4,0,0"
                     HorizontalAlignment="Right"
-                    Click="AddDocument_Click"
-                    Content="Add Document"
-                    Padding="10,4" />
+                    Orientation="Horizontal">
+                    <Button
+                        Padding="8,4"
+                        Click="LoadTextFromFile_Click"
+                        Content="Load from .txt file…"
+                        ToolTip="Populate the text box with the contents of a .txt file." />
+                    <Button
+                        Margin="8,0,0,0"
+                        Padding="10,4"
+                        Click="AddDocument_Click"
+                        Content="Add Document" />
+                </StackPanel>
             </Grid>
         </GroupBox>
 

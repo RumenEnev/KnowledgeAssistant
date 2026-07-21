@@ -3,6 +3,7 @@ using KnowledgeAssistant.Wpf.Models;
 using MessageServices;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Windows;
 
 namespace KnowledgeAssistant.Wpf.Windows
@@ -147,6 +148,30 @@ namespace KnowledgeAssistant.Wpf.Windows
             }
 
             _messageService.Publish(new AddDocumentRequest(title, text, topics));
+        }
+
+        private void LoadTextFromFile_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Filter = "Text files (*.txt)|*.txt|All files (*.*)|*.*",
+                Title = "Select a .txt file"
+            };
+
+            if (dialog.ShowDialog(this) != true)
+            {
+                return;
+            }
+
+            try
+            {
+                NewText = File.ReadAllText(dialog.FileName);
+                NewTitle = Path.GetFileNameWithoutExtension(dialog.FileName);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to read the file: {ex.Message}", "Load Text File Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void DeleteDocument_Click(object sender, RoutedEventArgs e)

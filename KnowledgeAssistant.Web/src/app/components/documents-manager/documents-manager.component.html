@@ -61,9 +61,20 @@
           [ngModel]="text()"
           (ngModelChange)="text.set($event)"></textarea>
 
-        <button type="button" [disabled]="isSaving()" (click)="addDocument()">
-          {{ isSaving() ? 'Adding...' : 'Add Document' }}
-        </button>
+        <div class="form-actions">
+          <button type="button" class="load-file-btn" (click)="fileInput.click()">
+            Load from .txt file…
+          </button>
+          <input
+            #fileInput
+            type="file"
+            accept=".txt"
+            class="file-input-hidden"
+            (change)="onTextFileSelected($event)" />
+          <button type="button" [disabled]="isSaving()" (click)="addDocument()">
+            {{ isSaving() ? 'Adding...' : 'Add Document' }}
+          </button>
+        </div>
       </section>
     </div>
   </div>

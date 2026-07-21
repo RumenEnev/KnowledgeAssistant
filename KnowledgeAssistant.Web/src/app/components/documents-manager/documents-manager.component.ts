@@ -69,6 +69,25 @@ export class DocumentsManagerComponent implements OnInit {
     });
   }
 
+  async onTextFileSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    try {
+      const content = await file.text();
+      this.text.set(content);
+      const nameWithoutExtension = file.name.replace(/\.[^/.]+$/, '');
+      this.title.set(nameWithoutExtension);
+    } catch (err) {
+      this.notificationService.error(this.toMessage(err, 'Failed to read the file.'));
+    } finally {
+      input.value = '';
+    }
+  }
+
   async addDocument() {
     const title = this.title().trim();
     const text = this.text().trim();
