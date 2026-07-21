@@ -8,6 +8,7 @@ using KnowledgeAssistant.Wpf.Messages.Documents;
 using MessageServices;
 using MessageServices.Enums;
 using MessageServices.Messages;
+using Microsoft.Extensions.Configuration;
 using System.IO;
 using System.Net.Http;
 using System.Net.Http.Json;
@@ -22,11 +23,13 @@ namespace KnowledgeAssistant.Wpf.Services
         private readonly HttpClient _httpClient;
         private readonly CancellationToken _cancellationToken = new CancellationToken();
 
-        public CommunicationsService(MessageService messageService)
+        public CommunicationsService(MessageService messageService, IConfiguration configuration)
         {
             _messageService = messageService;
             _httpClient = new HttpClient();
-            _httpClient.BaseAddress = new Uri("http://localhost:5299/");
+
+            var baseUrl = configuration["Api:BaseUrl"] ?? "http://localhost:5299/";
+            _httpClient.BaseAddress = new Uri(baseUrl);
 
             _messageService.Subscribe<GenerateTitleRequest>(this, GenerateTitleReceived);
             _messageService.Subscribe<SendUserMessageRequest>(this, SendPromptReceived);
@@ -192,7 +195,7 @@ namespace KnowledgeAssistant.Wpf.Services
             {
                 try
                 {
-                    var httpRequest = new HttpRequestMessage(HttpMethod.Put, "http://localhost:5299/api/configuration/selected-model");
+                    var httpRequest = new HttpRequestMessage(HttpMethod.Put, "api/configuration/selected-model");
                     var dto = new UpdateSelectedModelDto { SelectedModel = request.SelectedModel };
                     httpRequest.Content = new StringContent(JsonSerializer.Serialize(dto), Encoding.UTF8, "application/json");
 
@@ -210,7 +213,7 @@ namespace KnowledgeAssistant.Wpf.Services
         {
             if (message is DeleteConversationRequest request)
             {
-                var httpRequest = new HttpRequestMessage(HttpMethod.Delete, $"http://localhost:5299/api/conversations/{request.ConversationId}");
+                var httpRequest = new HttpRequestMessage(HttpMethod.Delete, $"api/conversations/{request.ConversationId}");
                 var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, _cancellationToken);
                 response.EnsureSuccessStatusCode();
                 var deletedConversationId = request.ConversationId;
@@ -225,7 +228,7 @@ namespace KnowledgeAssistant.Wpf.Services
         {
             if (message is UpdateConversationTitleRequest request)
             {
-                var httpRequest = new HttpRequestMessage(HttpMethod.Patch, $"http://localhost:5299/api/conversations/{request.ConversationId}/title?newTitle={Uri.EscapeDataString(request.NewTitle)}");
+                var httpRequest = new HttpRequestMessage(HttpMethod.Patch, $"api/conversations/{request.ConversationId}/title?newTitle={Uri.EscapeDataString(request.NewTitle)}");
                 var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, _cancellationToken);
                 response.EnsureSuccessStatusCode();
 
@@ -286,7 +289,7 @@ namespace KnowledgeAssistant.Wpf.Services
             {
                 try
                 {
-                    var response = await _httpClient.PostAsync("http://localhost:5299/api/conversations", null, _cancellationToken);
+                    var response = await _httpClient.PostAsync("api/conversations", null, _cancellationToken);
                     response.EnsureSuccessStatusCode();
 
                     var conversation = await response.Content.ReadFromJsonAsync<ConversationDto>(_cancellationToken);
@@ -321,7 +324,7 @@ namespace KnowledgeAssistant.Wpf.Services
         {
             if (message is GenerateTitleRequest request)
             {
-                var httpRequest = new HttpRequestMessage(HttpMethod.Post, "http://localhost:5299/api/chat/title");
+                var httpRequest = new HttpRequestMessage(HttpMethod.Post, "api/chat/title");
                 var dto = new ChatRequestDto
                 {
                     Message = request.UserPrompt,
@@ -345,7 +348,7 @@ namespace KnowledgeAssistant.Wpf.Services
 
         private async Task UpdateTitle(string newTitle, Guid conversationId)
         {
-            var httpRequest = new HttpRequestMessage(HttpMethod.Patch, $"http://localhost:5299/api/conversations/{conversationId}/title?newTitle={Uri.EscapeDataString(newTitle)}");
+            var httpRequest = new HttpRequestMessage(HttpMethod.Patch, $"api/conversations/{conversationId}/title?newTitle={Uri.EscapeDataString(newTitle)}");
             using var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, _cancellationToken);
             response.EnsureSuccessStatusCode();
         }
@@ -354,7 +357,7 @@ namespace KnowledgeAssistant.Wpf.Services
         {
             if (message is SendUserMessageRequest request)
             {
-                var httpRequest = new HttpRequestMessage(HttpMethod.Post, "http://localhost:5299/api/chat");
+                var httpRequest = new HttpRequestMessage(HttpMethod.Post, "api/chat");
                 var dto = new ChatRequestDto
                 {
                     Message = request.Prompt,
