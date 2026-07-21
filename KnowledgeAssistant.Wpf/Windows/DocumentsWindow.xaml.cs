@@ -1,6 +1,7 @@
 ﻿using KnowledgeAssistant.Wpf.Messages.Documents;
 using KnowledgeAssistant.Wpf.Models;
 using MessageServices;
+using MessageServices.Messages;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
@@ -16,6 +17,7 @@ namespace KnowledgeAssistant.Wpf.Windows
         private string? _newText;
         private string? _statusMessage;
         private int? _editingDocumentId;
+        private bool _isSaving;
 
         public DocumentsWindow(MessageService messageService)
         {
@@ -28,6 +30,7 @@ namespace KnowledgeAssistant.Wpf.Windows
             _messageService.Subscribe<DocumentAddedEvent>(this, DocumentAddedEventReceived);
             _messageService.Subscribe<DocumentUpdatedEvent>(this, DocumentUpdatedEventReceived);
             _messageService.Subscribe<DocumentDeletedEvent>(this, DocumentDeletedEventReceived);
+            _messageService.Subscribe<UserMessage>(this, UserMessageReceived);
         }
 
         public ObservableCollection<DocumentDisplayModel> Documents { get; } = new ObservableCollection<DocumentDisplayModel>();
@@ -67,7 +70,30 @@ namespace KnowledgeAssistant.Wpf.Windows
 
         public string FormHeader => EditingDocumentId is null ? "Add Document" : "Edit Document";
 
-        public string SubmitButtonText => EditingDocumentId is null ? "Add Document" : "Update Document";
+        public bool IsSaving
+        {
+            get => _isSaving;
+            set
+            {
+                _isSaving = value;
+                OnPropertyChanged(nameof(IsSaving));
+                OnPropertyChanged(nameof(SubmitButtonText));
+                OnPropertyChanged(nameof(CanSubmit));
+            }
+        }
+
+        public bool CanSubmit => !IsSaving;
+
+        public string SubmitButtonText
+        {
+            get
+            {
+                if (IsSaving)
+                    return EditingDocumentId is null ? "Adding..." : "Updating...";
+
+                return EditingDocumentId is null ? "Add Document" : "Update Document";
+            }
+        }
 
         public Visibility CancelButtonVisibility => EditingDocumentId is null ? Visibility.Collapsed : Visibility.Visible;
 
@@ -142,6 +168,14 @@ namespace KnowledgeAssistant.Wpf.Windows
             }
         }
 
+        private void UserMessageReceived(MessageBase message)
+        {
+            if (message is UserMessage { Title: "Add Document Failed" or "Update Document Failed" })
+            {
+                Application.Current.Dispatcher.Invoke(() => IsSaving = false);
+            }
+        }
+
         private void DocumentDeletedEventReceived(MessageBase message)
         {
             if (message is DocumentDeletedEvent @event)
@@ -165,6 +199,11 @@ namespace KnowledgeAssistant.Wpf.Windows
 
         private void AddDocument_Click(object sender, RoutedEventArgs e)
         {
+            if (IsSaving)
+            {
+                return;
+            }
+
             var title = NewTitle?.Trim();
             var text = NewText?.Trim();
             var topics = AvailableTopics
@@ -177,6 +216,8 @@ namespace KnowledgeAssistant.Wpf.Windows
                 MessageBox.Show("Title, text and at least one topic are required.", "Add Document", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
+
+            IsSaving = true;
 
             if (EditingDocumentId is int documentId)
             {
@@ -199,6 +240,7 @@ namespace KnowledgeAssistant.Wpf.Windows
             EditingDocumentId = null;
             NewTitle = string.Empty;
             NewText = string.Empty;
+            IsSaving = false;
             foreach (var topic in AvailableTopics)
             {
                 topic.IsSelected = false;

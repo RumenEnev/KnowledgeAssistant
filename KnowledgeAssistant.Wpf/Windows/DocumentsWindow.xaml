@@ -137,7 +137,8 @@
                         Margin="8,0,0,0"
                         Padding="10,4"
                         Click="AddDocument_Click"
-                        Content="{Binding SubmitButtonText}" />
+                        Content="{Binding SubmitButtonText}"
+                        IsEnabled="{Binding CanSubmit}" />
                 </StackPanel>
             </Grid>
         </GroupBox>
