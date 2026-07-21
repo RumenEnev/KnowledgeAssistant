@@ -19,5 +19,11 @@ namespace KnowledgeAssistant.Application.Abstraction
         Task<IEnumerable<Document>> GetAllDocumentsAsync(CancellationToken cancellationToken);
 
         Task DeleteDocumentAsync(int documentId, CancellationToken cancellationToken);
+
+        Task UpdateDocumentAsync(int documentId, string title, string originalText, CancellationToken cancellationToken);
+
+        Task ReplaceDocumentTopicsAsync(int documentId, IEnumerable<int> topicIds, CancellationToken cancellationToken);
+
+        Task DeleteChunksByDocumentAsync(int documentId, CancellationToken cancellationToken);
     }
 }

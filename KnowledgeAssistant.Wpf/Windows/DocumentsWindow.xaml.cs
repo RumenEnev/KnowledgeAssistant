@@ -15,6 +15,7 @@ namespace KnowledgeAssistant.Wpf.Windows
         private string? _newTitle;
         private string? _newText;
         private string? _statusMessage;
+        private int? _editingDocumentId;
 
         public DocumentsWindow(MessageService messageService)
         {
@@ -25,6 +26,7 @@ namespace KnowledgeAssistant.Wpf.Windows
             _messageService.Subscribe<DocumentsUpdatedEvent>(this, DocumentsUpdatedEventReceived);
             _messageService.Subscribe<TopicsUpdatedEvent>(this, TopicsUpdatedEventReceived);
             _messageService.Subscribe<DocumentAddedEvent>(this, DocumentAddedEventReceived);
+            _messageService.Subscribe<DocumentUpdatedEvent>(this, DocumentUpdatedEventReceived);
             _messageService.Subscribe<DocumentDeletedEvent>(this, DocumentDeletedEventReceived);
         }
 
@@ -49,6 +51,25 @@ namespace KnowledgeAssistant.Wpf.Windows
             get => _statusMessage;
             set { _statusMessage = value; OnPropertyChanged(nameof(StatusMessage)); }
         }
+
+        public int? EditingDocumentId
+        {
+            get => _editingDocumentId;
+            set
+            {
+                _editingDocumentId = value;
+                OnPropertyChanged(nameof(EditingDocumentId));
+                OnPropertyChanged(nameof(FormHeader));
+                OnPropertyChanged(nameof(SubmitButtonText));
+                OnPropertyChanged(nameof(CancelButtonVisibility));
+            }
+        }
+
+        public string FormHeader => EditingDocumentId is null ? "Add Document" : "Edit Document";
+
+        public string SubmitButtonText => EditingDocumentId is null ? "Add Document" : "Update Document";
+
+        public Visibility CancelButtonVisibility => EditingDocumentId is null ? Visibility.Collapsed : Visibility.Visible;
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -76,6 +97,7 @@ namespace KnowledgeAssistant.Wpf.Windows
                         {
                             Id = document.Id,
                             Title = document.Title,
+                            OriginalText = document.OriginalText,
                             Topics = document.Topics
                         });
                     }
@@ -104,14 +126,18 @@ namespace KnowledgeAssistant.Wpf.Windows
         {
             if (message is DocumentAddedEvent)
             {
+                Application.Current.Dispatcher.Invoke(ClearForm);
+            }
+        }
+
+        private void DocumentUpdatedEventReceived(MessageBase message)
+        {
+            if (message is DocumentUpdatedEvent @event)
+            {
                 Application.Current.Dispatcher.Invoke(() =>
                 {
-                    NewTitle = string.Empty;
-                    NewText = string.Empty;
-                    foreach (var topic in AvailableTopics)
-                    {
-                        topic.IsSelected = false;
-                    }
+                    ClearForm();
+                    StatusMessage = "Document updated.";
                 });
             }
         }
@@ -127,6 +153,11 @@ namespace KnowledgeAssistant.Wpf.Windows
                     {
                         Documents.Remove(document);
                         StatusMessage = $"Deleted '{document.Title}'.";
+                    }
+
+                    if (EditingDocumentId == @event.DocumentId)
+                    {
+                        ClearForm();
                     }
                 });
             }
@@ -147,7 +178,49 @@ namespace KnowledgeAssistant.Wpf.Windows
                 return;
             }
 
-            _messageService.Publish(new AddDocumentRequest(title, text, topics));
+            if (EditingDocumentId is int documentId)
+            {
+                _messageService.Publish(new UpdateDocumentRequest(documentId, title, text, topics));
+            }
+            else
+            {
+                _messageService.Publish(new AddDocumentRequest(title, text, topics));
+            }
+        }
+
+        private void CancelEdit_Click(object sender, RoutedEventArgs e)
+        {
+            ClearForm();
+            documentsList.SelectedItem = null;
+        }
+
+        private void ClearForm()
+        {
+            EditingDocumentId = null;
+            NewTitle = string.Empty;
+            NewText = string.Empty;
+            foreach (var topic in AvailableTopics)
+            {
+                topic.IsSelected = false;
+            }
+        }
+
+        private void DocumentsList_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            if (sender is not System.Windows.Controls.ListView { SelectedItem: DocumentDisplayModel document })
+            {
+                return;
+            }
+
+            EditingDocumentId = document.Id;
+            NewTitle = document.Title;
+            NewText = document.OriginalText;
+
+            var documentTopics = new HashSet<string>(document.Topics, StringComparer.OrdinalIgnoreCase);
+            foreach (var topic in AvailableTopics)
+            {
+                topic.IsSelected = documentTopics.Contains(topic.Name);
+            }
         }
 
         private void LoadTextFromFile_Click(object sender, RoutedEventArgs e)

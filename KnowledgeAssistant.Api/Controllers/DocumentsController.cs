@@ -80,6 +80,30 @@ namespace KnowledgeAssistant.Api.Controllers
             }
         }
 
+        [HttpPut("{id:int}")]
+        public async Task<IActionResult> Update(int id, [FromBody] IngestTextRequestDto request, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace(request.Title))
+                return BadRequest("Title is required.");
+
+            if (string.IsNullOrWhiteSpace(request.Text))
+                return BadRequest("Text is required.");
+
+            if (request.Topics is null || request.Topics.Count == 0)
+                return BadRequest("At least one topic is required.");
+
+            try
+            {
+                await _ingestionService.UpdateDocumentAsync(id, request.Title, request.Text, request.Topics, cancellationToken);
+                return Ok(new AddDocumentResultDto { DocumentId = id });
+            }
+            catch (InvalidOperationException ex)
+            {
+                // e.g. a topic name that doesn't exist in rag.topics
+                return BadRequest(ex.Message);
+            }
+        }
+
         [HttpGet]
         public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
         {

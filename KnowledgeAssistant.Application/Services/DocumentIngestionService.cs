@@ -29,6 +29,35 @@ namespace KnowledgeAssistant.Application.Services
             if (topicNames.Count == 0)
                 throw new ArgumentException("At least one topic label is required.", nameof(topicNames));
 
+            var topicIds = await ResolveTopicIdsAsync(topicNames, cancellationToken);
+
+            var documentId = await _documentRepository.CreateDocumentAsync(title, originalText, cancellationToken);
+            await _documentRepository.LinkDocumentTopicsAsync(documentId, topicIds, cancellationToken);
+
+            await ReplaceChunksAsync(documentId, originalText, cancellationToken);
+
+            return documentId;
+        }
+
+        public async Task UpdateDocumentAsync(
+            int documentId, string title, string originalText, IReadOnlyList<string> topicNames, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace(originalText))
+                throw new ArgumentException("Document text cannot be empty.", nameof(originalText));
+
+            if (topicNames.Count == 0)
+                throw new ArgumentException("At least one topic label is required.", nameof(topicNames));
+
+            var topicIds = await ResolveTopicIdsAsync(topicNames, cancellationToken);
+
+            await _documentRepository.UpdateDocumentAsync(documentId, title, originalText, cancellationToken);
+            await _documentRepository.ReplaceDocumentTopicsAsync(documentId, topicIds, cancellationToken);
+
+            await ReplaceChunksAsync(documentId, originalText, cancellationToken);
+        }
+
+        private async Task<List<int>> ResolveTopicIdsAsync(IReadOnlyList<string> topicNames, CancellationToken cancellationToken)
+        {
             // Resolve topic names to IDs up front so we fail fast on a typo
             // before doing any embedding work.
             var topicIds = new List<int>();
@@ -42,8 +71,12 @@ namespace KnowledgeAssistant.Application.Services
                 topicIds.Add(topicId.Value);
             }
 
-            var documentId = await _documentRepository.CreateDocumentAsync(title, originalText, cancellationToken);
-            await _documentRepository.LinkDocumentTopicsAsync(documentId, topicIds, cancellationToken);
+            return topicIds;
+        }
+
+        private async Task ReplaceChunksAsync(int documentId, string originalText, CancellationToken cancellationToken)
+        {
+            await _documentRepository.DeleteChunksByDocumentAsync(documentId, cancellationToken);
 
             var chunks = ChunkByParagraphWithOverlap(originalText);
 
@@ -52,8 +85,6 @@ namespace KnowledgeAssistant.Application.Services
                 var embedding = await _modelGateway.GetEmbeddingAsync(EmbeddingModel, chunks[i], cancellationToken);
                 await _documentRepository.AddChunkAsync(documentId, i, chunks[i], embedding, cancellationToken);
             }
-
-            return documentId;
         }
 
         private static List<string> ChunkByParagraphWithOverlap(string text)

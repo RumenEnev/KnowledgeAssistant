@@ -27,6 +27,10 @@ export class DocumentsManagerComponent implements OnInit {
   title = signal('');
   text = signal('');
 
+  editingDocumentId = signal<number | null>(null);
+
+  private overlayMouseDownOnBackdrop = false;
+
   async ngOnInit() {
     await Promise.all([this.loadDocuments(), this.loadTopics()]);
   }
@@ -88,6 +92,20 @@ export class DocumentsManagerComponent implements OnInit {
     }
   }
 
+  selectDocument(doc: DocumentItem): void {
+    this.editingDocumentId.set(doc.id);
+    this.title.set(doc.title);
+    this.text.set(doc.originalText);
+    this.selectedTopicNames.set(new Set(doc.topics));
+  }
+
+  cancelEdit(): void {
+    this.editingDocumentId.set(null);
+    this.title.set('');
+    this.text.set('');
+    this.selectedTopicNames.set(new Set());
+  }
+
   async addDocument() {
     const title = this.title().trim();
     const text = this.text().trim();
@@ -100,13 +118,16 @@ export class DocumentsManagerComponent implements OnInit {
 
     this.isSaving.set(true);
     try {
-      await this.documentsService.ingestText(title, text, topics);
-      this.title.set('');
-      this.selectedTopicNames.set(new Set());
-      this.text.set('');
+      const editingId = this.editingDocumentId();
+      if (editingId !== null) {
+        await this.documentsService.updateDocument(editingId, title, text, topics);
+      } else {
+        await this.documentsService.ingestText(title, text, topics);
+      }
+      this.cancelEdit();
       await this.loadDocuments();
     } catch (err) {
-      this.notificationService.error(this.toMessage(err, 'Failed to add the document.'));
+      this.notificationService.error(this.toMessage(err, this.editingDocumentId() !== null ? 'Failed to update the document.' : 'Failed to add the document.'));
     } finally {
       this.isSaving.set(false);
     }
@@ -116,6 +137,9 @@ export class DocumentsManagerComponent implements OnInit {
     try {
       await this.documentsService.deleteDocument(doc.id);
       this.documents.update(current => current.filter(d => d.id !== doc.id));
+      if (this.editingDocumentId() === doc.id) {
+        this.cancelEdit();
+      }
     } catch (err) {
       this.notificationService.error(this.toMessage(err, 'Failed to delete the document.'));
     }
@@ -123,6 +147,17 @@ export class DocumentsManagerComponent implements OnInit {
 
   close(): void {
     this.closed.emit();
+  }
+
+  onOverlayMouseDown(event: MouseEvent): void {
+    this.overlayMouseDownOnBackdrop = event.target === event.currentTarget;
+  }
+
+  onOverlayClick(event: MouseEvent): void {
+    if (this.overlayMouseDownOnBackdrop && event.target === event.currentTarget) {
+      this.close();
+    }
+    this.overlayMouseDownOnBackdrop = false;
   }
 
   private toMessage(err: unknown, fallback: string): string {

@@ -6,6 +6,8 @@
 
         public string Title { get; set; } = string.Empty;
 
+        public string OriginalText { get; set; } = string.Empty;
+
         public IEnumerable<string> Topics { get; set; } = Array.Empty<string>();
 
         public string TopicsDisplay => string.Join(", ", Topics);

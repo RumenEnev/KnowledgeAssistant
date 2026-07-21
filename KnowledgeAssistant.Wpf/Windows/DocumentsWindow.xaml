@@ -16,9 +16,11 @@
         </Grid.RowDefinitions>
 
         <ListView
+            x:Name="documentsList"
             Grid.Row="0"
             Margin="0,0,0,8"
-            ItemsSource="{Binding Documents}">
+            ItemsSource="{Binding Documents}"
+            SelectionChanged="DocumentsList_SelectionChanged">
             <ListView.View>
                 <GridView>
                     <GridViewColumn
@@ -47,7 +49,7 @@
         <GroupBox
             Grid.Row="1"
             Margin="0,0,0,8"
-            Header="Add Document">
+            Header="{Binding FormHeader}">
             <Grid Margin="4">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -128,8 +130,14 @@
                     <Button
                         Margin="8,0,0,0"
                         Padding="10,4"
+                        Click="CancelEdit_Click"
+                        Content="Cancel"
+                        Visibility="{Binding CancelButtonVisibility}" />
+                    <Button
+                        Margin="8,0,0,0"
+                        Padding="10,4"
                         Click="AddDocument_Click"
-                        Content="Add Document" />
+                        Content="{Binding SubmitButtonText}" />
                 </StackPanel>
             </Grid>
         </GroupBox>

@@ -55,4 +55,13 @@ export class DocumentsService {
     });
     await this.assertOk(response);
   }
+
+  async updateDocument(id: number, title: string, text: string, topics: string[]): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/api/documents/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, text, topics })
+    });
+    await this.assertOk(response);
+  }
 }

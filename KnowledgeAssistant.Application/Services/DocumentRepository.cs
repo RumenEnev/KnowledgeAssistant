@@ -125,5 +125,35 @@ namespace KnowledgeAssistant.Application.Services
             var query = "DELETE FROM rag.documents WHERE id = @DocumentId";
             await connection.ExecuteAsync(query, new { DocumentId = documentId });
         }
+
+        public async Task UpdateDocumentAsync(int documentId, string title, string originalText, CancellationToken cancellationToken)
+        {
+            await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+            var query = "UPDATE rag.documents SET title = @Title, original_text = @OriginalText WHERE id = @DocumentId";
+            await connection.ExecuteAsync(query, new { DocumentId = documentId, Title = title, OriginalText = originalText });
+        }
+
+        public async Task ReplaceDocumentTopicsAsync(int documentId, IEnumerable<int> topicIds, CancellationToken cancellationToken)
+        {
+            await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+            await connection.ExecuteAsync("DELETE FROM rag.document_topics WHERE document_id = @DocumentId", new { DocumentId = documentId });
+
+            var query = """
+                INSERT INTO rag.document_topics (document_id, topic_id)
+                VALUES (@DocumentId, @TopicId)
+                ON CONFLICT DO NOTHING;
+                """;
+
+            foreach (var topicId in topicIds)
+            {
+                await connection.ExecuteAsync(query, new { DocumentId = documentId, TopicId = topicId });
+            }
+        }
+
+        public async Task DeleteChunksByDocumentAsync(int documentId, CancellationToken cancellationToken)
+        {
+            await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+            await connection.ExecuteAsync("DELETE FROM rag.chunks WHERE document_id = @DocumentId", new { DocumentId = documentId });
+        }
     }
 }

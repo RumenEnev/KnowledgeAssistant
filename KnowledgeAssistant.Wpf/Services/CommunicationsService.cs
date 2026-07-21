@@ -41,6 +41,7 @@ namespace KnowledgeAssistant.Wpf.Services
             _messageService.Subscribe<GetDocumentsRequest>(this, GetDocumentsReceived);
             _messageService.Subscribe<GetTopicsRequest>(this, GetTopicsReceived);
             _messageService.Subscribe<AddDocumentRequest>(this, AddDocumentReceived);
+            _messageService.Subscribe<UpdateDocumentRequest>(this, UpdateDocumentReceived);
             _messageService.Subscribe<DeleteDocumentRequest>(this, DeleteDocumentReceived);
         }
 
@@ -113,6 +114,41 @@ namespace KnowledgeAssistant.Wpf.Services
                 catch (Exception ex)
                 {
                     _messageService.Publish(new UserMessage("Add Document Failed", ex.Message, MessageType.Error));
+                }
+            }
+        }
+
+        private async void UpdateDocumentReceived(MessageBase message)
+        {
+            if (message is UpdateDocumentRequest request)
+            {
+                try
+                {
+                    var dto = new IngestTextRequestDto
+                    {
+                        Title = request.Title,
+                        Text = request.Text,
+                        Topics = request.Topics.ToList()
+                    };
+
+                    using var response = await _httpClient.PutAsync(
+                        $"api/documents/{request.DocumentId}",
+                        new StringContent(JsonSerializer.Serialize(dto), Encoding.UTF8, "application/json"),
+                        _cancellationToken);
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        var error = await response.Content.ReadAsStringAsync(_cancellationToken);
+                        _messageService.Publish(new UserMessage("Update Document Failed", error, MessageType.Error));
+                        return;
+                    }
+
+                    _messageService.Publish(new DocumentUpdatedEvent(request.DocumentId));
+                    await LoadDocumentsAsync();
+                }
+                catch (Exception ex)
+                {
+                    _messageService.Publish(new UserMessage("Update Document Failed", ex.Message, MessageType.Error));
                 }
             }
         }

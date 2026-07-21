@@ -1,4 +1,4 @@
-<div class="modal-overlay" (click)="close()">
+<div class="modal-overlay" (mousedown)="onOverlayMouseDown($event)" (click)="onOverlayClick($event)">
   <div class="modal" (click)="$event.stopPropagation()">
     <div class="modal-header">
       <h3>Manage Documents</h3>
@@ -14,12 +14,15 @@
         } @else {
           <ul class="documents-list">
             @for (doc of documents(); track doc.id) {
-              <li class="document-item">
+              <li
+                class="document-item"
+                [class.selected]="editingDocumentId() === doc.id"
+                (click)="selectDocument(doc)">
                 <div class="document-info">
                   <span class="document-title">{{ doc.title }}</span>
                   <span class="document-topics">{{ doc.topics.join(', ') }}</span>
                 </div>
-                <button type="button" class="delete-btn" (click)="deleteDocument(doc)">Delete</button>
+                <button type="button" class="delete-btn" (click)="$event.stopPropagation(); deleteDocument(doc)">Delete</button>
               </li>
             }
           </ul>
@@ -27,7 +30,7 @@
       </section>
 
       <section class="add-document-section">
-        <h4>Add Document</h4>
+        <h4>{{ editingDocumentId() !== null ? 'Edit Document' : 'Add Document' }}</h4>
 
         <label class="field-label" for="doc-title">Title (required)</label>
         <input
@@ -71,8 +74,11 @@
             accept=".txt"
             class="file-input-hidden"
             (change)="onTextFileSelected($event)" />
+          @if (editingDocumentId() !== null) {
+            <button type="button" class="cancel-btn" (click)="cancelEdit()">Cancel</button>
+          }
           <button type="button" [disabled]="isSaving()" (click)="addDocument()">
-            {{ isSaving() ? 'Adding...' : 'Add Document' }}
+            {{ isSaving() ? 'Saving...' : (editingDocumentId() !== null ? 'Update Document' : 'Add Document') }}
           </button>
         </div>
       </section>
