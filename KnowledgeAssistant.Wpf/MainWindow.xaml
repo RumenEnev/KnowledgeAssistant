@@ -30,6 +30,7 @@
             Grid.ColumnSpan="3">
             <MenuItem Header="_File">
                 <MenuItem Click="CreateConversation_Click" Header="_New Conversation" />
+                <MenuItem Click="RefreshConversation_Click" Header="_Refresh Conversation" />
                 <Separator />
                 <MenuItem Click="Exit_Click" Header="E_xit" />
             </MenuItem>

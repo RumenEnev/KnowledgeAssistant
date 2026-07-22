@@ -411,6 +411,7 @@ namespace KnowledgeAssistant.Wpf
             {
                 Owner = this
             };
+
             window.ShowDialog();
         }
 
@@ -420,7 +421,13 @@ namespace KnowledgeAssistant.Wpf
             {
                 Owner = this
             };
+
             window.ShowDialog();
+        }
+
+        private void RefreshConversation_Click(object sender, RoutedEventArgs e)
+        {
+            _messageService.Publish(new GetConversationsRequest());
         }
     }
 }
