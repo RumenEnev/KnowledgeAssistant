@@ -168,6 +168,16 @@ export class AppComponent implements OnInit {
     }
   }
 
+  onPromptEnter(event: Event): void {
+    const keyboardEvent = event as KeyboardEvent;
+    if (keyboardEvent.shiftKey) {
+      return;
+    }
+
+    keyboardEvent.preventDefault();
+    this.send();
+  }
+
   async send() {
     const text = this.userPrompt().trim();
 

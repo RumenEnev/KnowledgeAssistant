@@ -136,6 +136,7 @@
             Grid.Column="1"
             Grid.ColumnSpan="2"
             Margin="2,2,2,2"
+            KeyDown="UserPrompt_KeyDown"
             Text="{Binding UserPrompt, UpdateSourceTrigger=PropertyChanged}" />
 
         <Button

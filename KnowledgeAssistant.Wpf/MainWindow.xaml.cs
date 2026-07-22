@@ -9,6 +9,7 @@ using MessageServices.Messages;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows;
+using System.Windows.Input;
 using UI.Windows;
 
 namespace KnowledgeAssistant.Wpf
@@ -353,6 +354,15 @@ namespace KnowledgeAssistant.Wpf
                 ChatMessages.Add(new UCChatMessage(_messageService));
                 _messageService.Publish(new SendUserMessageRequest(UserPrompt, SelectedModel, SelectedConversation?.Id));
                 UserPrompt = string.Empty;
+            }
+        }
+
+        private void UserPrompt_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter && !Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
+            {
+                e.Handled = true;
+                Send_Click(sender, e);
             }
         }
 

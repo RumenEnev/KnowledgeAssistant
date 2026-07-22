@@ -43,10 +43,11 @@
       }
     </div>
 
-    <textarea 
-      class="prompt-input" 
-      placeholder="Type your message here..." 
-      [(ngModel)]="userPrompt">
+    <textarea
+      class="prompt-input"
+      placeholder="Type your message here..."
+      [(ngModel)]="userPrompt"
+      (keydown.enter)="onPromptEnter($event)">
     </textarea>
 
     <div class="send-button">
