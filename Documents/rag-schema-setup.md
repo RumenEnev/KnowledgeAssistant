@@ -120,3 +120,38 @@ INSERT INTO rag.chunks (...) VALUES (...);
 ```
 
 Alternatively, you can add `rag` to your database connection's `search_path` so unqualified table names resolve correctly — but explicit schema-qualification is usually clearer and less error-prone once you have multiple schemas in play.
+
+## Related additions to the `ai_interactions` schema
+
+A few features build on top of the `rag` schema by adding columns to tables in `ai_interactions` (the schema that stores conversations, messages, and app-wide configuration). These aren't part of `rag` itself, but they reference it, so they're documented here for completeness. The columns below are shown as part of each table's full creation script — if the table already exists in your database, just add the missing columns to match.
+
+### `ai_interactions.configuration`
+
+Single global configuration row (selected model, chunking settings):
+
+```sql
+CREATE TABLE IF NOT EXISTS ai_interactions.configuration (
+    id uuid PRIMARY KEY,
+    selected_model_id uuid,
+    chunk_target_size_chars integer NOT NULL DEFAULT 1000,
+    chunk_overlap_chars integer NOT NULL DEFAULT 150
+);
+```
+
+`chunk_target_size_chars` / `chunk_overlap_chars` control the document chunking size/overlap used when ingesting documents, and are editable from the "Manage Documents" window in both the Angular and WPF apps. If the row doesn't exist yet, the app falls back to the defaults above (1000 / 150).
+
+### `ai_interactions.conversations`
+
+```sql
+CREATE TABLE IF NOT EXISTS ai_interactions.conversations (
+    id uuid PRIMARY KEY,
+    title text,
+    created_at timestamp NOT NULL DEFAULT now(),
+    updated_at timestamp NOT NULL DEFAULT now(),
+    selected_model_id uuid,
+    topic_id integer REFERENCES rag.topics(id)
+);
+```
+
+`topic_id` is nullable and stores the result of automatic conversation topic classification: after the second user message in a conversation, the app asks the LLM to classify it into one of the existing `rag.topics`. Classification happens once per conversation and is never re-evaluated afterwards; conversations remain unclassified (`topic_id = NULL`) until enough messages have been exchanged, or if the LLM doesn't find a good match among the available topics.
+
