@@ -9,10 +9,10 @@ namespace KnowledgeAssistant.Api.Controllers
     [Route("api/documents")]
     public class DocumentsController : ControllerBase
     {
-        private readonly DocumentIngestionService _ingestionService;
+        private readonly DocumentsHandlingService _ingestionService;
         private readonly IDocumentRepository _documentRepository;
 
-        public DocumentsController(DocumentIngestionService ingestionService, IDocumentRepository documentRepository)
+        public DocumentsController(DocumentsHandlingService ingestionService, IDocumentRepository documentRepository)
         {
             _ingestionService = ingestionService;
             _documentRepository = documentRepository;

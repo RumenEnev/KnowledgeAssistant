@@ -19,7 +19,7 @@ builder.Services.AddProblemDetails();
 
 builder.Services.AddScoped<ConversationService>();
 builder.Services.AddScoped<ModelCatalogService>();
-builder.Services.AddScoped<DocumentIngestionService>();
+builder.Services.AddScoped<DocumentsHandlingService>();
 builder.Services.AddScoped<IConversationRepository, ConversationRepository>();
 builder.Services.AddScoped<IConfigurationRepository, ConfigurationRepository>();
 builder.Services.AddScoped<IModelRepository, ModelRepository>();

@@ -27,13 +27,13 @@ namespace KnowledgeAssistant.Api.Controllers
         public async Task Chat([FromBody] ChatRequestDto request, CancellationToken cancellationToken)
         {
             var writer = new SseWriter(Response);
-
             if (string.IsNullOrWhiteSpace(request.Model))
             {
                 await writer.WriteAsync(SseEvents.Error, new ErrorEventDto
                 {
                     Message = "Please select a model before sending a message."
                 }, cancellationToken);
+
                 return;
             }
 

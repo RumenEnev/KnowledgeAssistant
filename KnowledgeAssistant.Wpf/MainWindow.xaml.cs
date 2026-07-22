@@ -233,6 +233,7 @@ namespace KnowledgeAssistant.Wpf
                                 IsUserMessage = msg.Role == "user",
                                 MessageCompleted = true
                             };
+
                             ChatMessages.Add(ucMessage);
                         }
                     }

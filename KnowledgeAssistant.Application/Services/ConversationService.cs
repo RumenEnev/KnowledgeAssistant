@@ -14,16 +14,21 @@ namespace KnowledgeAssistant.Application.Services
         private readonly IConversationRepository _repository;
         private readonly IModelRepository _modelRepository;
         private readonly IDocumentRepository _documentRepository;
-
+        private readonly DocumentsHandlingService _documentsHandlingService;
         private int _promptTokensCount;
         private int _responseTokensCount;
 
-        public ConversationService(IModelGateway modelGateway, IConversationRepository repository, IModelRepository modelRepository, IDocumentRepository documentRepository)
+        public ConversationService(IModelGateway modelGateway,
+                                    IConversationRepository repository,
+                                    IModelRepository modelRepository,
+                                    IDocumentRepository documentRepository,
+                                    DocumentsHandlingService documentsHandlingService)
         {
             _modelGateway = modelGateway;
             _repository = repository;
             _modelRepository = modelRepository;
             _documentRepository = documentRepository;
+            _documentsHandlingService = documentsHandlingService;
         }
 
         public async Task<string> GenerateTitleAsync(string userMessage, string model, CancellationToken cancellationToken)
@@ -112,8 +117,15 @@ namespace KnowledgeAssistant.Application.Services
             await _repository.CreateMessageAsync(conversationId, message, cancellationToken);
         }
 
-        public async IAsyncEnumerable<string> SendMessageAsync(Guid conversationId, string message, string? model, [EnumeratorCancellation] CancellationToken cancellationToken)
+        public async IAsyncEnumerable<string> SendMessageAsync(Guid conversationId, string message, string model, [EnumeratorCancellation] CancellationToken cancellationToken)
         {
+            var conversation = await _repository.GetAsync(conversationId, cancellationToken);
+            if (conversation is null)
+            {
+                throw new InvalidOperationException($"Conversation with ID {conversationId} not found.");
+            }
+
+            var relevantContext = await _documentsHandlingService.GetRelevantContextAsync(model, conversation.Topic, message, cancellationToken);
             var userMessage = new ChatMessage
             {
                 Id = Guid.NewGuid(),
@@ -123,24 +135,20 @@ namespace KnowledgeAssistant.Application.Services
                 CreatedAt = DateTime.UtcNow
             };
 
-            var conversation = await _repository.GetAsync(conversationId, cancellationToken);
             var messages = conversation!.Messages?.ToList() ?? new List<ChatMessage>();
             messages.Add(userMessage);
 
             var selectedModel = model ?? "llama3";
             var buffer = new StringBuilder();
-
             var modelId = await _modelRepository.GetOrCreateModelIdAsync(selectedModel, cancellationToken);
             await _repository.UpdateSelectedModelAsync(conversationId, modelId, cancellationToken);
 
-            // 3. Stream tokens from model
             await foreach (var token in _modelGateway.StreamAsync(selectedModel, messages, cancellationToken))
             {
                 buffer.Append(token);
                 yield return token;
             }
 
-            // 4. Persist assistant message (optional but recommended)
             (_promptTokensCount, _responseTokensCount) = _modelGateway.GetTokenConsumption();
             userMessage.TokensCount = _promptTokensCount;
             var assistantMessage = new ChatMessage
