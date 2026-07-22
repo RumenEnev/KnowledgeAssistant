@@ -5,6 +5,7 @@ using KnowledgeAssistant.Domain.Documents;
 using KnowledgeAssistant.Wpf.Messages;
 using KnowledgeAssistant.Wpf.Messages.Conversations;
 using KnowledgeAssistant.Wpf.Messages.Documents;
+using KnowledgeAssistant.Wpf.Messages.ModelContextWindows;
 using MessageServices;
 using MessageServices.Enums;
 using MessageServices.Messages;
@@ -49,6 +50,8 @@ namespace KnowledgeAssistant.Wpf.Services
             _messageService.Subscribe<DeleteDocumentRequest>(this, DeleteDocumentReceived);
             _messageService.Subscribe<GetChunkingSettingsRequest>(this, GetChunkingSettingsReceived);
             _messageService.Subscribe<UpdateChunkingSettingsRequest>(this, UpdateChunkingSettingsReceived);
+            _messageService.Subscribe<GetModelContextWindowsRequest>(this, GetModelContextWindowsReceived);
+            _messageService.Subscribe<UpdateModelContextWindowRequest>(this, UpdateModelContextWindowReceived);
         }
 
         private async void GetDocumentsReceived(MessageBase message)
@@ -221,6 +224,57 @@ namespace KnowledgeAssistant.Wpf.Services
                 catch (Exception ex)
                 {
                     _messageService.Publish(new UserMessage("Save Chunking Settings Failed", ex.Message, MessageType.Error));
+                }
+            }
+        }
+
+        private async void GetModelContextWindowsReceived(MessageBase message)
+        {
+            if (message is GetModelContextWindowsRequest)
+            {
+                try
+                {
+                    var dtos = await _httpClient.GetFromJsonAsync<List<ModelContextWindowDto>>("api/models/context-windows", _cancellationToken);
+                    var models = (dtos ?? new List<ModelContextWindowDto>())
+                        .Select(d => new ModelContextWindowInfo(d.Id, d.Name, d.ContextWindowTokens))
+                        .ToList();
+                    _messageService.Publish(new ModelContextWindowsUpdatedEvent(models));
+                }
+                catch (Exception ex)
+                {
+                    _messageService.Publish(new UserMessage("Error", $"Error fetching model context windows: {ex.Message}", MessageType.Error));
+                }
+            }
+        }
+
+        private async void UpdateModelContextWindowReceived(MessageBase message)
+        {
+            if (message is UpdateModelContextWindowRequest request)
+            {
+                try
+                {
+                    var dto = new UpdateModelContextWindowDto
+                    {
+                        ContextWindowTokens = request.ContextWindowTokens
+                    };
+
+                    using var response = await _httpClient.PutAsync(
+                        $"api/models/{request.ModelId}/context-window",
+                        new StringContent(JsonSerializer.Serialize(dto), Encoding.UTF8, "application/json"),
+                        _cancellationToken);
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        var error = await response.Content.ReadAsStringAsync(_cancellationToken);
+                        _messageService.Publish(new UserMessage("Save Model Context Window Failed", error, MessageType.Error));
+                        return;
+                    }
+
+                    _messageService.Publish(new ModelContextWindowUpdatedEvent(request.ModelId, request.ModelName, request.ContextWindowTokens));
+                }
+                catch (Exception ex)
+                {
+                    _messageService.Publish(new UserMessage("Save Model Context Window Failed", ex.Message, MessageType.Error));
                 }
             }
         }

@@ -1,0 +1,40 @@
+<div class="modal-overlay" (mousedown)="onOverlayMouseDown($event)" (click)="onOverlayClick($event)">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Model Context Windows</h3>
+      <button type="button" class="close-btn" (click)="close()">&times;</button>
+    </div>
+
+    <div class="modal-body">
+      <p class="hint">
+        Set the context window size (in tokens) for each installed model. Leave empty to use the model's default.
+      </p>
+
+      @if (isLoading()) {
+        <p>Loading models...</p>
+      } @else if (models().length === 0) {
+        <p>No models available.</p>
+      } @else {
+        <ul class="models-list">
+          @for (model of models(); track model.id) {
+            <li class="model-item">
+              <span class="model-name">{{ model.name }}</span>
+              <input
+                type="number"
+                min="1"
+                placeholder="Default"
+                [ngModel]="model.contextWindowTokens"
+                (ngModelChange)="updateContextWindowTokens(model, $event)" />
+              <button
+                type="button"
+                [disabled]="savingModelId() === model.id"
+                (click)="saveContextWindow(model)">
+                {{ savingModelId() === model.id ? 'Saving...' : 'Save' }}
+              </button>
+            </li>
+          }
+        </ul>
+      }
+    </div>
+  </div>
+</div>

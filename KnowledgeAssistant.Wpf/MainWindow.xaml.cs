@@ -413,5 +413,14 @@ namespace KnowledgeAssistant.Wpf
             };
             window.ShowDialog();
         }
+
+        private void ManageModelContextWindows_Click(object sender, RoutedEventArgs e)
+        {
+            var window = new ModelContextWindowsWindow(_messageService)
+            {
+                Owner = this
+            };
+            window.ShowDialog();
+        }
     }
 }

@@ -5,6 +5,7 @@
       <app-main-menu
         (newConversation)="newConversation()"
         (manageDocuments)="openDocumentsManager()"
+        (manageModelContextWindows)="openModelContextWindowsManager()"
         (exit)="exitApp()" />
       <h3>Conversations</h3>
       <button title="Add conversation" (click)="newConversation()">+</button>
@@ -58,4 +59,8 @@
 
 @if (showDocumentsManager()) {
   <app-documents-manager (closed)="closeDocumentsManager()" />
+}
+
+@if (showModelContextWindowsManager()) {
+  <app-model-context-windows-manager (closed)="closeModelContextWindowsManager()" />
 }

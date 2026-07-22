@@ -33,8 +33,9 @@
                 <Separator />
                 <MenuItem Click="Exit_Click" Header="E_xit" />
             </MenuItem>
-            <MenuItem Header="_Documents">
-                <MenuItem Click="ManageDocuments_Click" Header="_Manage Documents" />
+            <MenuItem Header="_Settings">
+                <MenuItem Click="ManageDocuments_Click" Header="_Documents" />
+                <MenuItem Click="ManageModelContextWindows_Click" Header="_Model Context Windows" />
             </MenuItem>
         </Menu>
 
@@ -81,7 +82,10 @@
                             HorizontalAlignment="Left"
                             Background="#EEF1F5"
                             CornerRadius="3">
-                            <TextBlock FontSize="10" Foreground="#555555" Text="{Binding Topic}" />
+                            <TextBlock
+                                FontSize="10"
+                                Foreground="#555555"
+                                Text="{Binding Topic}" />
                             <Border.Style>
                                 <Style TargetType="Border">
                                     <Style.Triggers>

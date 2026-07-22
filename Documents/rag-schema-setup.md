@@ -155,3 +155,21 @@ CREATE TABLE IF NOT EXISTS ai_interactions.conversations (
 
 `topic_id` is nullable and stores the result of automatic conversation topic classification: after the second user message in a conversation, the app asks the LLM to classify it into one of the existing `rag.topics`. Classification happens once per conversation and is never re-evaluated afterwards; conversations remain unclassified (`topic_id = NULL`) until enough messages have been exchanged, or if the LLM doesn't find a good match among the available topics.
 
+### ai_interactions.models
+
+```sql
+CREATE TABLE IF NOT EXISTS ai_interactions.models
+(
+    "Id" uuid,
+    size bigint,
+    is_installed boolean,
+    last_seen timestamp with time zone,
+    name character varying(50) COLLATE pg_catalog."default",
+    display_name character varying(20) COLLATE pg_catalog."default",
+    provider character varying(30) COLLATE pg_catalog."default",
+    family character varying(30) COLLATE pg_catalog."default",
+    context_window_tokens integer
+)
+```
+
+`context_window_tokens` is nullable and stores the configured context window size (in tokens) for the model, editable from the "Settings > Model Context Windows" screen in both UIs. When `NULL`, the model's default context window is used.

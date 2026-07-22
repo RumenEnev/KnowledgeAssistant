@@ -10,6 +10,7 @@ import { Component, EventEmitter, HostListener, Output, signal } from '@angular/
 export class MainMenuComponent {
   @Output() newConversation = new EventEmitter<void>();
   @Output() manageDocuments = new EventEmitter<void>();
+  @Output() manageModelContextWindows = new EventEmitter<void>();
   @Output() exit = new EventEmitter<void>();
 
   isOpen = signal(false);
@@ -34,6 +35,12 @@ export class MainMenuComponent {
     event.stopPropagation();
     this.isOpen.set(false);
     this.manageDocuments.emit();
+  }
+
+  onManageModelContextWindows(event: MouseEvent): void {
+    event.stopPropagation();
+    this.isOpen.set(false);
+    this.manageModelContextWindows.emit();
   }
 
   onExit(event: MouseEvent): void {

@@ -10,12 +10,13 @@ import { MessageComponent } from './components/message/message.component';
 import { NotificationToastComponent } from './components/notification-toast/notification-toast.component';
 import { MainMenuComponent } from './components/main-menu/main-menu.component';
 import { DocumentsManagerComponent } from './components/documents-manager/documents-manager.component';
+import { ModelContextWindowsManagerComponent } from './components/model-context-windows-manager/model-context-windows-manager.component';
 
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [FormsModule, ConversationTitleComponent, MessageComponent, NotificationToastComponent, MainMenuComponent, DocumentsManagerComponent],
+  imports: [FormsModule, ConversationTitleComponent, MessageComponent, NotificationToastComponent, MainMenuComponent, DocumentsManagerComponent, ModelContextWindowsManagerComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css'
 })
@@ -35,6 +36,7 @@ export class AppComponent implements OnInit {
   selectedConversation = signal<Conversation | null>(null);
   tokenConsumption = signal<{ prompt: number; response: number; total: number } | null>(null);
   showDocumentsManager = signal(false);
+  showModelContextWindowsManager = signal(false);
 
   constructor() {
     effect(() => {
@@ -136,6 +138,14 @@ export class AppComponent implements OnInit {
 
   closeDocumentsManager(): void {
     this.showDocumentsManager.set(false);
+  }
+
+  openModelContextWindowsManager(): void {
+    this.showModelContextWindowsManager.set(true);
+  }
+
+  closeModelContextWindowsManager(): void {
+    this.showModelContextWindowsManager.set(false);
   }
 
   exitApp(): void {
