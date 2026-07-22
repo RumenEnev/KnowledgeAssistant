@@ -12,6 +12,10 @@
 
         public Guid? SelectedModelId { get; set; }
 
+        public int? TopicId { get; set; }
+
+        public string? Topic { get; set; }
+
         public IEnumerable<ChatMessage>? Messages { get; set; }
     }
 }

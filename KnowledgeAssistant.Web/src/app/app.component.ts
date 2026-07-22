@@ -154,6 +154,20 @@ export class AppComponent implements OnInit {
     }
   }
 
+  private async refreshConversationTopic(conversationId: string) {
+    try {
+      const conversation = await this.chatService.getConversation(conversationId);
+      this.conversations.update(current =>
+        current.map(c => c.id === conversationId ? { ...c, topic: conversation.topic, title: conversation.title } : c)
+      );
+      if (this.selectedConversation()?.id === conversationId) {
+        this.selectedConversation.update(c => c ? { ...c, topic: conversation.topic, title: conversation.title } : c);
+      }
+    } catch {
+      // Best-effort refresh; ignore failures so the chat flow is not disrupted.
+    }
+  }
+
   async send() {
     const text = this.userPrompt().trim();
 
@@ -163,6 +177,7 @@ export class AppComponent implements OnInit {
 
     const isNewConversation = !this.selectedConversation();
     const conversationId = this.selectedConversation()?.id;
+    let activeConversationId = conversationId;
     let newConversationAttached = false;
 
     // 1. Add user message
@@ -194,6 +209,9 @@ export class AppComponent implements OnInit {
           switch (event.Type) {
 
             case SseEvents.Token:
+              if (event.conversationId) {
+                activeConversationId = event.conversationId;
+              }
               if (isNewConversation && !newConversationAttached && event.conversationId) {
                 newConversationAttached = true;
                 this.attachNewConversation(event.conversationId);
@@ -212,6 +230,9 @@ export class AppComponent implements OnInit {
 
             case SseEvents.Done:
               this.isStreaming.set(false);
+              if (activeConversationId && !newConversationAttached) {
+                this.refreshConversationTopic(activeConversationId);
+              }
               if (event.PromptTokens != null && event.ResponseTokens != null) {
                 this.tokenConsumption.set({
                   prompt: event.PromptTokens,

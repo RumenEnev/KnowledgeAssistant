@@ -68,9 +68,36 @@
             Grid.RowSpan="3"
             Grid.Column="0"
             Margin="2"
-            DisplayMemberPath="Title"
             ItemsSource="{Binding Conversations}"
             SelectedItem="{Binding SelectedConversation}">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel Margin="0,2">
+                        <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+                        <Border
+                            x:Name="TopicBadge"
+                            Margin="0,2,0,0"
+                            Padding="4,0"
+                            HorizontalAlignment="Left"
+                            Background="#EEF1F5"
+                            CornerRadius="3">
+                            <TextBlock FontSize="10" Foreground="#555555" Text="{Binding Topic}" />
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Topic}" Value="{x:Null}">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding Topic}" Value="">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                        </Border>
+                    </StackPanel>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
             <ListBox.ContextMenu>
                 <ContextMenu>
                     <MenuItem Click="RenameConversation_Click" Header="Rename" />

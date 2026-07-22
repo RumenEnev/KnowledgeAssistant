@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 interface Item {
   id: string;
   title: string;
+  topic?: string;
 }
 
 @Component({

@@ -202,6 +202,7 @@ namespace KnowledgeAssistant.Wpf
                     if (conversationToUpdate != null)
                     {
                         conversationToUpdate.Title = request.Conversation.Title;
+                        conversationToUpdate.Topic = request.Conversation.Topic;
                         Conversations = new ObservableCollection<Conversation>(Conversations);
                         SelectedConversation = conversationToUpdate;
                     }
@@ -295,6 +296,11 @@ namespace KnowledgeAssistant.Wpf
             {
                 ChatMessages.Last().MessageCompleted = true;
                 StatusMessage = $"Prompt Tokens: {completedEvent.PromptTokens}, Response Tokens: {completedEvent.ResponseTokens}";
+
+                if (SelectedConversation != null)
+                {
+                    _messageService.Publish(new RefreshConversationRequest(SelectedConversation.Id));
+                }
             }
         }
 

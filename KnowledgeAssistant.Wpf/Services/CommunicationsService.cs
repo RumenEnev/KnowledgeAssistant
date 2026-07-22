@@ -36,6 +36,7 @@ namespace KnowledgeAssistant.Wpf.Services
             _messageService.Subscribe<GetAvailableModelsRequest>(this, GetAvailableModelsReceived);
             _messageService.Subscribe<GetConversationsRequest>(this, GetConversationsReceived);
             _messageService.Subscribe<GetConversationRequest>(this, GetConversationReceived);
+            _messageService.Subscribe<RefreshConversationRequest>(this, RefreshConversationReceived);
             _messageService.Subscribe<UpdateConversationTitleRequest>(this, UpdateConversationTitleReceived);
             _messageService.SubscribeAsync<CreateConversationsRequest>(this, CreateConversationsReceived);
             _messageService.Subscribe<DeleteConversationRequest>(this, DeleteConversationReceived);
@@ -314,6 +315,30 @@ namespace KnowledgeAssistant.Wpf.Services
             }
         }
 
+        private async void RefreshConversationReceived(MessageBase message)
+        {
+            if (message is RefreshConversationRequest request)
+            {
+                try
+                {
+                    var conversation = await _httpClient.GetFromJsonAsync<ConversationDto>($"api/conversations/{request.ConversationId}", _cancellationToken);
+                    if (conversation != null)
+                    {
+                        _messageService.Publish(new ConversationUpdatedEvent(new Conversation
+                        {
+                            Id = conversation.Id,
+                            Title = conversation.Title,
+                            Topic = conversation.Topic
+                        }));
+                    }
+                }
+                catch
+                {
+                    // Best-effort refresh; ignore failures so the chat flow is not disrupted.
+                }
+            }
+        }
+
         private async void GetConversationsReceived(MessageBase message)
         {
             if (message is GetConversationsRequest)
@@ -324,7 +349,8 @@ namespace KnowledgeAssistant.Wpf.Services
                     _messageService.Publish(new ConversationsUpdatedEvent(conversations?.Select(c => new Conversation
                     {
                         Id = c.Id,
-                        Title = c.Title
+                        Title = c.Title,
+                        Topic = c.Topic
                     }) ?? Enumerable.Empty<Conversation>()));
                 }
                 catch (Exception ex)

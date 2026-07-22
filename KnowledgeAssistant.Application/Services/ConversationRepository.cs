@@ -21,7 +21,10 @@ namespace KnowledgeAssistant.Application.Services
             await using (NpgsqlConnection connection = new NpgsqlConnection(_connectionString))
             {
                 await connection.OpenAsync();
-                var query = "SELECT id, title, created_at AS CreatedAt, updated_at AS UpdatedAt FROM ai_interactions.conversations";
+                var query = "SELECT c.id, c.title, c.created_at AS CreatedAt, c.updated_at AS UpdatedAt, " +
+                    "c.topic_id AS TopicId, t.name AS Topic " +
+                    "FROM ai_interactions.conversations c " +
+                    "LEFT JOIN rag.topics t ON t.id = c.topic_id";
                 return await connection.QueryAsync<Conversation>(query);
             }
         }
@@ -67,7 +70,11 @@ namespace KnowledgeAssistant.Application.Services
         {
             await using var connection = new NpgsqlConnection(_connectionString);
             await connection.OpenAsync(cancellationToken);
-            var query = "SELECT * FROM ai_interactions.conversations WHERE id = @Id";
+            var query = "SELECT c.id, c.title, c.created_at AS CreatedAt, c.updated_at AS UpdatedAt, c.selected_model_id AS SelectedModelId, " +
+                "c.topic_id AS TopicId, t.name AS Topic " +
+                "FROM ai_interactions.conversations c " +
+                "LEFT JOIN rag.topics t ON t.id = c.topic_id " +
+                "WHERE c.id = @Id";
             var conversation = await connection.QuerySingleOrDefaultAsync<Conversation>(query, new { Id = id });
             if (conversation != null)
             {
@@ -134,6 +141,19 @@ namespace KnowledgeAssistant.Application.Services
             {
                 Id = conversationId,
                 ModelId = modelId,
+                UpdatedAt = DateTime.UtcNow
+            });
+        }
+
+        public async Task UpdateTopicAsync(Guid conversationId, int? topicId, CancellationToken cancellationToken)
+        {
+            await using var connection = new NpgsqlConnection(_connectionString);
+            await connection.OpenAsync(cancellationToken);
+            var query = "UPDATE ai_interactions.conversations SET topic_id = @TopicId, updated_at = @UpdatedAt WHERE id = @Id";
+            await connection.ExecuteAsync(query, new
+            {
+                Id = conversationId,
+                TopicId = topicId,
                 UpdatedAt = DateTime.UtcNow
             });
         }

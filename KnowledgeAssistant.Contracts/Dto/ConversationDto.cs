@@ -10,6 +10,8 @@
 
         public string? SelectedModel { get; set; }
 
+        public string? Topic { get; set; }
+
         public IEnumerable<MessageDto>? Messages { get; set; }
     }
 }

@@ -8,18 +8,22 @@ namespace KnowledgeAssistant.Application.Services
 {
     public class ConversationService
     {
+        private const int TopicClassificationUserMessageThreshold = 2;
+
         private readonly IModelGateway _modelGateway;
         private readonly IConversationRepository _repository;
         private readonly IModelRepository _modelRepository;
+        private readonly IDocumentRepository _documentRepository;
 
         private int _promptTokensCount;
         private int _responseTokensCount;
 
-        public ConversationService(IModelGateway modelGateway, IConversationRepository repository, IModelRepository modelRepository)
+        public ConversationService(IModelGateway modelGateway, IConversationRepository repository, IModelRepository modelRepository, IDocumentRepository documentRepository)
         {
             _modelGateway = modelGateway;
             _repository = repository;
             _modelRepository = modelRepository;
+            _documentRepository = documentRepository;
         }
 
         public async Task<string> GenerateTitleAsync(string userMessage, string model, CancellationToken cancellationToken)
@@ -151,6 +155,81 @@ namespace KnowledgeAssistant.Application.Services
 
             await _repository.CreateMessageAsync(conversationId, userMessage, cancellationToken);
             await _repository.CreateMessageAsync(conversationId, assistantMessage, cancellationToken);
+
+            var userMessageCount = messages.Count(m => m.Role == "user");
+            if (conversation!.TopicId is null && userMessageCount == TopicClassificationUserMessageThreshold)
+            {
+                await ClassifyTopicAsync(conversationId, messages, selectedModel, cancellationToken);
+            }
+        }
+
+        private async Task ClassifyTopicAsync(Guid conversationId, IEnumerable<ChatMessage> messages, string model, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var topics = (await _documentRepository.GetAllTopicsAsync(cancellationToken)).ToList();
+                if (topics.Count == 0)
+                {
+                    return;
+                }
+
+                var topicNames = string.Join(", ", topics.Select(t => t.Name));
+                var transcript = string.Join(
+                    "\n",
+                    messages.Select(m => $"{m.Role}: {m.Content}"));
+
+                string? generated = null;
+                try
+                {
+                    generated = await _modelGateway.GenerateAsync(
+                        model: model,
+                        systemMessage: new ChatMessage
+                        {
+                            Role = "system",
+                            Content = "You classify a conversation into exactly one topic from a fixed list, based on what it is about. " +
+                                       $"Available topics: {topicNames}. " +
+                                       "Reply with ONLY the exact topic name from the list that best matches the conversation. " +
+                                       "If none of the topics reasonably match, reply with exactly: NONE. " +
+                                       "Do not explain, do not add punctuation, do not invent new topic names."
+                        },
+                        userMessage: new ChatMessage
+                        {
+                            Role = "user",
+                            Content = transcript
+                        },
+                        cancellationToken: cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch
+                {
+                    return;
+                }
+
+                var candidate = generated?.Trim().Trim('"', '\'', '.', ' ');
+                if (string.IsNullOrWhiteSpace(candidate) || string.Equals(candidate, "NONE", StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
+
+                var matchedTopic = topics.FirstOrDefault(t => string.Equals(t.Name, candidate, StringComparison.OrdinalIgnoreCase));
+                if (matchedTopic is null)
+                {
+                    return;
+                }
+
+                await _repository.UpdateTopicAsync(conversationId, matchedTopic.Id, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch
+            {
+                // Topic classification is a best-effort enhancement; ignore failures so chat is not disrupted.
+            }
         }
 
         public (int, int) GetTokenConsumption()

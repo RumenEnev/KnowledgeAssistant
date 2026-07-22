@@ -27,6 +27,7 @@ namespace KnowledgeAssistant.Api.Controllers
                 Id = conversation.Id,
                 Title = conversation.Title,
                 CreatedAt = conversation.CreatedAt,
+                Topic = conversation.Topic,
             });
 
             return Ok(conversationDtos.OrderByDescending(c => c.CreatedAt));
@@ -54,6 +55,7 @@ namespace KnowledgeAssistant.Api.Controllers
                 Title = conversation.Title,
                 CreatedAt = conversation.CreatedAt,
                 SelectedModel = selectedModel,
+                Topic = conversation.Topic,
                 Messages = conversation.Messages?.Select(message => new MessageDto
                 {
                     Id = message.Id,
