@@ -117,7 +117,7 @@ namespace KnowledgeAssistant.Application.Services
             await _repository.CreateMessageAsync(conversationId, message, cancellationToken);
         }
 
-        public async IAsyncEnumerable<string> SendMessageAsync(Guid conversationId, string message, string model, [EnumeratorCancellation] CancellationToken cancellationToken)
+        public async IAsyncEnumerable<string> GenerateAssistantMessageAsync(Guid conversationId, string message, string model, [EnumeratorCancellation] CancellationToken cancellationToken)
         {
             var conversation = await _repository.GetAsync(conversationId, cancellationToken);
             if (conversation is null)
@@ -135,14 +135,34 @@ namespace KnowledgeAssistant.Application.Services
                 CreatedAt = DateTime.UtcNow
             };
 
-            var messages = conversation!.Messages?.ToList() ?? new List<ChatMessage>();
+            var messages = conversation.Messages?.ToList() ?? new List<ChatMessage>();
+            if (!string.IsNullOrWhiteSpace(relevantContext))
+            {
+                var contextMessage = new ChatMessage
+                {
+                    Id = Guid.NewGuid(),
+                    Content = $"""
+                                Use the following retrieved context to help answer the user's question.
+                                If the context is not relevant or insufficient, rely on your own knowledge but say so.
+
+                                --- Retrieved Context ---
+                                {relevantContext}
+                                --- End Context ---
+                                """,
+                    ConversationId = conversationId,
+                    Role = "system",
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                messages.Add(contextMessage);
+            }
+
             messages.Add(userMessage);
 
-            var selectedModel = model ?? "llama3";
+            var selectedModel = model;
             var buffer = new StringBuilder();
             var modelId = await _modelRepository.GetOrCreateModelIdAsync(selectedModel, cancellationToken);
             await _repository.UpdateSelectedModelAsync(conversationId, modelId, cancellationToken);
-
             await foreach (var token in _modelGateway.StreamAsync(selectedModel, messages, cancellationToken))
             {
                 buffer.Append(token);
@@ -163,9 +183,8 @@ namespace KnowledgeAssistant.Application.Services
 
             await _repository.CreateMessageAsync(conversationId, userMessage, cancellationToken);
             await _repository.CreateMessageAsync(conversationId, assistantMessage, cancellationToken);
-
             var userMessageCount = messages.Count(m => m.Role == "user");
-            if (conversation!.TopicId is null && userMessageCount == TopicClassificationUserMessageThreshold)
+            if (conversation.TopicId is null && userMessageCount == TopicClassificationUserMessageThreshold)
             {
                 await ClassifyTopicAsync(conversationId, messages, selectedModel, cancellationToken);
             }
