@@ -7,9 +7,13 @@ using MessageServices;
 using MessageServices.Enums;
 using MessageServices.Messages;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Threading;
 using UI.Windows;
 
 namespace KnowledgeAssistant.Wpf
@@ -33,6 +37,7 @@ namespace KnowledgeAssistant.Wpf
             DataContext = this;
 
             _conversations = new ObservableCollection<Conversation>();
+            _chatMessages.CollectionChanged += ChatMessages_CollectionChanged;
 
             _messageService = messageService;
             _messageService.Subscribe<UserMessage>(this, UserMessageReceived);
@@ -149,7 +154,9 @@ namespace KnowledgeAssistant.Wpf
             {
                 if (_chatMessages != value)
                 {
+                    _chatMessages.CollectionChanged -= ChatMessages_CollectionChanged;
                     _chatMessages = value;
+                    _chatMessages.CollectionChanged += ChatMessages_CollectionChanged;
                     OnPropertyChanged(nameof(ChatMessages));
                 }
             }
@@ -160,6 +167,32 @@ namespace KnowledgeAssistant.Wpf
         protected virtual void OnPropertyChanged(string propertyName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        private ScrollViewer? FindScrollViewer(DependencyObject root)
+        {
+            if (root is ScrollViewer sv) return sv;
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+            {
+                var result = FindScrollViewer(VisualTreeHelper.GetChild(root, i));
+                if (result != null) return result;
+            }
+            return null;
+        }
+
+        private void ChatMessages_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            if (e.Action == NotifyCollectionChangedAction.Add)
+            {
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        var scrollViewer = FindScrollViewer(ChatListView);
+                        scrollViewer?.ScrollToBottom();
+                    }), DispatcherPriority.Background);
+                }), DispatcherPriority.Background);
+            }
         }
 
         private void ConversationCreatedEventReceived(MessageBase message)
@@ -296,13 +329,15 @@ namespace KnowledgeAssistant.Wpf
         {
             if (message is ChatCompletedEvent completedEvent)
             {
-                ChatMessages.Last().MessageCompleted = true;
-                StatusMessage = $"Prompt Tokens: {completedEvent.PromptTokens}, Response Tokens: {completedEvent.ResponseTokens}";
-
-                if (SelectedConversation != null)
+                Application.Current.Dispatcher.Invoke(() =>
                 {
-                    _messageService.Publish(new RefreshConversationRequest(SelectedConversation.Id));
-                }
+                    ChatMessages.Last().MessageCompleted = true;
+                    StatusMessage = $"Prompt Tokens: {completedEvent.PromptTokens}, Response Tokens: {completedEvent.ResponseTokens}";
+                    if (SelectedConversation != null)
+                    {
+                        _messageService.Publish(new RefreshConversationRequest(SelectedConversation.Id));
+                    }
+                });
             }
         }
 

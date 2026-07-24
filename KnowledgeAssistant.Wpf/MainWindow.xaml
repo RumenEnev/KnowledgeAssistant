@@ -120,12 +120,16 @@
             SelectedItem="{Binding SelectedModel}" />
 
         <ListView
+            x:Name="ChatListView"
             Grid.Row="2"
             Grid.Column="1"
             Grid.ColumnSpan="2"
             Margin="2"
             ItemsSource="{Binding ChatMessages}"
-            ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+            VirtualizingPanel.IsVirtualizing="True"
+            VirtualizingPanel.ScrollUnit="Pixel"
+            VirtualizingPanel.VirtualizationMode="Recycling">
             <ListView.ItemContainerStyle>
                 <Style TargetType="ListViewItem">
                     <Setter Property="Margin" Value="{Binding ChatMessageMargin}" />
