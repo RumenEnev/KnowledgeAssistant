@@ -1,7 +1,9 @@
 ﻿using KnowledgeAssistant.Application.Abstraction;
+using KnowledgeAssistant.Contracts.Enums;
 using Microsoft.Extensions.Configuration;
 using System.Collections.Concurrent;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace KnowledgeAssistant.Application.Services
 {
@@ -29,7 +31,7 @@ namespace KnowledgeAssistant.Application.Services
             _fallbackContextWindowTokens = 4096;
         }
 
-        public async Task<int> IngestDocumentAsync(string title, string originalText, IReadOnlyList<string> topicNames, CancellationToken cancellationToken)
+        public async Task<int> IngestDocumentAsync(string title, string originalText, DocumentType documentType, IReadOnlyList<string> topicNames, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(originalText))
             {
@@ -44,12 +46,12 @@ namespace KnowledgeAssistant.Application.Services
             var topicIds = await ResolveTopicIdsAsync(topicNames, cancellationToken);
             var documentId = await _documentRepository.CreateDocumentAsync(title, originalText, cancellationToken);
             await _documentRepository.LinkDocumentTopicsAsync(documentId, topicIds, cancellationToken);
-            await ReplaceChunksAsync(documentId, originalText, cancellationToken);
+            await ReplaceChunksAsync(documentId, originalText, documentType, cancellationToken);
 
             return documentId;
         }
 
-        public async Task UpdateDocumentAsync(int documentId, string title, string originalText, IReadOnlyList<string> topicNames, CancellationToken cancellationToken)
+        public async Task UpdateDocumentAsync(int documentId, string title, string originalText, DocumentType documentType, IReadOnlyList<string> topicNames, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(originalText))
             {
@@ -64,7 +66,7 @@ namespace KnowledgeAssistant.Application.Services
             var topicIds = await ResolveTopicIdsAsync(topicNames, cancellationToken);
             await _documentRepository.UpdateDocumentAsync(documentId, title, originalText, cancellationToken);
             await _documentRepository.ReplaceDocumentTopicsAsync(documentId, topicIds, cancellationToken);
-            await ReplaceChunksAsync(documentId, originalText, cancellationToken);
+            await ReplaceChunksAsync(documentId, originalText, documentType, cancellationToken);
         }
 
         private async Task<List<int>> ResolveTopicIdsAsync(IReadOnlyList<string> topicNames, CancellationToken cancellationToken)
@@ -84,12 +86,15 @@ namespace KnowledgeAssistant.Application.Services
             return topicIds;
         }
 
-        private async Task ReplaceChunksAsync(int documentId, string originalText, CancellationToken cancellationToken)
+        private async Task ReplaceChunksAsync(int documentId, string originalText, DocumentType documentType, CancellationToken cancellationToken)
         {
             await _documentRepository.DeleteChunksByDocumentAsync(documentId, cancellationToken);
 
             var (targetChunkSizeChars, overlapChars) = await _configurationRepository.GetChunkingSettingsAsync(cancellationToken);
-            var chunks = ChunkByParagraphWithOverlap(originalText, targetChunkSizeChars, overlapChars);
+            var chunks = documentType == DocumentType.Markdown
+                ? ChunkMarkdownByHeaders(originalText, targetChunkSizeChars, overlapChars)
+                : ChunkByParagraphWithOverlap(originalText, targetChunkSizeChars, overlapChars);
+
             for (int i = 0; i < chunks.Count; i++)
             {
                 var embedding = await _modelGateway.GetEmbeddingAsync(EmbeddingModel, chunks[i], cancellationToken);
@@ -97,7 +102,164 @@ namespace KnowledgeAssistant.Application.Services
             }
         }
 
-        private static List<string> ChunkByParagraphWithOverlap(string text, int targetChunkSizeChars, int overlapChars)
+        private List<string> ChunkMarkdownByHeaders(string markdown, int targetChunkSizeChars, int overlapChars)
+        {
+            var sections = SplitByHeaders(markdown);
+            var allChunks = new List<string>();
+            foreach (var section in sections)
+            {
+                var sectionChunks = ChunkSectionByParagraphs(section, targetChunkSizeChars, overlapChars);
+                allChunks.AddRange(sectionChunks);
+            }
+
+            return allChunks;
+        }
+
+        private List<string> ChunkSectionByParagraphs(string text, int targetChunkSizeChars, int overlapChars)
+        {
+            var paragraphs = SplitIntoParagraphs(text);
+            var chunks = new List<string>();
+            var current = new List<string>();
+            int currentLength = 0;
+            foreach (var paragraph in paragraphs)
+            {
+                if (paragraph.Length > targetChunkSizeChars)
+                {
+                    if (current.Count > 0)
+                    {
+                        chunks.Add(string.Join("\n\n", current));
+                        current = CarryOverlap(current, overlapChars);
+                        currentLength = current.Sum(p => p.Length);
+                    }
+
+                    foreach (var piece in SplitOversizedParagraph(paragraph, targetChunkSizeChars))
+                    {
+                        chunks.Add(piece);
+                    }
+
+                    continue;
+                }
+
+                if (currentLength > 0 && currentLength + paragraph.Length > targetChunkSizeChars)
+                {
+                    chunks.Add(string.Join("\n\n", current));
+                    current = CarryOverlap(current, overlapChars);
+                    currentLength = current.Sum(p => p.Length);
+                }
+
+                current.Add(paragraph);
+                currentLength += paragraph.Length;
+            }
+
+            if (current.Count > 0)
+            {
+                chunks.Add(string.Join("\n\n", current));
+            }
+
+            return chunks;
+        }
+
+        private List<string> SplitOversizedParagraph(string paragraph, int targetChunkSizeChars)
+        {
+            var sentences = Regex.Split(paragraph, @"(?<=[.!?])\s+(?![^$]*\$)");
+            var pieces = new List<string>();
+            var buffer = new StringBuilder();
+            foreach (var sentence in sentences)
+            {
+                if (buffer.Length > 0 && buffer.Length + sentence.Length > targetChunkSizeChars)
+                {
+                    pieces.Add(buffer.ToString().Trim());
+                    buffer.Clear();
+                }
+
+                buffer.Append(sentence).Append(' ');
+            }
+
+            if (buffer.Length > 0)
+            {
+                pieces.Add(buffer.ToString().Trim());
+            }
+
+            return pieces;
+        }
+
+        private List<string> CarryOverlap(List<string> paragraphs, int overlapChars)
+        {
+            var carried = new List<string>();
+            int total = 0;
+
+            for (int i = paragraphs.Count - 1; i >= 0; i--)
+            {
+                if (total >= overlapChars) break;
+                carried.Insert(0, paragraphs[i]);
+                total += paragraphs[i].Length;
+            }
+
+            return carried;
+        }
+
+        private List<string> SplitIntoParagraphs(string text)
+        {
+            var blocks = new List<string>();
+            var lines = text.Split('\n');
+            var buffer = new StringBuilder();
+            bool inFence = false;
+
+            foreach (var line in lines)
+            {
+                if (line.TrimStart().StartsWith("```"))
+                {
+                    inFence = !inFence;
+                }
+
+                if (!inFence && string.IsNullOrWhiteSpace(line))
+                {
+                    if (buffer.Length > 0)
+                    {
+                        blocks.Add(buffer.ToString().Trim());
+                        buffer.Clear();
+                    }
+                }
+                else
+                {
+                    buffer.AppendLine(line);
+                }
+            }
+
+            if (buffer.Length > 0)
+            {
+                blocks.Add(buffer.ToString().Trim());
+            }
+
+            return blocks.Where(b => b.Length > 0).ToList();
+        }
+
+        private List<string> SplitByHeaders(string markdown)
+        {
+            var lines = markdown.Replace("\r\n", "\n").Split('\n');
+            var sections = new List<string>();
+            var currentContent = new StringBuilder();
+            var headerRegex = new Regex(@"^(#{1,6})\s+(.*)$");
+            foreach (var line in lines)
+            {
+                if (headerRegex.IsMatch(line) && (currentContent.Length > 0))
+                {
+                    sections.Add(currentContent.ToString().Trim());
+                    currentContent.Clear();
+                }
+
+                currentContent.AppendLine(line);
+            }
+
+            if (currentContent.Length > 0)
+            {
+                sections.Add(currentContent.ToString().Trim());
+                currentContent.Clear();
+            }
+            return sections;
+        }
+
+        private List<string> ChunkByParagraphWithOverlap(string text, int targetChunkSizeChars, int overlapChars)
         {
             var paragraphs = text
                 .Replace("\r\n", "\n")

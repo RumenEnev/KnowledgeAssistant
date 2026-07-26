@@ -78,10 +78,14 @@ namespace KnowledgeAssistant.Api.Controllers
         public async Task<IActionResult> GenerateTitle([FromBody] ChatRequestDto request, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(request.Message))
+            {
                 return BadRequest("Message is required.");
+            }
 
             if (string.IsNullOrWhiteSpace(request.Model))
+            {
                 return BadRequest("Model is required.");
+            }
 
             var title = await _conversationService.GenerateTitleAsync(request.Message, request.Model, cancellationToken);
             return Ok(new ConversationDto { Title = title });

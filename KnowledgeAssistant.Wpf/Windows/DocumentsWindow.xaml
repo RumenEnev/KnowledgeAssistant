@@ -126,7 +126,7 @@
                     <Button
                         Padding="8,4"
                         Click="LoadTextFromFile_Click"
-                        Content="Load from .txt file…"
+                        Content="Load from file…"
                         ToolTip="Populate the text box with the contents of a .txt file." />
                     <Button
                         Margin="8,0,0,0"

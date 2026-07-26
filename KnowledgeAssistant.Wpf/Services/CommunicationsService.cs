@@ -101,11 +101,11 @@ namespace KnowledgeAssistant.Wpf.Services
                     {
                         Title = request.Title,
                         Text = request.Text,
+                        DocumentType = request.DocumentType,
                         Topics = request.Topics.ToList()
                     };
 
-                    using var response = await _httpClient.PostAsync(
-                        "api/documents",
+                    using var response = await _httpClient.PostAsync("api/documents",
                         new StringContent(JsonSerializer.Serialize(dto), Encoding.UTF8, "application/json"),
                         _cancellationToken);
 
@@ -137,11 +137,11 @@ namespace KnowledgeAssistant.Wpf.Services
                     {
                         Title = request.Title,
                         Text = request.Text,
+                        DocumentType = request.DocumentType,
                         Topics = request.Topics.ToList()
                     };
 
-                    using var response = await _httpClient.PutAsync(
-                        $"api/documents/{request.DocumentId}",
+                    using var response = await _httpClient.PutAsync($"api/documents/{request.DocumentId}",
                         new StringContent(JsonSerializer.Serialize(dto), Encoding.UTF8, "application/json"),
                         _cancellationToken);
 
@@ -459,7 +459,7 @@ namespace KnowledgeAssistant.Wpf.Services
                 var dto = new ChatRequestDto
                 {
                     Message = request.UserPrompt,
-                    Model = request.Model, 
+                    Model = request.Model,
                 };
 
                 httpRequest.Content = new StringContent(JsonSerializer.Serialize(dto), Encoding.UTF8, "application/json");
@@ -531,22 +531,22 @@ namespace KnowledgeAssistant.Wpf.Services
                             {
                                 case SseEvents.ConversationUpdated:
                                     chunk = JsonSerializer.Deserialize<ChatResponseChunkDto>(data, jsonOptions);
-                                    conversationId = chunk?.ConversationId; 
+                                    conversationId = chunk?.ConversationId;
                                     break;
                                 case SseEvents.Token:
                                     chunk = JsonSerializer.Deserialize<ChatResponseChunkDto>(data, jsonOptions);
-                                    _messageService.Publish(new ChunkReceivedEvent(chunk?.Content ?? string.Empty)); 
+                                    _messageService.Publish(new ChunkReceivedEvent(chunk?.Content ?? string.Empty));
                                     break;
-                                case SseEvents.Done: 
+                                case SseEvents.Done:
                                     var metadata = JsonSerializer.Deserialize<MessageDoneDto>(data, jsonOptions);
-                                    _messageService.Publish(new ChatCompletedEvent(metadata?.PromptTokens ?? 0, metadata?.ResponseTokens ?? 0)); 
+                                    _messageService.Publish(new ChatCompletedEvent(metadata?.PromptTokens ?? 0, metadata?.ResponseTokens ?? 0));
                                     break;
                                 case SseEvents.Error:
                                     var error = JsonSerializer.Deserialize<ErrorEventDto>(data, jsonOptions);
                                     _messageService.Publish(new UserMessage("Error", error?.Message ?? "An error occurred while generating the response.", MessageType.Error));
                                     _messageService.Publish(new ChatCompletedEvent(0, 0));
                                     break;
-                            //    case SseEvents.MessageCompleted: _messageService.Publish(new ChatCompletedEvent(conversationId)); break;
+                                    //    case SseEvents.MessageCompleted: _messageService.Publish(new ChatCompletedEvent(conversationId)); break;
                             }
                         }
                     }

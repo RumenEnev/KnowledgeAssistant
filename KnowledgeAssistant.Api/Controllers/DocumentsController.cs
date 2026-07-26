@@ -1,6 +1,7 @@
 ﻿using KnowledgeAssistant.Application.Abstraction;
 using KnowledgeAssistant.Application.Services;
 using KnowledgeAssistant.Contracts.Dto;
+using KnowledgeAssistant.Contracts.Enums;
 using Microsoft.AspNetCore.Mvc;
 
 namespace KnowledgeAssistant.Api.Controllers
@@ -22,19 +23,23 @@ namespace KnowledgeAssistant.Api.Controllers
         public async Task<IActionResult> IngestText([FromBody] IngestTextRequestDto request, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(request.Title))
+            {
                 return BadRequest("Title is required.");
+            }
 
             if (string.IsNullOrWhiteSpace(request.Text))
+            {
                 return BadRequest("Text is required.");
+            }
 
             if (request.Topics is null || request.Topics.Count == 0)
+            {
                 return BadRequest("At least one topic is required.");
+            }
 
             try
             {
-                var documentId = await _ingestionService.IngestDocumentAsync(
-                    request.Title, request.Text, request.Topics, cancellationToken);
-
+                var documentId = await _ingestionService.IngestDocumentAsync(request.Title, request.Text, request.DocumentType, request.Topics, cancellationToken);
                 return Ok(new AddDocumentResultDto { DocumentId = documentId });
             }
             catch (InvalidOperationException ex)
@@ -45,33 +50,38 @@ namespace KnowledgeAssistant.Api.Controllers
         }
 
         [HttpPost("upload")]
-        public async Task<IActionResult> IngestFile(
-            IFormFile file, [FromForm] string title, [FromForm] string topics, CancellationToken cancellationToken)
+        public async Task<IActionResult> IngestFile(IFormFile file, [FromForm] string title, [FromForm] string topics, CancellationToken cancellationToken)
         {
             if (file is null || file.Length == 0)
+            {
                 return BadRequest("A .txt file is required.");
+            }
 
             if (!file.FileName.EndsWith(".txt", StringComparison.OrdinalIgnoreCase))
+            {
                 return BadRequest("Only .txt files are supported.");
+            }
 
             if (string.IsNullOrWhiteSpace(title))
+            {
                 return BadRequest("Title is required.");
+            }
 
             var topicNames = (topics ?? string.Empty)
                 .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 .ToList();
 
             if (topicNames.Count == 0)
+            {
                 return BadRequest("At least one topic is required.");
+            }
 
             using var reader = new StreamReader(file.OpenReadStream());
             string text = await reader.ReadToEndAsync(cancellationToken);
-
             try
             {
-                var documentId = await _ingestionService.IngestDocumentAsync(
-                    title, text, topicNames, cancellationToken);
-
+                var documentType = file.FileName.EndsWith(".md") ? DocumentType.Markdown : DocumentType.PlainText;
+                var documentId = await _ingestionService.IngestDocumentAsync(title, text, documentType, topicNames, cancellationToken);
                 return Ok(new AddDocumentResultDto { DocumentId = documentId });
             }
             catch (InvalidOperationException ex)
@@ -84,17 +94,23 @@ namespace KnowledgeAssistant.Api.Controllers
         public async Task<IActionResult> Update(int id, [FromBody] IngestTextRequestDto request, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(request.Title))
+            {
                 return BadRequest("Title is required.");
+            }
 
             if (string.IsNullOrWhiteSpace(request.Text))
+            {
                 return BadRequest("Text is required.");
+            }
 
             if (request.Topics is null || request.Topics.Count == 0)
+            {
                 return BadRequest("At least one topic is required.");
+            }
 
             try
             {
-                await _ingestionService.UpdateDocumentAsync(id, request.Title, request.Text, request.Topics, cancellationToken);
+                await _ingestionService.UpdateDocumentAsync(id, request.Title, request.Text, request.DocumentType, request.Topics, cancellationToken);
                 return Ok(new AddDocumentResultDto { DocumentId = id });
             }
             catch (InvalidOperationException ex)

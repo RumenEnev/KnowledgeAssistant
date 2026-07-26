@@ -1,4 +1,5 @@
-﻿using KnowledgeAssistant.Wpf.Messages.Documents;
+﻿using KnowledgeAssistant.Contracts.Enums;
+using KnowledgeAssistant.Wpf.Messages.Documents;
 using KnowledgeAssistant.Wpf.Models;
 using MessageServices;
 using MessageServices.Messages;
@@ -21,6 +22,7 @@ namespace KnowledgeAssistant.Wpf.Windows
         private int _chunkTargetSizeChars = 1000;
         private int _chunkOverlapChars = 150;
         private bool _isSavingChunkingSettings;
+        private DocumentType _documentType = DocumentType.PlainText;
 
         public DocumentsWindow(MessageService messageService)
         {
@@ -268,14 +270,13 @@ namespace KnowledgeAssistant.Wpf.Windows
             }
 
             IsSaving = true;
-
             if (EditingDocumentId is int documentId)
             {
-                _messageService.Publish(new UpdateDocumentRequest(documentId, title, text, topics));
+                _messageService.Publish(new UpdateDocumentRequest(documentId, title, text, _documentType, topics));
             }
             else
             {
-                _messageService.Publish(new AddDocumentRequest(title, text, topics));
+                _messageService.Publish(new AddDocumentRequest(title, text, _documentType, topics));
             }
         }
 
@@ -283,6 +284,7 @@ namespace KnowledgeAssistant.Wpf.Windows
         {
             ClearForm();
             documentsList.SelectedItem = null;
+            _documentType = DocumentType.PlainText;
         }
 
         private void ClearForm()
@@ -291,6 +293,7 @@ namespace KnowledgeAssistant.Wpf.Windows
             NewTitle = string.Empty;
             NewText = string.Empty;
             IsSaving = false;
+            _documentType = DocumentType.PlainText;
             foreach (var topic in AvailableTopics)
             {
                 topic.IsSelected = false;
@@ -319,23 +322,24 @@ namespace KnowledgeAssistant.Wpf.Windows
         {
             var dialog = new Microsoft.Win32.OpenFileDialog
             {
-                Filter = "Text files (*.txt)|*.txt|All files (*.*)|*.*",
-                Title = "Select a .txt file"
+                Filter = "Text files (*.txt), Markdown files (*.md)|*.txt;*.md|All files (*.*)|*.*",
+                Title = "Select a .txt or .md file"
             };
 
-            if (dialog.ShowDialog(this) != true)
+            if (dialog.ShowDialog(this) == true)
             {
-                return;
-            }
-
-            try
-            {
-                NewText = File.ReadAllText(dialog.FileName);
-                NewTitle = Path.GetFileNameWithoutExtension(dialog.FileName);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Failed to read the file: {ex.Message}", "Load Text File Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+                try
+                {
+                    NewText = File.ReadAllText(dialog.FileName);
+                    NewTitle = Path.GetFileNameWithoutExtension(dialog.FileName);
+                    _documentType = Path.GetExtension(dialog.FileName).Equals(".md", StringComparison.OrdinalIgnoreCase)
+                        ? DocumentType.Markdown
+                        : DocumentType.PlainText;
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Failed to read the file: {ex.Message}", "Load Text File Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             }
         }
 
