@@ -236,6 +236,7 @@ namespace KnowledgeAssistant.Wpf
                     if (conversationToUpdate != null)
                     {
                         conversationToUpdate.Title = request.Conversation.Title;
+                        conversationToUpdate.TopicId = request.Conversation.TopicId;
                         conversationToUpdate.Topic = request.Conversation.Topic;
                         Conversations = new ObservableCollection<Conversation>(Conversations);
                         SelectedConversation = conversationToUpdate;
@@ -420,6 +421,22 @@ namespace KnowledgeAssistant.Wpf
                     {
                         _messageService.Publish(new UpdateConversationTitleRequest(SelectedConversation.Id, window.Value));
                     }
+                }
+            }
+        }
+
+        private void SetConversationTopic_Click(object sender, RoutedEventArgs e)
+        {
+            if (SelectedConversation != null)
+            {
+                var window = new TopicSelectionWindow(_messageService, SelectedConversation.TopicId)
+                {
+                    Owner = this
+                };
+                window.ShowDialog();
+                if (window.Confirmed)
+                {
+                    _messageService.Publish(new UpdateConversationTopicRequest(SelectedConversation.Id, window.SelectedTopicId));
                 }
             }
         }

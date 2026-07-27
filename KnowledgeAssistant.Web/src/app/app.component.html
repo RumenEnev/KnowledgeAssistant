@@ -16,8 +16,10 @@
           <li class="conversation" [class.selected]="selectedConversation()?.id === conv.id" (click)="selectConversation(conv)">
             <app-conversation-title
               [item]="conv"
+              [topics]="topics()"
               (rename)="renameConversation(conv, $event)"
-              (delete)="deleteConversation(conv)" />
+              (delete)="deleteConversation(conv)"
+              (topicChange)="setConversationTopic(conv, $event)" />
           </li>
         }
       </ul>

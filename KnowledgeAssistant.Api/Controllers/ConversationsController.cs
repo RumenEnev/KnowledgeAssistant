@@ -27,6 +27,7 @@ namespace KnowledgeAssistant.Api.Controllers
                 Id = conversation.Id,
                 Title = conversation.Title,
                 CreatedAt = conversation.CreatedAt,
+                TopicId = conversation.TopicId,
                 Topic = conversation.Topic,
             });
 
@@ -55,6 +56,7 @@ namespace KnowledgeAssistant.Api.Controllers
                 Title = conversation.Title,
                 CreatedAt = conversation.CreatedAt,
                 SelectedModel = selectedModel,
+                TopicId = conversation.TopicId,
                 Topic = conversation.Topic,
                 Messages = conversation.Messages?.Select(message => new MessageDto
                 {
@@ -105,6 +107,28 @@ namespace KnowledgeAssistant.Api.Controllers
                 Id = conversation.Id,
                 Title = conversation.Title,
                 CreatedAt = conversation.CreatedAt
+            });
+        }
+
+        [HttpPatch("{conversationId}/topic")]
+        public async Task<IActionResult> UpdateConversationTopic(Guid conversationId, int? topicId, CancellationToken cancellationToken)
+        {
+            var conversation = await _repository.GetAsync(conversationId, cancellationToken);
+            if (conversation == null)
+            {
+                return NotFound();
+            }
+
+            await _repository.UpdateTopicAsync(conversationId, topicId, cancellationToken);
+            var updatedConversation = await _repository.GetAsync(conversationId, cancellationToken);
+
+            return Ok(new ConversationDto
+            {
+                Id = updatedConversation!.Id,
+                Title = updatedConversation.Title,
+                CreatedAt = updatedConversation.CreatedAt,
+                TopicId = updatedConversation.TopicId,
+                Topic = updatedConversation.Topic,
             });
         }
 

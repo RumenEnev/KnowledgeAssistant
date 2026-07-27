@@ -33,6 +33,7 @@
             Margin="5"
             VerticalAlignment="Top"
             Background="Wheat"
+            FontSize="14"
             Text="{Binding Message, UpdateSourceTrigger=PropertyChanged}"
             TextWrapping="Wrap" />
     </Grid>

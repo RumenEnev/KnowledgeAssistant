@@ -1,10 +1,12 @@
 import { Component, ElementRef, HostListener, Input, Output, EventEmitter, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Topic } from '../../models/document';
 
 interface Item {
   id: string;
   title: string;
   topic?: string;
+  topicId?: number;
 }
 
 @Component({
@@ -16,12 +18,15 @@ interface Item {
 })
 export class ConversationTitleComponent {
   @Input() item!: Item;
+  @Input() topics: Topic[] = [];
   @Output() rename = new EventEmitter<string>();
   @Output() delete = new EventEmitter<void>();
+  @Output() topicChange = new EventEmitter<number | null>();
 
   @ViewChild('editInput') editInput!: ElementRef<HTMLInputElement>;
 
   showMenu = false;
+  showTopicMenu = false;
   menuTop = 0;
   menuLeft = 0;
   isEditing = false;
@@ -30,6 +35,7 @@ export class ConversationTitleComponent {
   toggleMenu(event: MouseEvent): void {
     event.stopPropagation();
     this.showMenu = !this.showMenu;
+    this.showTopicMenu = false;
     if (this.showMenu) {
       const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
       this.menuTop = rect.bottom + 4;
@@ -37,9 +43,22 @@ export class ConversationTitleComponent {
     }
   }
 
+  toggleTopicMenu(event: MouseEvent): void {
+    event.stopPropagation();
+    this.showTopicMenu = !this.showTopicMenu;
+  }
+
+  onSetTopic(topicId: number | null, event: MouseEvent): void {
+    event.stopPropagation();
+    this.topicChange.emit(topicId);
+    this.showTopicMenu = false;
+    this.showMenu = false;
+  }
+
   @HostListener('document:click')
   onDocumentClick(): void {
     this.showMenu = false;
+    this.showTopicMenu = false;
   }
 
   onRename(event: MouseEvent): void {

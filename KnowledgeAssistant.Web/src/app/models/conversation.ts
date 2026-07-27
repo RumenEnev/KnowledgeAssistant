@@ -5,5 +5,6 @@ export interface Conversation {
   title: string;
   messages: Message[];
   selectedModel?: string;
+  topicId?: number;
   topic?: string;
 }

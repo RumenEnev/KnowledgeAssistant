@@ -1,7 +1,9 @@
 import { Component, effect, ElementRef, inject, NgZone, OnInit, signal, ViewChild } from '@angular/core';
 import { ChatResponseChunk } from './models/chat-response-chunk';
 import { Conversation } from './models/conversation';
+import { Topic } from './models/document';
 import { ChatService } from './services/chat.service';
+import { DocumentsService } from './services/documents.service';
 import { NotificationService } from './services/notification.service';
 import { FormsModule } from '@angular/forms';
 import { SseEvents } from './shared/events/sse-events';
@@ -22,6 +24,7 @@ import { ModelContextWindowsManagerComponent } from './components/model-context-
 })
 export class AppComponent implements OnInit {
   private chatService = inject(ChatService);
+  private documentsService = inject(DocumentsService);
   private notificationService = inject(NotificationService);
   private ngZone = inject(NgZone);
 
@@ -34,6 +37,7 @@ export class AppComponent implements OnInit {
   messages = signal([{ role: 'user', text: ''}]);
   conversations = signal<Conversation[]>([]);
   selectedConversation = signal<Conversation | null>(null);
+  topics = signal<Topic[]>([]);
   tokenConsumption = signal<{ prompt: number; response: number; total: number } | null>(null);
   showDocumentsManager = signal(false);
   showModelContextWindowsManager = signal(false);
@@ -76,6 +80,9 @@ export class AppComponent implements OnInit {
 
       const conversations = await this.chatService.getConversations();
       this.conversations.set(conversations);
+
+      const topics = await this.documentsService.getTopics();
+      this.topics.set(topics);
     } catch (err) {
       this.notificationService.error(this.toMessage(err, 'Failed to load initial data.'));
     }
@@ -121,6 +128,21 @@ export class AppComponent implements OnInit {
       await this.chatService.deleteConversation(conv.id);
     } catch (err) {
       this.notificationService.error(this.toMessage(err, 'Failed to delete the conversation.'));
+    }
+  }
+
+  async setConversationTopic(conv: Conversation, topicId: number | null) {
+    try {
+      await this.chatService.setConversationTopic(conv.id, topicId);
+      const topicName = topicId != null ? this.topics().find(t => t.id === topicId)?.name : undefined;
+      this.conversations.update(current =>
+        current.map(c => c.id === conv.id ? { ...c, topicId: topicId ?? undefined, topic: topicName } : c)
+      );
+      if (this.selectedConversation()?.id === conv.id) {
+        this.selectedConversation.update(c => c ? { ...c, topicId: topicId ?? undefined, topic: topicName } : c);
+      }
+    } catch (err) {
+      this.notificationService.error(this.toMessage(err, 'Failed to set the conversation topic.'));
     }
   }
 

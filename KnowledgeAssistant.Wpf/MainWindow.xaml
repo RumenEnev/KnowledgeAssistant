@@ -106,6 +106,8 @@
             <ListBox.ContextMenu>
                 <ContextMenu>
                     <MenuItem Click="RenameConversation_Click" Header="Rename" />
+                    <MenuItem Click="SetConversationTopic_Click" Header="Set Topic..." />
+                    <Separator />
                     <MenuItem Click="DeleteConversation_Click" Header="Delete" />
                 </ContextMenu>
             </ListBox.ContextMenu>

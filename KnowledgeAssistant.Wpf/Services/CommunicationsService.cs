@@ -39,6 +39,7 @@ namespace KnowledgeAssistant.Wpf.Services
             _messageService.Subscribe<GetConversationRequest>(this, GetConversationReceived);
             _messageService.Subscribe<RefreshConversationRequest>(this, RefreshConversationReceived);
             _messageService.Subscribe<UpdateConversationTitleRequest>(this, UpdateConversationTitleReceived);
+            _messageService.Subscribe<UpdateConversationTopicRequest>(this, UpdateConversationTopicReceived);
             _messageService.SubscribeAsync<CreateConversationsRequest>(this, CreateConversationsReceived);
             _messageService.Subscribe<DeleteConversationRequest>(this, DeleteConversationReceived);
             _messageService.Subscribe<UpdateSelectedModelRequest>(this, UpdateSelectedModelReceived);
@@ -350,6 +351,36 @@ namespace KnowledgeAssistant.Wpf.Services
             }
         }
 
+        private async void UpdateConversationTopicReceived(MessageBase message)
+        {
+            if (message is UpdateConversationTopicRequest request)
+            {
+                var query = request.TopicId.HasValue ? $"?topicId={request.TopicId}" : string.Empty;
+                var httpRequest = new HttpRequestMessage(HttpMethod.Patch, $"api/conversations/{request.ConversationId}/topic{query}");
+                try
+                {
+                    var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, _cancellationToken);
+                    response.EnsureSuccessStatusCode();
+
+                    var conversation = await response.Content.ReadFromJsonAsync<ConversationDto>(_cancellationToken);
+                    if (conversation != null)
+                    {
+                        _messageService.Publish(new ConversationUpdatedEvent(new Conversation
+                        {
+                            Id = conversation.Id,
+                            Title = conversation.Title,
+                            TopicId = conversation.TopicId,
+                            Topic = conversation.Topic
+                        }));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _messageService.Publish(new UserMessage("Error", $"Error setting the conversation topic: {ex.Message}", MessageType.Error));
+                }
+            }
+        }
+
         private async void GetConversationReceived(MessageBase message)
         {
             if (message is GetConversationRequest request)
@@ -382,6 +413,7 @@ namespace KnowledgeAssistant.Wpf.Services
                         {
                             Id = conversation.Id,
                             Title = conversation.Title,
+                            TopicId = conversation.TopicId,
                             Topic = conversation.Topic
                         }));
                     }
@@ -404,6 +436,7 @@ namespace KnowledgeAssistant.Wpf.Services
                     {
                         Id = c.Id,
                         Title = c.Title,
+                        TopicId = c.TopicId,
                         Topic = c.Topic
                     }) ?? Enumerable.Empty<Conversation>()));
                 }

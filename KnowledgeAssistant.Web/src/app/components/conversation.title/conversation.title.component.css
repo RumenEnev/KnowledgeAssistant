@@ -90,3 +90,29 @@ button:hover {
 .menu li:hover {
   background-color: #f5f5f5;
 }
+
+.has-submenu {
+  position: relative;
+}
+
+.submenu {
+  position: absolute;
+  top: -4px;
+  left: 100%;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  list-style: none;
+  padding: 4px 0;
+  margin: 0;
+  min-width: 140px;
+  max-height: 220px;
+  overflow-y: auto;
+  z-index: 1001;
+}
+
+.submenu li.active {
+  font-weight: 600;
+  background-color: #eef1f5;
+}

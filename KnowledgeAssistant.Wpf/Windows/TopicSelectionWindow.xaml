@@ -1,0 +1,50 @@
+﻿<Window
+    x:Class="KnowledgeAssistant.Wpf.Windows.TopicSelectionWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="Set Conversation Topic"
+    Width="320"
+    Height="400"
+    Loaded="TopicSelectionWindow_Loaded"
+    ResizeMode="NoResize"
+    WindowStartupLocation="CenterOwner">
+
+    <Grid Margin="8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock
+            Grid.Row="0"
+            Margin="0,0,0,8"
+            Text="Select the topic for this conversation:"
+            TextWrapping="Wrap" />
+
+        <ListBox
+            x:Name="TopicsListBox"
+            Grid.Row="1"
+            Margin="0,0,0,8"
+            DisplayMemberPath="Name"
+            ItemsSource="{Binding Topics}"
+            SelectedItem="{Binding SelectedTopic}" />
+
+        <StackPanel
+            Grid.Row="2"
+            HorizontalAlignment="Right"
+            Orientation="Horizontal">
+            <Button
+                Width="80"
+                Margin="0,0,8,0"
+                Click="Ok_Click"
+                Content="OK"
+                IsDefault="True" />
+            <Button
+                Width="80"
+                Click="Cancel_Click"
+                Content="Cancel"
+                IsCancel="True" />
+        </StackPanel>
+    </Grid>
+</Window>

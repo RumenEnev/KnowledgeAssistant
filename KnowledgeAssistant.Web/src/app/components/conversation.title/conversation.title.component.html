@@ -19,6 +19,17 @@
     @if (showMenu) {
       <ul class="menu" [style.top.px]="menuTop" [style.left.px]="menuLeft">
         <li (click)="onRename($event)">Rename</li>
+        <li class="has-submenu" (click)="toggleTopicMenu($event)">
+          Set Topic ▸
+          @if (showTopicMenu) {
+            <ul class="submenu" (click)="$event.stopPropagation()">
+              <li [class.active]="!item.topicId" (click)="onSetTopic(null, $event)">No topic</li>
+              @for (t of topics; track t.id) {
+                <li [class.active]="t.id === item.topicId" (click)="onSetTopic(t.id, $event)">{{ t.name }}</li>
+              }
+            </ul>
+          }
+        </li>
         <li (click)="onDelete($event)">Delete</li>
       </ul>
     }

@@ -35,7 +35,6 @@ namespace KnowledgeAssistant.Application.Services
         {
             const int maxTitleWords = 6;
             const int maxTitleLength = 60;
-
             string? generated = null;
             try
             {

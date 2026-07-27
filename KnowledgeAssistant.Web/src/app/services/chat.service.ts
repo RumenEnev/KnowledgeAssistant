@@ -65,6 +65,14 @@ export class ChatService {
     await this.assertOk(response);
   }
   
+  async setConversationTopic(conversationId: string, topicId: number | null): Promise<void> {
+    const query = topicId != null ? `?topicId=${topicId}` : '';
+    const response = await fetch(`${this.baseUrl}/api/conversations/${conversationId}/topic${query}`, {
+      method: 'PATCH'
+    });
+    await this.assertOk(response);
+  }
+
   async deleteConversation(conversationId: string): Promise<void> {
     const response = await fetch(`${this.baseUrl}/api/conversations/${conversationId}`, {
       method: 'DELETE'
