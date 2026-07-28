@@ -2,6 +2,7 @@
     x:Class="KnowledgeAssistant.Wpf.UserControls.UCChatMessage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:mdxaml="clr-namespace:Markdig.Wpf;assembly=Markdig.Wpf"
     MinHeight="70"
     SizeChanged="UserControl_SizeChanged">
 
@@ -27,14 +28,13 @@
                 Text="&#xE8C8;" />
         </Button>
 
-        <TextBlock
-            x:Name="MessageTextBlock"
+        <mdxaml:MarkdownViewer
+            x:Name="MarkdownContent"
             Grid.Row="1"
             Margin="5"
             VerticalAlignment="Top"
             Background="Wheat"
             FontSize="14"
-            Text="{Binding Message, UpdateSourceTrigger=PropertyChanged}"
-            TextWrapping="Wrap" />
+            Markdown="{Binding Message}" />
     </Grid>
 </UserControl>

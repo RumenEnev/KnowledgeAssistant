@@ -1,4 +1,4 @@
-<span class="message-text">{{ msg.text }}</span>
+<span class="message-text markdown-body" [innerHTML]="renderedHtml"></span>
 @if (msg.role === 'assistant') {
   <button class="copy-btn" (click)="copyMessage(msg.text)">
     <span class="material-icons">content_copy</span>

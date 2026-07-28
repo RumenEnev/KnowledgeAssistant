@@ -80,7 +80,7 @@ namespace KnowledgeAssistant.Wpf.UserControls
         {
             if (MainGrid.ActualWidth > 0)
             {
-                MessageTextBlock.MaxWidth = MainGrid.ActualWidth - 10; 
+                MarkdownContent.MaxWidth = MainGrid.ActualWidth - 10; 
             }
         }
 
