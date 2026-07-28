@@ -1,0 +1,65 @@
+<div class="modal-overlay" (mousedown)="onOverlayMouseDown($event)" (click)="onOverlayClick($event)">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Manage Topics</h3>
+      <button type="button" class="close-btn" (click)="close()">&times;</button>
+    </div>
+
+    <div class="modal-body">
+      <p class="hint">
+        Topics are used to organize documents and conversations.
+      </p>
+
+      <div class="add-topic">
+        <input
+          type="text"
+          placeholder="New topic name"
+          [ngModel]="newTopicName()"
+          (ngModelChange)="newTopicName.set($event)"
+          (keydown.enter)="createTopic()" />
+        <button type="button" [disabled]="isCreating()" (click)="createTopic()">
+          {{ isCreating() ? 'Adding...' : 'Add' }}
+        </button>
+      </div>
+
+      @if (isLoading()) {
+        <p>Loading topics...</p>
+      } @else if (topics().length === 0) {
+        <p>No topics yet.</p>
+      } @else {
+        <ul class="topics-list">
+          @for (topic of topics(); track topic.id) {
+            <li class="topic-item">
+              @if (editingTopicId() === topic.id) {
+                <input
+                  type="text"
+                  class="edit-input"
+                  [ngModel]="editingName()"
+                  (ngModelChange)="editingName.set($event)"
+                  (keydown.enter)="saveEdit(topic)"
+                  (keydown.escape)="cancelEdit()" />
+                <button
+                  type="button"
+                  [disabled]="savingTopicId() === topic.id"
+                  (click)="saveEdit(topic)">
+                  {{ savingTopicId() === topic.id ? 'Saving...' : 'Save' }}
+                </button>
+                <button type="button" (click)="cancelEdit()">Cancel</button>
+              } @else {
+                <span class="topic-name">{{ topic.name }}</span>
+                <button type="button" (click)="startEdit(topic)">Rename</button>
+                <button
+                  type="button"
+                  class="delete-btn"
+                  [disabled]="deletingTopicId() === topic.id"
+                  (click)="deleteTopic(topic)">
+                  {{ deletingTopicId() === topic.id ? 'Deleting...' : 'Delete' }}
+                </button>
+              }
+            </li>
+          }
+        </ul>
+      }
+    </div>
+  </div>
+</div>

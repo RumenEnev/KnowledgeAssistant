@@ -13,12 +13,13 @@ import { NotificationToastComponent } from './components/notification-toast/noti
 import { MainMenuComponent } from './components/main-menu/main-menu.component';
 import { DocumentsManagerComponent } from './components/documents-manager/documents-manager.component';
 import { ModelContextWindowsManagerComponent } from './components/model-context-windows-manager/model-context-windows-manager.component';
+import { TopicsManagerComponent } from './components/topics-manager/topics-manager.component';
 
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [FormsModule, ConversationTitleComponent, MessageComponent, NotificationToastComponent, MainMenuComponent, DocumentsManagerComponent, ModelContextWindowsManagerComponent],
+  imports: [FormsModule, ConversationTitleComponent, MessageComponent, NotificationToastComponent, MainMenuComponent, DocumentsManagerComponent, ModelContextWindowsManagerComponent, TopicsManagerComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css'
 })
@@ -41,6 +42,7 @@ export class AppComponent implements OnInit {
   tokenConsumption = signal<{ prompt: number; response: number; total: number } | null>(null);
   showDocumentsManager = signal(false);
   showModelContextWindowsManager = signal(false);
+  showTopicsManager = signal(false);
 
   constructor() {
     effect(() => {
@@ -168,6 +170,22 @@ export class AppComponent implements OnInit {
 
   closeModelContextWindowsManager(): void {
     this.showModelContextWindowsManager.set(false);
+  }
+
+  openTopicsManager(): void {
+    this.showTopicsManager.set(true);
+  }
+
+  async closeTopicsManager(): Promise<void> {
+    this.showTopicsManager.set(false);
+    // Refresh the cached topic list in case topics were added, renamed or removed
+    // while the manager was open, so the conversation topic picker stays in sync.
+    try {
+      const topics = await this.documentsService.getTopics();
+      this.topics.set(topics);
+    } catch (err) {
+      this.notificationService.error(this.toMessage(err, 'Failed to refresh topics.'));
+    }
   }
 
   exitApp(): void {

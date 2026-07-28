@@ -35,9 +35,36 @@ export class DocumentsService {
   }
 
   async getTopics(): Promise<Topic[]> {
-    const response = await fetch(`${this.baseUrl}/api/documents/topics`);
+    const response = await fetch(`${this.baseUrl}/api/topics`);
     await this.assertOk(response);
     return response.json();
+  }
+
+  async createTopic(name: string): Promise<Topic> {
+    const response = await fetch(`${this.baseUrl}/api/topics`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name })
+    });
+    await this.assertOk(response);
+    return response.json();
+  }
+
+  async updateTopic(id: number, name: string): Promise<Topic> {
+    const response = await fetch(`${this.baseUrl}/api/topics/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name })
+    });
+    await this.assertOk(response);
+    return response.json();
+  }
+
+  async deleteTopic(id: number): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/api/topics/${id}`, {
+      method: 'DELETE'
+    });
+    await this.assertOk(response);
   }
 
   async deleteDocument(id: number): Promise<void> {

@@ -478,6 +478,19 @@ namespace KnowledgeAssistant.Wpf
             window.ShowDialog();
         }
 
+        private void ManageTopics_Click(object sender, RoutedEventArgs e)
+        {
+            var window = new TopicsManagerWindow(_messageService)
+            {
+                Owner = this
+            };
+
+            window.ShowDialog();
+
+            // Refresh the conversation list in case a topic used by a conversation was renamed or deleted.
+            _messageService.Publish(new GetConversationsRequest());
+        }
+
         private void RefreshConversation_Click(object sender, RoutedEventArgs e)
         {
             _messageService.Publish(new GetConversationsRequest());

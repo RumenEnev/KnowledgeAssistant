@@ -8,6 +8,12 @@ namespace KnowledgeAssistant.Application.Abstraction
 
         Task<int?> GetTopicIdByNameAsync(string topicName, CancellationToken cancellationToken);
 
+        Task<Topic> CreateTopicAsync(string name, CancellationToken cancellationToken);
+
+        Task<bool> UpdateTopicAsync(int topicId, string name, CancellationToken cancellationToken);
+
+        Task DeleteTopicAsync(int topicId, CancellationToken cancellationToken);
+
         Task<int> CreateDocumentAsync(string title, string originalText, CancellationToken cancellationToken);
 
         Task LinkDocumentTopicsAsync(int documentId, IEnumerable<int> topicIds, CancellationToken cancellationToken);

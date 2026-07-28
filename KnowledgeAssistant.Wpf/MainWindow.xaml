@@ -37,6 +37,7 @@
             <MenuItem Header="_Settings">
                 <MenuItem Click="ManageDocuments_Click" Header="_Documents" />
                 <MenuItem Click="ManageModelContextWindows_Click" Header="_Model Context Windows" />
+                <MenuItem Click="ManageTopics_Click" Header="_Topics" />
             </MenuItem>
         </Menu>
 

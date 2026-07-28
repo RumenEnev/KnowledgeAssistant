@@ -28,6 +28,48 @@ namespace KnowledgeAssistant.Application.Services
             return await connection.QuerySingleOrDefaultAsync<int?>(query, new { TopicName = topicName });
         }
 
+        public async Task<Topic> CreateTopicAsync(string name, CancellationToken cancellationToken)
+        {
+            await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+            try
+            {
+                var query = "INSERT INTO rag.topics (name) VALUES (@Name) RETURNING id, name";
+                return await connection.QuerySingleAsync<Topic>(query, new { Name = name });
+            }
+            catch (Npgsql.PostgresException ex) when (ex.SqlState == Npgsql.PostgresErrorCodes.UniqueViolation)
+            {
+                throw new InvalidOperationException($"A topic named '{name}' already exists.");
+            }
+        }
+
+        public async Task<bool> UpdateTopicAsync(int topicId, string name, CancellationToken cancellationToken)
+        {
+            await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+            try
+            {
+                var query = "UPDATE rag.topics SET name = @Name WHERE id = @TopicId";
+                var rows = await connection.ExecuteAsync(query, new { TopicId = topicId, Name = name });
+                return rows > 0;
+            }
+            catch (Npgsql.PostgresException ex) when (ex.SqlState == Npgsql.PostgresErrorCodes.UniqueViolation)
+            {
+                throw new InvalidOperationException($"A topic named '{name}' already exists.");
+            }
+        }
+
+        public async Task DeleteTopicAsync(int topicId, CancellationToken cancellationToken)
+        {
+            await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+            try
+            {
+                await connection.ExecuteAsync("DELETE FROM rag.topics WHERE id = @TopicId", new { TopicId = topicId });
+            }
+            catch (Npgsql.PostgresException ex) when (ex.SqlState == Npgsql.PostgresErrorCodes.ForeignKeyViolation)
+            {
+                throw new InvalidOperationException("This topic is still in use by one or more documents or conversations and cannot be deleted.");
+            }
+        }
+
         public async Task<int> CreateDocumentAsync(string title, string originalText, CancellationToken cancellationToken)
         {
             await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);

@@ -46,6 +46,9 @@ namespace KnowledgeAssistant.Wpf.Services
             _messageService.Subscribe<GetSelectedModelRequest>(this, GetSelectedModelReceived);
             _messageService.Subscribe<GetDocumentsRequest>(this, GetDocumentsReceived);
             _messageService.Subscribe<GetTopicsRequest>(this, GetTopicsReceived);
+            _messageService.Subscribe<CreateTopicRequest>(this, CreateTopicReceived);
+            _messageService.Subscribe<UpdateTopicRequest>(this, UpdateTopicReceived);
+            _messageService.Subscribe<DeleteTopicRequest>(this, DeleteTopicReceived);
             _messageService.Subscribe<AddDocumentRequest>(this, AddDocumentReceived);
             _messageService.Subscribe<UpdateDocumentRequest>(this, UpdateDocumentReceived);
             _messageService.Subscribe<DeleteDocumentRequest>(this, DeleteDocumentReceived);
@@ -80,14 +83,90 @@ namespace KnowledgeAssistant.Wpf.Services
         {
             if (message is GetTopicsRequest)
             {
+                await LoadTopicsAsync();
+            }
+        }
+
+        private async Task LoadTopicsAsync()
+        {
+            try
+            {
+                var topics = await _httpClient.GetFromJsonAsync<List<Topic>>("api/topics", _cancellationToken);
+                _messageService.Publish(new TopicsUpdatedEvent(topics ?? Enumerable.Empty<Topic>()));
+            }
+            catch (Exception ex)
+            {
+                _messageService.Publish(new UserMessage("Error", $"Error fetching topics: {ex.Message}", MessageType.Error));
+            }
+        }
+
+        private async void CreateTopicReceived(MessageBase message)
+        {
+            if (message is CreateTopicRequest request)
+            {
                 try
                 {
-                    var topics = await _httpClient.GetFromJsonAsync<List<Topic>>("api/documents/topics", _cancellationToken);
-                    _messageService.Publish(new TopicsUpdatedEvent(topics ?? Enumerable.Empty<Topic>()));
+                    var dto = new TopicRequestDto { Name = request.Name };
+                    var response = await _httpClient.PostAsJsonAsync("api/topics", dto, _cancellationToken);
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        var error = await response.Content.ReadAsStringAsync(_cancellationToken);
+                        _messageService.Publish(new UserMessage("Add Topic Failed", error, MessageType.Error));
+                        return;
+                    }
+
+                    await LoadTopicsAsync();
                 }
                 catch (Exception ex)
                 {
-                    _messageService.Publish(new UserMessage("Error", $"Error fetching topics: {ex.Message}", MessageType.Error));
+                    _messageService.Publish(new UserMessage("Add Topic Failed", $"Error creating topic: {ex.Message}", MessageType.Error));
+                }
+            }
+        }
+
+        private async void UpdateTopicReceived(MessageBase message)
+        {
+            if (message is UpdateTopicRequest request)
+            {
+                try
+                {
+                    var dto = new TopicRequestDto { Name = request.Name };
+                    var response = await _httpClient.PutAsJsonAsync($"api/topics/{request.TopicId}", dto, _cancellationToken);
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        var error = await response.Content.ReadAsStringAsync(_cancellationToken);
+                        _messageService.Publish(new UserMessage("Update Topic Failed", error, MessageType.Error));
+                        return;
+                    }
+
+                    await LoadTopicsAsync();
+                }
+                catch (Exception ex)
+                {
+                    _messageService.Publish(new UserMessage("Update Topic Failed", $"Error updating topic: {ex.Message}", MessageType.Error));
+                }
+            }
+        }
+
+        private async void DeleteTopicReceived(MessageBase message)
+        {
+            if (message is DeleteTopicRequest request)
+            {
+                try
+                {
+                    var response = await _httpClient.DeleteAsync($"api/topics/{request.TopicId}", _cancellationToken);
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        var error = await response.Content.ReadAsStringAsync(_cancellationToken);
+                        _messageService.Publish(new UserMessage("Delete Topic Failed", error, MessageType.Error));
+                        return;
+                    }
+
+                    await LoadTopicsAsync();
+                }
+                catch (Exception ex)
+                {
+                    _messageService.Publish(new UserMessage("Delete Topic Failed", $"Error deleting topic: {ex.Message}", MessageType.Error));
                 }
             }
         }
