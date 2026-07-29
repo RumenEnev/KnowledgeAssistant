@@ -6,6 +6,7 @@ using KnowledgeAssistant.Wpf.Messages;
 using KnowledgeAssistant.Wpf.Messages.Conversations;
 using KnowledgeAssistant.Wpf.Messages.Documents;
 using KnowledgeAssistant.Wpf.Messages.ModelContextWindows;
+using KnowledgeAssistant.Wpf.Models;
 using MessageServices;
 using MessageServices.Enums;
 using MessageServices.Messages;
@@ -21,8 +22,8 @@ namespace KnowledgeAssistant.Wpf.Services
     public class CommunicationsService : IMessageServiceSubscriber
     {
         private readonly MessageService _messageService;
-        private readonly HttpClient _httpClient;
         private readonly CancellationToken _cancellationToken = new CancellationToken();
+        private HttpClient _httpClient;
 
         public CommunicationsService(MessageService messageService, IConfiguration configuration)
         {
@@ -31,6 +32,17 @@ namespace KnowledgeAssistant.Wpf.Services
 
             var baseUrl = configuration["Api:BaseUrl"] ?? "http://localhost:5299/";
             _httpClient.BaseAddress = new Uri(baseUrl);
+
+            if (File.Exists("Settings.json"))
+            {
+                var settings = File.ReadAllText("Settings.json");
+                var appConfig = JsonSerializer.Deserialize<ApplicationConfiguration>(settings);
+                if (appConfig != null && !string.IsNullOrWhiteSpace(appConfig.BaseUrl))
+                {
+                    _httpClient = new HttpClient();
+                    _httpClient.BaseAddress = new Uri(appConfig.BaseUrl);
+                }
+            }
 
             _messageService.Subscribe<GenerateTitleRequest>(this, GenerateTitleReceived);
             _messageService.Subscribe<SendUserMessageRequest>(this, SendPromptReceived);
@@ -56,6 +68,22 @@ namespace KnowledgeAssistant.Wpf.Services
             _messageService.Subscribe<UpdateChunkingSettingsRequest>(this, UpdateChunkingSettingsReceived);
             _messageService.Subscribe<GetModelContextWindowsRequest>(this, GetModelContextWindowsReceived);
             _messageService.Subscribe<UpdateModelContextWindowRequest>(this, UpdateModelContextWindowReceived);
+            _messageService.Subscribe<UpdateApiUrlRequest>(this, UpdateApiUrlReceived);
+        }
+
+        private void UpdateApiUrlReceived(MessageBase message)
+        {
+            if (message is UpdateApiUrlRequest request)
+            {
+                _httpClient = new HttpClient();
+                _httpClient.BaseAddress = new Uri(request.Url);
+                File.WriteAllText($"Settings.json", JsonSerializer.Serialize(new ApplicationConfiguration()
+                {
+                    BaseUrl = request.Url
+                }));
+
+                _messageService.Publish(new UserMessage("Info", $"API URL updated to: {request.Url}", MessageType.ShortInfo));
+            }
         }
 
         private async void GetDocumentsReceived(MessageBase message)

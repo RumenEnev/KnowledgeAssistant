@@ -76,11 +76,10 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-app.UseAuthorization();
-
-app.MapControllers();
-
 app.UseCors("AllowAngularDev");
+
+app.UseAuthorization();
+app.MapControllers();
 
 SqlMapper.AddTypeHandler(new VectorTypeHandler());
 app.Run();

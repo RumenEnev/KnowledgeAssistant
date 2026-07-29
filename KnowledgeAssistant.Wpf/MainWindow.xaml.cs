@@ -486,14 +486,23 @@ namespace KnowledgeAssistant.Wpf
             };
 
             window.ShowDialog();
-
-            // Refresh the conversation list in case a topic used by a conversation was renamed or deleted.
             _messageService.Publish(new GetConversationsRequest());
         }
 
         private void RefreshConversation_Click(object sender, RoutedEventArgs e)
         {
             _messageService.Publish(new GetConversationsRequest());
+        }
+
+        private void SetApiUrl_Click(object sender, RoutedEventArgs e)
+        {
+            var window = new StringInputWindow("Base URL", "Setup base URL:");
+            window.Owner = this;
+            window.ShowDialog();
+            if (window.Result == UI.Enums.DialogResult.OK)
+            {
+                _messageService.Publish(new UpdateApiUrlRequest(window.Value));
+            }
         }
     }
 }

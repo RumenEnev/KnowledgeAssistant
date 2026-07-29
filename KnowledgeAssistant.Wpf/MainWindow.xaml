@@ -38,6 +38,8 @@
                 <MenuItem Click="ManageDocuments_Click" Header="_Documents" />
                 <MenuItem Click="ManageModelContextWindows_Click" Header="_Model Context Windows" />
                 <MenuItem Click="ManageTopics_Click" Header="_Topics" />
+                <Separator />
+                <MenuItem Click="SetApiUrl_Click" Header="_Set API URL" />
             </MenuItem>
         </Menu>
 

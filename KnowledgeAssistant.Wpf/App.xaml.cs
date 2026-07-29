@@ -1,6 +1,7 @@
 ﻿using CommunicationsClients;
 using KnowledgeAssistant.Wpf.Services;
 using MessageServices;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
@@ -17,6 +18,18 @@ namespace KnowledgeAssistant.Wpf
         public App()
         {
             AppHost = Host.CreateDefaultBuilder()
+                        // WPF apps can be launched with a working directory that differs from the
+                        // executable's folder (e.g. desktop shortcuts), which would otherwise cause
+                        // appsettings.json to be missed and the localhost defaults to be used silently.
+                        .UseContentRoot(AppContext.BaseDirectory)
+                        .ConfigureAppConfiguration(config =>
+                        {
+                            // appsettings.local.json is NOT part of the project's Content items, so it is
+                            // never copied, overwritten, or deleted by a build/publish. Drop it next to the
+                            // exe on a deployment machine to point at the real API/SignalR host without the
+                            // setting reverting to the repo's localhost default on every rebuild.
+                            config.AddJsonFile("appsettings.local.json", optional: true, reloadOnChange: true);
+                        })
                         .UseSerilog()
                         .ConfigureServices((hostContext, services) =>
                         {
@@ -32,12 +45,14 @@ namespace KnowledgeAssistant.Wpf
         {
             _ = AppHost!.RunAsync();
             _messageService = AppHost!.Services.GetRequiredService<MessageService>();
+
+            var configuration = AppHost!.Services.GetRequiredService<IConfiguration>();
             await _messageService.AttachSignalRClient(new MultiTopicSignalRClient()
             {
-                Host = "192.168.0.200",
-                Port = 5243,
-                Path = "Hub",
-                UseHttps = false,
+                Host = configuration["SignalR:Host"] ?? "localhost",
+                Port = configuration.GetValue<ushort?>("SignalR:Port") ?? 5243,
+                Path = configuration["SignalR:Path"] ?? "Hub",
+                UseHttps = configuration.GetValue<bool?>("SignalR:UseHttps") ?? false,
                 ListeningQueue = "ReceiveMessage",
                 ListeningQueues = ["ReceiveMessage", "ReceiveLogData", "ReceiveWebPageChanged", "ReceiveMqttMessage", "ReceiveFileChangedChanged"]
             });

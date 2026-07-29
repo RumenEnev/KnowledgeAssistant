@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"><?define KnowledgeAssistant.Wpf_TargetDir=$(var.KnowledgeAssistant.Wpf.TargetDir)?>
+	<Product Id="*" Name="KnowledgeAssistant.Wpf.Installer" Language="1033" Version="1.0.47.279" Manufacturer="Rumen Enev" UpgradeCode="b8db19bb-f705-44ef-896a-49c01d52de83">
+		<Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" />
+
+		<MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+		<MediaTemplate EmbedCab="yes" />
+
+		<Property Id="INSTALLFOLDER" Value="C:\My\Production\KnowledgeAssistant" />
+		
+		<Feature Id="ProductFeature" Title="KnowledgeAssistant.Wpf.Installer" Level="1">
+			<ComponentGroupRef Id="ProductComponents" />
+			<ComponentRef Id="ApplicationShortcut" />
+		</Feature>
+
+		<Directory Id="TARGETDIR" Name="SourceDir">
+			<Directory Id="ProgramFilesFolder">
+				<Directory Id="INSTALLFOLDER" Name="KnowledgeAssistant">
+					<Directory Id="Resources" Name="Resources" />
+				</Directory>
+				<Directory Id="Resources_Common" Name="Common" />
+				<Directory Id="Resources_MainWindow" Name="MainWindow">
+					<Directory Id="Resources_MainWindow_MainMenu" Name="MainMenu" />
+				</Directory>
+			</Directory>
+			<Directory Id="ProgramMenuFolder">
+				<Directory Id="KnowledgeAssistant" Name="Knowledge Assistant" />
+			</Directory>
+		</Directory>
+
+		<DirectoryRef Id="KnowledgeAssistant">
+			<Component Id="ApplicationShortcut" Guid="14F437DD-94E3-4D65-9733-580BD716634B">
+				<Shortcut Id="StartMenuShortcut" Name="Knowledge Assistant" Description="Launch Knowledge Assistant" Target="[INSTALLFOLDER]KnowledgeAssistant.exe" WorkingDirectory="INSTALLFOLDER" />
+				<RemoveFolder Id="RemoveStartMenuFolder" Directory="KnowledgeAssistant" On="uninstall" />
+				<RegistryValue Root="HKCU" Key="Software\KnowledgeAssistant" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+			</Component>
+		</DirectoryRef>
+	</Product>
+
+	<Fragment>
+		<ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+			<Component Id="KnowledgeAssistant.Wpf.runtimeconfig.json" Guid="c686d771-0e0d-4d48-8942-7bef2352648c">
+			  <File Id="KnowledgeAssistant.Wpf.runtimeconfig.json" Name="KnowledgeAssistant.Wpf.runtimeconfig.json" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)KnowledgeAssistant.Wpf.runtimeconfig.json" />
+			</Component>
+			<Component Id="Microsoft.AspNetCore.Connections.Abstractions.dll" Guid="02f6e025-d4ca-4f3f-904a-8d44f2774e4a">
+			  <File Id="Microsoft.AspNetCore.Connections.Abstractions.dll" Name="Microsoft.AspNetCore.Connections.Abstractions.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Microsoft.AspNetCore.Connections.Abstractions.dll" />
+			</Component>
+			<Component Id="Microsoft.Extensions.Features.dll" Guid="2aaad6ae-91c7-4405-ae0b-448f2d4a05e0">
+			  <File Id="Microsoft.Extensions.Features.dll" Name="Microsoft.Extensions.Features.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Microsoft.Extensions.Features.dll" />
+			</Component>
+			<Component Id="Microsoft.Extensions.Logging.dll" Guid="ab5c4b07-86e1-4381-9c60-a83f6c9be7ae">
+			  <File Id="Microsoft.Extensions.Logging.dll" Name="Microsoft.Extensions.Logging.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Microsoft.Extensions.Logging.dll" />
+			</Component>
+			<Component Id="Microsoft.Extensions.DependencyInjection.dll" Guid="870ffd19-d889-413c-957c-cb12b9e7511b">
+			  <File Id="Microsoft.Extensions.DependencyInjection.dll" Name="Microsoft.Extensions.DependencyInjection.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Microsoft.Extensions.DependencyInjection.dll" />
+			</Component>
+			<Component Id="Microsoft.AspNetCore.SignalR.Protocols.Json.dll" Guid="e5886819-e58b-48a0-854a-51b8eb354f86">
+			  <File Id="Microsoft.AspNetCore.SignalR.Protocols.Json.dll" Name="Microsoft.AspNetCore.SignalR.Protocols.Json.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Microsoft.AspNetCore.SignalR.Protocols.Json.dll" />
+			</Component>
+			<Component Id="Microsoft.AspNetCore.Http.Connections.Client.dll" Guid="8e86cbe2-cde8-421c-ae0e-1f665c8fc690">
+			  <File Id="Microsoft.AspNetCore.Http.Connections.Client.dll" Name="Microsoft.AspNetCore.Http.Connections.Client.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Microsoft.AspNetCore.Http.Connections.Client.dll" />
+			</Component>
+			<Component Id="Microsoft.AspNetCore.Http.Connections.Common.dll" Guid="d81f0f59-0ef2-4213-b6bf-c0263327c21f">
+			  <File Id="Microsoft.AspNetCore.Http.Connections.Common.dll" Name="Microsoft.AspNetCore.Http.Connections.Common.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Microsoft.AspNetCore.Http.Connections.Common.dll" />
+			</Component>
+			<Component Id="Microsoft.AspNetCore.SignalR.Client.dll" Guid="0c517296-c293-4efe-a296-eb924e20c352">
+			  <File Id="Microsoft.AspNetCore.SignalR.Client.dll" Name="Microsoft.AspNetCore.SignalR.Client.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Microsoft.AspNetCore.SignalR.Client.dll" />
+			</Component>
+			<Component Id="Microsoft.Extensions.Configuration.dll" Guid="daaab744-c951-4564-a49b-08e9d76cb0c6">
+			  <File Id="Microsoft.Extensions.Configuration.dll" Name="Microsoft.Extensions.Configuration.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Microsoft.Extensions.Configuration.dll" />
+			</Component>
+			<Component Id="Microsoft.Extensions.FileProviders.Physical.dll" Guid="484e676f-4357-482f-b21d-62b8d7ced750">
+			  <File Id="Microsoft.Extensions.FileProviders.Physical.dll" Name="Microsoft.Extensions.FileProviders.Physical.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Microsoft.Extensions.FileProviders.Physical.dll" />
+			</Component>
+			<Component Id="Microsoft.AspNetCore.SignalR.Common.dll" Guid="73d84aaf-46f2-4656-8ee4-3dea8c33bccd">
+			  <File Id="Microsoft.AspNetCore.SignalR.Common.dll" Name="Microsoft.AspNetCore.SignalR.Common.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Microsoft.AspNetCore.SignalR.Common.dll" />
+			</Component>
+			<Component Id="Microsoft.Extensions.FileSystemGlobbing.dll" Guid="cd730308-91f7-47fd-ba26-2367509aaac2">
+			  <File Id="Microsoft.Extensions.FileSystemGlobbing.dll" Name="Microsoft.Extensions.FileSystemGlobbing.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Microsoft.Extensions.FileSystemGlobbing.dll" />
+			</Component>
+			<Component Id="Microsoft.Extensions.Configuration.FileExtensions.dll" Guid="ea774b17-1b78-4fda-8d7b-d5abd420517b">
+			  <File Id="Microsoft.Extensions.Configuration.FileExtensions.dll" Name="Microsoft.Extensions.Configuration.FileExtensions.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Microsoft.Extensions.Configuration.FileExtensions.dll" />
+			</Component>
+			<Component Id="Microsoft.Extensions.Diagnostics.dll" Guid="a07ed17d-01ba-4386-baf0-d754bfcf39d2">
+			  <File Id="Microsoft.Extensions.Diagnostics.dll" Name="Microsoft.Extensions.Diagnostics.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Microsoft.Extensions.Diagnostics.dll" />
+			</Component>
+			<Component Id="Microsoft.Extensions.Options.ConfigurationExtensions.dll" Guid="eb17e9d8-8e0b-4516-9381-283e7ecc81af">
+			  <File Id="Microsoft.Extensions.Options.ConfigurationExtensions.dll" Name="Microsoft.Extensions.Options.ConfigurationExtensions.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Microsoft.Extensions.Options.ConfigurationExtensions.dll" />
+			</Component>
+			<Component Id="Microsoft.Extensions.Configuration.Binder.dll" Guid="ce0d2efb-da5e-45fe-9338-423fc2f122cc">
+			  <File Id="Microsoft.Extensions.Configuration.Binder.dll" Name="Microsoft.Extensions.Configuration.Binder.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Microsoft.Extensions.Configuration.Binder.dll" />
+			</Component>
+			<Component Id="Microsoft.Extensions.Configuration.UserSecrets.dll" Guid="027096a2-b08c-42e3-9825-6c2c407797db">
+			  <File Id="Microsoft.Extensions.Configuration.UserSecrets.dll" Name="Microsoft.Extensions.Configuration.UserSecrets.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Microsoft.Extensions.Configuration.UserSecrets.dll" />
+			</Component>
+			<Component Id="Microsoft.Extensions.Configuration.Json.dll" Guid="4f9bbe71-4586-4aba-a543-61edba578631">
+			  <File Id="Microsoft.Extensions.Configuration.Json.dll" Name="Microsoft.Extensions.Configuration.Json.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Microsoft.Extensions.Configuration.Json.dll" />
+			</Component>
+			<Component Id="Microsoft.Extensions.Configuration.CommandLine.dll" Guid="fb12b73d-8567-4b99-ad72-5ba86e97c4df">
+			  <File Id="Microsoft.Extensions.Configuration.CommandLine.dll" Name="Microsoft.Extensions.Configuration.CommandLine.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Microsoft.Extensions.Configuration.CommandLine.dll" />
+			</Component>
+			<Component Id="Microsoft.Extensions.Logging.EventLog.dll" Guid="819d9368-03ca-42d7-bdc4-b0c68c9d741b">
+			  <File Id="Microsoft.Extensions.Logging.EventLog.dll" Name="Microsoft.Extensions.Logging.EventLog.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Microsoft.Extensions.Logging.EventLog.dll" />
+			</Component>
+			<Component Id="Microsoft.Extensions.Logging.Configuration.dll" Guid="248861c5-1c1d-49df-ba15-fabb5491a95f">
+			  <File Id="Microsoft.Extensions.Logging.Configuration.dll" Name="Microsoft.Extensions.Logging.Configuration.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Microsoft.Extensions.Logging.Configuration.dll" />
+			</Component>
+			<Component Id="Microsoft.Extensions.Logging.Console.dll" Guid="8cbb50d7-d6e2-4df2-87c9-33ab577d1625">
+			  <File Id="Microsoft.Extensions.Logging.Console.dll" Name="Microsoft.Extensions.Logging.Console.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Microsoft.Extensions.Logging.Console.dll" />
+			</Component>
+			<Component Id="Microsoft.Extensions.Configuration.EnvironmentVariables.dll" Guid="74e3d689-27ae-48ad-8f2d-7de54984e182">
+			  <File Id="Microsoft.Extensions.Configuration.EnvironmentVariables.dll" Name="Microsoft.Extensions.Configuration.EnvironmentVariables.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Microsoft.Extensions.Configuration.EnvironmentVariables.dll" />
+			</Component>
+			<Component Id="Microsoft.AspNetCore.SignalR.Client.Core.dll" Guid="1e892aac-0203-411b-b341-1bf5c60a227b">
+			  <File Id="Microsoft.AspNetCore.SignalR.Client.Core.dll" Name="Microsoft.AspNetCore.SignalR.Client.Core.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Microsoft.AspNetCore.SignalR.Client.Core.dll" />
+			</Component>
+			<Component Id="MQTTnet.dll" Guid="efe7ecfe-88c8-4925-b031-2e4c4ddbc23a">
+			  <File Id="MQTTnet.dll" Name="MQTTnet.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)MQTTnet.dll" />
+			</Component>
+			<Component Id="Microsoft.Extensions.FileProviders.Abstractions.dll" Guid="e7ba529f-24f0-445a-90c0-4602cb56a526">
+			  <File Id="Microsoft.Extensions.FileProviders.Abstractions.dll" Name="Microsoft.Extensions.FileProviders.Abstractions.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Microsoft.Extensions.FileProviders.Abstractions.dll" />
+			</Component>
+			<Component Id="KnowledgeAssistant.Wpf.dll" Guid="8a49f8ed-2d65-4971-90ed-b9aeb0558011">
+			  <File Id="KnowledgeAssistant.Wpf.dll" Name="KnowledgeAssistant.Wpf.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)KnowledgeAssistant.Wpf.dll" />
+			</Component>
+			<Component Id="Markdig.Wpf.dll" Guid="5e2819d4-a1ab-4f4f-ba0b-4708bc5ee3e5">
+			  <File Id="Markdig.Wpf.dll" Name="Markdig.Wpf.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Markdig.Wpf.dll" />
+			</Component>
+			<Component Id="MessageServices.dll" Guid="00b19e79-bf5b-48fe-b0bf-94fbeb8cea52">
+			  <File Id="MessageServices.dll" Name="MessageServices.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)MessageServices.dll" />
+			</Component>
+			<Component Id="Microsoft.Extensions.Hosting.Abstractions.dll" Guid="ed618d8d-b8ad-4a1f-8942-338bde793153">
+			  <File Id="Microsoft.Extensions.Hosting.Abstractions.dll" Name="Microsoft.Extensions.Hosting.Abstractions.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Microsoft.Extensions.Hosting.Abstractions.dll" />
+			</Component>
+			<Component Id="Microsoft.Extensions.DependencyInjection.Abstractions.dll" Guid="27eaf0df-5fd6-42ec-8ab3-86875483c312">
+			  <File Id="Microsoft.Extensions.DependencyInjection.Abstractions.dll" Name="Microsoft.Extensions.DependencyInjection.Abstractions.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Microsoft.Extensions.DependencyInjection.Abstractions.dll" />
+			</Component>
+			<Component Id="CommunicationsClients.dll" Guid="9d632e30-f561-4fb6-be2b-caa86dc89006">
+			  <File Id="CommunicationsClients.dll" Name="CommunicationsClients.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)CommunicationsClients.dll" />
+			</Component>
+			<Component Id="KnowledgeAssistant.Domain.dll" Guid="21662951-e909-4430-9255-1ee120d5ec1b">
+			  <File Id="KnowledgeAssistant.Domain.dll" Name="KnowledgeAssistant.Domain.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)KnowledgeAssistant.Domain.dll" />
+			</Component>
+			<Component Id="UI.dll" Guid="86ec57ca-50ef-4454-9649-5190cd3c252d">
+			  <File Id="UI.dll" Name="UI.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)UI.dll" />
+			</Component>
+			<Component Id="KnowledgeAssistant.Contracts.dll" Guid="9158660f-f660-4803-849e-03deaeb36705">
+			  <File Id="KnowledgeAssistant.Contracts.dll" Name="KnowledgeAssistant.Contracts.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)KnowledgeAssistant.Contracts.dll" />
+			</Component>
+			<Component Id="Microsoft.Extensions.Configuration.Abstractions.dll" Guid="e0cdd089-dde3-4a6f-b2db-557c65edf749">
+			  <File Id="Microsoft.Extensions.Configuration.Abstractions.dll" Name="Microsoft.Extensions.Configuration.Abstractions.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Microsoft.Extensions.Configuration.Abstractions.dll" />
+			</Component>
+			<Component Id="Microsoft.Extensions.Hosting.dll" Guid="053b16d3-a8fe-43fb-8574-c378d5e80cb1">
+			  <File Id="Microsoft.Extensions.Hosting.dll" Name="Microsoft.Extensions.Hosting.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Microsoft.Extensions.Hosting.dll" />
+			</Component>
+			<Component Id="Serilog.Extensions.Hosting.dll" Guid="477f02ee-f0ee-4c42-a08f-40fe1376df17">
+			  <File Id="Serilog.Extensions.Hosting.dll" Name="Serilog.Extensions.Hosting.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Serilog.Extensions.Hosting.dll" />
+			</Component>
+			<Component Id="Serilog.dll" Guid="8b0de136-0929-425b-abe6-c05c66d3c721">
+			  <File Id="Serilog.dll" Name="Serilog.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Serilog.dll" />
+			</Component>
+			<Component Id="Serilog.Extensions.Logging.dll" Guid="0afc028c-bdf1-4a3d-8877-1bd8bdf03872">
+			  <File Id="Serilog.Extensions.Logging.dll" Name="Serilog.Extensions.Logging.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Serilog.Extensions.Logging.dll" />
+			</Component>
+			<Component Id="Markdig.dll" Guid="093fb08d-9e0e-4fdd-9f15-da2a8ba50858">
+			  <File Id="Markdig.dll" Name="Markdig.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Markdig.dll" />
+			</Component>
+			<Component Id="Models.dll" Guid="3080696b-1690-4458-bbb5-5591d19f8e3b">
+			  <File Id="Models.dll" Name="Models.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Models.dll" />
+			</Component>
+			<Component Id="Infrastructure.dll" Guid="fe2e400a-38e0-4028-8978-6a00569db6ea">
+			  <File Id="Infrastructure.dll" Name="Infrastructure.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Infrastructure.dll" />
+			</Component>
+			<Component Id="Newtonsoft.Json.dll" Guid="89a53fd7-ada9-4a4e-9412-07baf993e968">
+			  <File Id="Newtonsoft.Json.dll" Name="Newtonsoft.Json.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Newtonsoft.Json.dll" />
+			</Component>
+			<Component Id="Security.dll" Guid="f0d893fe-6ba3-4ba0-9f4a-52437c14ddec">
+			  <File Id="Security.dll" Name="Security.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Security.dll" />
+			</Component>
+			<Component Id="Microsoft.Extensions.Logging.Abstractions.dll" Guid="3030a4b3-8dde-4030-b24d-4996c9239a1e">
+			  <File Id="Microsoft.Extensions.Logging.Abstractions.dll" Name="Microsoft.Extensions.Logging.Abstractions.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Microsoft.Extensions.Logging.Abstractions.dll" />
+			</Component>
+			<Component Id="Microsoft.Extensions.Diagnostics.Abstractions.dll" Guid="fec5e0a5-bc2c-47ec-81ee-81cfb5ef1699">
+			  <File Id="Microsoft.Extensions.Diagnostics.Abstractions.dll" Name="Microsoft.Extensions.Diagnostics.Abstractions.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Microsoft.Extensions.Diagnostics.Abstractions.dll" />
+			</Component>
+			<Component Id="Microsoft.Extensions.Options.dll" Guid="4dd90cfc-28d7-4a9d-b06f-ae11c01e2cd5">
+			  <File Id="Microsoft.Extensions.Options.dll" Name="Microsoft.Extensions.Options.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Microsoft.Extensions.Options.dll" />
+			</Component>
+			<Component Id="Microsoft.Extensions.Primitives.dll" Guid="6a6aa5b2-9b7b-4e47-9a42-64a82c7caea5">
+			  <File Id="Microsoft.Extensions.Primitives.dll" Name="Microsoft.Extensions.Primitives.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Microsoft.Extensions.Primitives.dll" />
+			</Component>
+			<Component Id="Microsoft.Extensions.Logging.Debug.dll" Guid="d6b4b120-c7a5-4b9d-bce7-8ebcad0643d6">
+			  <File Id="Microsoft.Extensions.Logging.Debug.dll" Name="Microsoft.Extensions.Logging.Debug.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Microsoft.Extensions.Logging.Debug.dll" />
+			</Component>
+			<Component Id="Microsoft.Extensions.Logging.EventSource.dll" Guid="d6d84411-c2df-4ba4-ad7b-3585af57afcf">
+			  <File Id="Microsoft.Extensions.Logging.EventSource.dll" Name="Microsoft.Extensions.Logging.EventSource.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Microsoft.Extensions.Logging.EventSource.dll" />
+			</Component>
+
+			<Component Id="KnowledgeAssistant.exe" Guid="44D9621A-F103-4259-9D0D-C8CDBBEC7AE8">
+				<File Id="KnowledgeAssistant.exe" Name="KnowledgeAssistant.exe" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)KnowledgeAssistant.Wpf.exe" />
+			</Component>
+			<Component Id="KnowledgeAssistant.deps.json" Guid="6B60F6AA-B80F-4396-8886-147DB3475839">
+				<File Id="KnowledgeAssistant.deps.json" Name="KnowledgeAssistant.deps.json" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)KnowledgeAssistant.Wpf.deps.json" />
+			</Component>
+		</ComponentGroup>
+	</Fragment>
+</Wix>

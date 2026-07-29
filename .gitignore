@@ -5,6 +5,9 @@ obj/
 *.user
 *.suo
 
+## Deployment-machine overrides (never commit real environment URLs)
+KnowledgeAssistant.Wpf/appsettings.local.json
+
 ## Angular (in case anything sits outside KnowledgeAssistant.Web's own .gitignore)
 node_modules/
 dist/

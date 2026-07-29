@@ -1,8 +1,16 @@
 <Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x86" />
+  </Configurations>
   <Project Path="KnowledgeAssistant.Api/KnowledgeAssistant.Api.csproj" />
   <Project Path="KnowledgeAssistant.Application/KnowledgeAssistant.Application.csproj" />
   <Project Path="KnowledgeAssistant.Contracts/KnowledgeAssistant.Contracts.csproj" />
   <Project Path="KnowledgeAssistant.Domain/KnowledgeAssistant.Domain.csproj" />
   <Project Path="KnowledgeAssistant.Infrastructure/KnowledgeAssistant.Infrastructure.csproj" />
+  <Project Path="KnowledgeAssistant.Wpf.Installer/KnowledgeAssistant.Wpf.Installer.wixproj" Id="4b1f606b-df74-4c0b-b2cb-76fabcacfe0e">
+    <Platform Project="x86" />
+    <Build />
+  </Project>
   <Project Path="KnowledgeAssistant.Wpf/KnowledgeAssistant.Wpf.csproj" />
 </Solution>

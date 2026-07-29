@@ -1,9 +1,9 @@
 {
   "Api": {
-    "BaseUrl": "http://localhost:5299/"
+    "BaseUrl": "http://192.168.0.200:5299/"
   },
   "SignalR": {
-    "Host": "localhost",
+    "Host": "192.168.0.200",
     "Port": 5243,
     "Path": "Hub",
     "UseHttps": false
