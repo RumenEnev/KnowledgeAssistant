@@ -5,7 +5,9 @@ import { DocumentItem, Topic } from '../models/document';
   providedIn: 'root'
 })
 export class DocumentsService {
-  private baseUrl = 'http://localhost:5299';
+  // Relative path: requests are routed to the API by the nginx reverse proxy
+  // (see KnowledgeAssistant.Web/nginx.conf), so this works from any host/network.
+  private baseUrl = '';
 
   /** Throws a human-readable error when a fetch response is not successful. */
   private async assertOk(response: Response): Promise<void> {

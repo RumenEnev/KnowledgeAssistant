@@ -9,7 +9,9 @@ import { ChatResponseChunk } from '../models/chat-response-chunk';
   providedIn: 'root'
 })
 export class ChatService {
-  private baseUrl = 'http://localhost:5299';
+  // Relative path: requests are routed to the API by the nginx reverse proxy
+  // (see KnowledgeAssistant.Web/nginx.conf), so this works from any host/network.
+  private baseUrl = '';
 
   constructor() { }
 

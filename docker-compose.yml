@@ -1,0 +1,42 @@
+networks:
+  knowledgeassistant:
+    driver: bridge
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: KnowledgeAssistant.Api/Dockerfile
+    image: knowledgeassistant-api:latest
+    container_name: knowledgeassistant-api
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__KnowledgeAssistant: ${KA_DB_CONNECTION_STRING:-Host=192.168.0.200;Port=5432;Database=postgres;Username=postgres;Password=changeme}
+      Ollama__BaseUrl: ${KA_OLLAMA_BASE_URL:-http://192.168.0.200:11434}
+      # Wildcard host patterns let the API accept requests from any machine on the
+      # network that serves the Angular app (e.g. any port on any LAN host).
+      Cors__AllowedOrigins__0: http://localhost:4200
+      Cors__AllowedOrigins__1: http://*:4200
+      Cors__AllowedOrigins__2: http://*:80
+      Cors__AllowedOrigins__3: http://*
+    ports:
+      # Exposed on all host network interfaces (0.0.0.0), not just localhost.
+      - "0.0.0.0:5299:8080"
+    networks:
+      - knowledgeassistant
+
+  web:
+    build:
+      context: ./KnowledgeAssistant.Web
+      dockerfile: Dockerfile
+    image: knowledgeassistant-web:latest
+    container_name: knowledgeassistant-web
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "0.0.0.0:4200:80"
+    networks:
+      - knowledgeassistant
