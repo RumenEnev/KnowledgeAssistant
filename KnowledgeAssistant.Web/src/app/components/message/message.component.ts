@@ -1,5 +1,8 @@
 import { Component, HostBinding, Input } from '@angular/core';
 import { marked } from 'marked';
+import markedKatex from 'marked-katex-extension';
+
+marked.use(markedKatex({ throwOnError: false, output: 'html' }));
 
 @Component({
   selector: 'app-message',
