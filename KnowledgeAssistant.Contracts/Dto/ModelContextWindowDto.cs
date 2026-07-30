@@ -6,6 +6,14 @@
 
         public required string Name { get; set; }
 
-        public int? ContextWindowTokens { get; set; }
+        public long Size { get; set; }
+
+        public int? ContextLength { get; set; }
+
+        public string? Family { get; set; }
+
+        public string? QuantizationLevel { get; set; }
+
+        public string? ParameterSize { get; set; }
     }
 }

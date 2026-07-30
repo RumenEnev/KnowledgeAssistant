@@ -7,7 +7,7 @@
 
     <div class="modal-body">
       <p class="hint">
-        Set the context window size (in tokens) for each installed model. Leave empty to use the model's default.
+        Installed models and their catalog information.
       </p>
 
       @if (isLoading()) {
@@ -19,18 +19,11 @@
           @for (model of models(); track model.id) {
             <li class="model-item">
               <span class="model-name">{{ model.name }}</span>
-              <input
-                type="number"
-                min="1"
-                placeholder="Default"
-                [ngModel]="model.contextWindowTokens"
-                (ngModelChange)="updateContextWindowTokens(model, $event)" />
-              <button
-                type="button"
-                [disabled]="savingModelId() === model.id"
-                (click)="saveContextWindow(model)">
-                {{ savingModelId() === model.id ? 'Saving...' : 'Save' }}
-              </button>
+              <span class="model-size">{{ formatSize(model.size) }}</span>
+              <span class="model-parameters">{{ model.parameterSize ?? '—' }}</span>
+              <span class="model-context-length">{{ model.contextLength ?? '—' }}</span>
+              <span class="model-family">{{ model.family ?? '—' }}</span>
+              <span class="model-quantization">{{ model.quantizationLevel ?? '—' }}</span>
             </li>
           }
         </ul>

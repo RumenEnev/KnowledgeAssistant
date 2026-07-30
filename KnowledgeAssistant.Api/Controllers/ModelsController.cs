@@ -33,16 +33,18 @@ namespace KnowledgeAssistant.Api.Controllers
         {
             var models = await _service.GetModelsAsync(cancellationToken);
             var result = new List<ModelContextWindowDto>();
-
             foreach (var model in models)
             {
                 var id = await _modelRepository.GetOrCreateModelIdAsync(model.Name, cancellationToken);
-                var contextWindowTokens = await _modelRepository.GetContextWindowTokensAsync(id, cancellationToken);
                 result.Add(new ModelContextWindowDto
                 {
                     Id = id,
                     Name = model.Name,
-                    ContextWindowTokens = contextWindowTokens
+                    Size = model.Size,
+                    ContextLength = model.ContextLength,
+                    Family = model.Family,
+                    QuantizationLevel = model.QuantizationLevel,
+                    ParameterSize = model.ParameterSize
                 });
             }
 

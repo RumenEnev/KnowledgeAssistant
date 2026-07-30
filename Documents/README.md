@@ -1,6 +1,6 @@
 # Knowledge Assistant — Application Documentation
 
-Version 1.0.1.375
+Version 1.0.1.378
 
 This is the top-level documentation for the Knowledge Assistant application. It provides a high-level overview of the system and links out to detailed documentation for each component. Component-specific docs live alongside this file in the same folder.
 

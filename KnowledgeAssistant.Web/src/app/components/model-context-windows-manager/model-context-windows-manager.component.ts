@@ -1,5 +1,4 @@
 import { Component, EventEmitter, inject, OnInit, Output, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { ChatService } from '../../services/chat.service';
 import { NotificationService } from '../../services/notification.service';
 import { ModelContextWindow } from '../../models/model-context-window';
@@ -7,7 +6,7 @@ import { ModelContextWindow } from '../../models/model-context-window';
 @Component({
   selector: 'app-model-context-windows-manager',
   standalone: true,
-  imports: [FormsModule],
+  imports: [],
   templateUrl: './model-context-windows-manager.component.html',
   styleUrl: './model-context-windows-manager.component.css'
 })
@@ -19,7 +18,6 @@ export class ModelContextWindowsManagerComponent implements OnInit {
 
   models = signal<ModelContextWindow[]>([]);
   isLoading = signal(false);
-  savingModelId = signal<string | null>(null);
 
   private overlayMouseDownOnBackdrop = false;
 
@@ -36,29 +34,6 @@ export class ModelContextWindowsManagerComponent implements OnInit {
       this.notificationService.error(this.toMessage(err, 'Failed to load models.'));
     } finally {
       this.isLoading.set(false);
-    }
-  }
-
-  updateContextWindowTokens(model: ModelContextWindow, value: number | null): void {
-    this.models.update(current =>
-      current.map(m => m.id === model.id ? { ...m, contextWindowTokens: value } : m)
-    );
-  }
-
-  async saveContextWindow(model: ModelContextWindow) {
-    if (model.contextWindowTokens != null && model.contextWindowTokens <= 0) {
-      this.notificationService.error('Context window tokens must be greater than zero.');
-      return;
-    }
-
-    this.savingModelId.set(model.id);
-    try {
-      await this.chatService.updateModelContextWindow(model.id, model.contextWindowTokens);
-      this.notificationService.success(`Context window saved for ${model.name}.`);
-    } catch (err) {
-      this.notificationService.error(this.toMessage(err, 'Failed to save the context window.'));
-    } finally {
-      this.savingModelId.set(null);
     }
   }
 
@@ -79,5 +54,16 @@ export class ModelContextWindowsManagerComponent implements OnInit {
 
   private toMessage(err: unknown, fallback: string): string {
     return err instanceof Error && err.message ? err.message : fallback;
+  }
+
+  formatSize(bytes: number): string {
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    let size = bytes;
+    let unitIndex = 0;
+    while (size >= 1024 && unitIndex < units.length - 1) {
+      size /= 1024;
+      unitIndex++;
+    }
+    return `${Math.round(size * 100) / 100} ${units[unitIndex]}`;
   }
 }

@@ -3,5 +3,7 @@
     public class OllamaModelDto
     {
         public required string Name { get; set; }
+
+        public long Size { get; set; }
     }
 }

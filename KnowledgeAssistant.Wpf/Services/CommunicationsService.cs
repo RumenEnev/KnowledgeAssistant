@@ -67,7 +67,6 @@ namespace KnowledgeAssistant.Wpf.Services
             _messageService.Subscribe<GetChunkingSettingsRequest>(this, GetChunkingSettingsReceived);
             _messageService.Subscribe<UpdateChunkingSettingsRequest>(this, UpdateChunkingSettingsReceived);
             _messageService.Subscribe<GetModelContextWindowsRequest>(this, GetModelContextWindowsReceived);
-            _messageService.Subscribe<UpdateModelContextWindowRequest>(this, UpdateModelContextWindowReceived);
             _messageService.Subscribe<UpdateApiUrlRequest>(this, UpdateApiUrlReceived);
         }
 
@@ -344,45 +343,13 @@ namespace KnowledgeAssistant.Wpf.Services
                 {
                     var dtos = await _httpClient.GetFromJsonAsync<List<ModelContextWindowDto>>("api/models/context-windows", _cancellationToken);
                     var models = (dtos ?? new List<ModelContextWindowDto>())
-                        .Select(d => new ModelContextWindowInfo(d.Id, d.Name, d.ContextWindowTokens))
+                        .Select(d => new ModelContextWindowInfo(d.Id, d.Name, d.Size, d.ContextLength, d.Family, d.QuantizationLevel, d.ParameterSize))
                         .ToList();
                     _messageService.Publish(new ModelContextWindowsUpdatedEvent(models));
                 }
                 catch (Exception ex)
                 {
                     _messageService.Publish(new UserMessage("Error", $"Error fetching model context windows: {ex.Message}", MessageType.Error));
-                }
-            }
-        }
-
-        private async void UpdateModelContextWindowReceived(MessageBase message)
-        {
-            if (message is UpdateModelContextWindowRequest request)
-            {
-                try
-                {
-                    var dto = new UpdateModelContextWindowDto
-                    {
-                        ContextWindowTokens = request.ContextWindowTokens
-                    };
-
-                    using var response = await _httpClient.PutAsync(
-                        $"api/models/{request.ModelId}/context-window",
-                        new StringContent(JsonSerializer.Serialize(dto), Encoding.UTF8, "application/json"),
-                        _cancellationToken);
-
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        var error = await response.Content.ReadAsStringAsync(_cancellationToken);
-                        _messageService.Publish(new UserMessage("Save Model Context Window Failed", error, MessageType.Error));
-                        return;
-                    }
-
-                    _messageService.Publish(new ModelContextWindowUpdatedEvent(request.ModelId, request.ModelName, request.ContextWindowTokens));
-                }
-                catch (Exception ex)
-                {
-                    _messageService.Publish(new UserMessage("Save Model Context Window Failed", ex.Message, MessageType.Error));
                 }
             }
         }

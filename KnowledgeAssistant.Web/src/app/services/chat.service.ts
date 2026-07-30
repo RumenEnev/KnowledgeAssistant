@@ -119,15 +119,6 @@ export class ChatService {
     return response.json();
   }
 
-  async updateModelContextWindow(id: string, contextWindowTokens: number | null): Promise<void> {
-    const response = await fetch(`${this.baseUrl}/api/models/${id}/context-window`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contextWindowTokens })
-    });
-    await this.assertOk(response);
-  }
-
   async streamChat(
   request: ChatRequest,
   onEvent: (event: ChatResponseChunk) => void

@@ -1,36 +1,36 @@
-﻿using System.ComponentModel;
-
-namespace KnowledgeAssistant.Wpf.Models
+﻿namespace KnowledgeAssistant.Wpf.Models
 {
-    /// <summary>A model shown in the Model Context Windows window with an editable context window token count.</summary>
-    public class ModelContextWindowDisplayModel : INotifyPropertyChanged
+    /// <summary>A model shown in the Model Context Windows window with read-only catalog information.</summary>
+    public class ModelContextWindowDisplayModel
     {
-        private int? _contextWindowTokens;
-        private bool _isSaving;
-
         public Guid Id { get; set; }
 
         public string Name { get; set; } = string.Empty;
 
-        public int? ContextWindowTokens
-        {
-            get => _contextWindowTokens;
-            set { _contextWindowTokens = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ContextWindowTokens))); }
-        }
+        public long Size { get; set; }
 
-        public bool IsSaving
+        public string SizeDisplay => FormatSize(Size);
+
+        public int? ContextLength { get; set; }
+
+        public string? Family { get; set; }
+
+        public string? QuantizationLevel { get; set; }
+
+        public string? ParameterSize { get; set; }
+
+        private static string FormatSize(long bytes)
         {
-            get => _isSaving;
-            set
+            string[] units = { "B", "KB", "MB", "GB", "TB" };
+            double size = bytes;
+            int unitIndex = 0;
+            while (size >= 1024 && unitIndex < units.Length - 1)
             {
-                _isSaving = value;
-                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSaving)));
-                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SaveButtonText)));
+                size /= 1024;
+                unitIndex++;
             }
+
+            return $"{size:0.##} {units[unitIndex]}";
         }
-
-        public string SaveButtonText => IsSaving ? "Saving..." : "Save";
-
-        public event PropertyChangedEventHandler? PropertyChanged;
     }
 }
