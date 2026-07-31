@@ -121,7 +121,7 @@ namespace KnowledgeAssistant.Application.Services
             var now = DateTime.UtcNow;
 
             const string sql = """
-                                INSERT INTO repositories (id, name, root_path, description, created_at, updated_at)
+                                INSERT INTO ai_interactions.repositories (id, name, root_path, description, created_at, updated_at)
                                 VALUES (@Id, @Name, @RootPath, @Description, @CreatedAt, @UpdatedAt);
                                 """;
 
@@ -146,7 +146,7 @@ namespace KnowledgeAssistant.Application.Services
             const string sql = """
                                 SELECT id AS "Id", name AS "Name", root_path AS "RootPath", description AS "Description",
                                        created_at AS "CreatedAt", updated_at AS "UpdatedAt"
-                                FROM repositories WHERE id = @Id
+                                FROM ai_interactions.repositories WHERE id = @Id
                                 """;
 
             await using var connection = new NpgsqlConnection(_connectionString);
@@ -160,7 +160,7 @@ namespace KnowledgeAssistant.Application.Services
             const string sql = """
                                 SELECT id AS "Id", name AS "Name", root_path AS "RootPath", description AS "Description",
                                        created_at AS "CreatedAt", updated_at AS "UpdatedAt"
-                                FROM repositories WHERE name = @Name
+                                FROM ai_interactions.repositories WHERE name = @Name
                                 """;
 
             await using var connection = new NpgsqlConnection(_connectionString);
@@ -174,7 +174,7 @@ namespace KnowledgeAssistant.Application.Services
             const string sql = """
                                 SELECT id AS "Id", name AS "Name", root_path AS "RootPath", description AS "Description",
                                        created_at AS "CreatedAt", updated_at AS "UpdatedAt"
-                                FROM repositories ORDER BY name
+                                FROM ai_interactions.repositories ORDER BY name
                                 """;
 
             await using var connection = new NpgsqlConnection(_connectionString);
@@ -193,7 +193,7 @@ namespace KnowledgeAssistant.Application.Services
                 throw new DirectoryNotFoundException($"Root path does not exist: {rootPath}");
 
             const string sql = """
-                                UPDATE repositories
+                                UPDATE ai_interactions.repositories
                                 SET name = @NewName, root_path = @NewRootPath, description = @NewDescription, updated_at = @UpdatedAt
                                 WHERE id = @Id;
                                 """;
@@ -215,7 +215,7 @@ namespace KnowledgeAssistant.Application.Services
 
         public async Task<bool> DeleteRepositoryAsync(Guid id, CancellationToken cancellationToken)
         {
-            const string sql = "DELETE FROM repositories WHERE id = @Id";
+            const string sql = "DELETE FROM ai_interactions.repositories WHERE id = @Id";
 
             await using var connection = new NpgsqlConnection(_connectionString);
             await connection.OpenAsync(cancellationToken);

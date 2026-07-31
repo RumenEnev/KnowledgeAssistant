@@ -1,11 +1,13 @@
 ﻿using KnowledgeAssistant.Contracts.Definitions;
 using KnowledgeAssistant.Contracts.Dto;
+using KnowledgeAssistant.Contracts.Repositories;
 using KnowledgeAssistant.Domain.Conversation;
 using KnowledgeAssistant.Domain.Documents;
 using KnowledgeAssistant.Wpf.Messages;
 using KnowledgeAssistant.Wpf.Messages.Conversations;
 using KnowledgeAssistant.Wpf.Messages.Documents;
 using KnowledgeAssistant.Wpf.Messages.ModelContextWindows;
+using KnowledgeAssistant.Wpf.Messages.RepositoriesManagement;
 using KnowledgeAssistant.Wpf.Models;
 using MessageServices;
 using MessageServices.Enums;
@@ -68,6 +70,10 @@ namespace KnowledgeAssistant.Wpf.Services
             _messageService.Subscribe<UpdateChunkingSettingsRequest>(this, UpdateChunkingSettingsReceived);
             _messageService.Subscribe<GetModelContextWindowsRequest>(this, GetModelContextWindowsReceived);
             _messageService.Subscribe<UpdateApiUrlRequest>(this, UpdateApiUrlReceived);
+            _messageService.Subscribe<GetRepositoriesRequest>(this, GetRepositoriesReceived);
+            _messageService.Subscribe<CreateRepositoryRequest>(this, CreateRepositoryReceived);
+            _messageService.Subscribe<UpdateRepositoryRequest>(this, UpdateRepositoryReceived);
+            _messageService.Subscribe<DeleteRepositoryRequest>(this, DeleteRepositoryReceived);
         }
 
         private void UpdateApiUrlReceived(MessageBase message)
@@ -664,6 +670,129 @@ namespace KnowledgeAssistant.Wpf.Services
                     _messageService.Publish(new ChatCompletedEvent(0, 0));
                 }
             }
+        }
+
+        private async void GetRepositoriesReceived(MessageBase message)
+        {
+            if (message is GetRepositoriesRequest)
+            {
+                await LoadRepositoriesAsync();
+            }
+        }
+
+        private async Task LoadRepositoriesAsync()
+        {
+            try
+            {
+                var repositories = await _httpClient.GetFromJsonAsync<List<RepositoryDto>>("api/repositories", _cancellationToken);
+                _messageService.Publish(new RepositoriesReceivedEvent(repositories ?? Enumerable.Empty<RepositoryDto>()));
+            }
+            catch (Exception ex)
+            {
+                _messageService.Publish(new RepositoryOperationFailedEvent("Get", $"Error fetching repositories: {ex.Message}"));
+            }
+        }
+
+        private async void CreateRepositoryReceived(MessageBase message)
+        {
+            if (message is CreateRepositoryRequest request)
+            {
+                try
+                {
+                    var dto = new CreateRepositoryDto(request.Name, request.RootPath, request.Description);
+                    using var response = await _httpClient.PostAsJsonAsync("api/repositories", dto, _cancellationToken);
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        var error = await ReadErrorMessageAsync(response);
+                        _messageService.Publish(new RepositoryOperationFailedEvent("Create", error));
+                        return;
+                    }
+
+                    var created = await response.Content.ReadFromJsonAsync<RepositoryDto>(cancellationToken: _cancellationToken);
+                    if (created != null)
+                    {
+                        _messageService.Publish(new RepositoryCreatedEvent(created));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _messageService.Publish(new RepositoryOperationFailedEvent("Create", $"Error creating repository: {ex.Message}"));
+                }
+            }
+        }
+
+        private async void UpdateRepositoryReceived(MessageBase message)
+        {
+            if (message is UpdateRepositoryRequest request)
+            {
+                try
+                {
+                    var dto = new UpdateRepositoryDto(request.Name, request.RootPath, request.Description);
+                    using var response = await _httpClient.PutAsJsonAsync($"api/repositories/{request.Id}", dto, _cancellationToken);
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        var error = await ReadErrorMessageAsync(response);
+                        _messageService.Publish(new RepositoryOperationFailedEvent("Update", error));
+                        return;
+                    }
+
+                    _messageService.Publish(new RepositoryUpdatedEvent(request.Id));
+                }
+                catch (Exception ex)
+                {
+                    _messageService.Publish(new RepositoryOperationFailedEvent("Update", $"Error updating repository: {ex.Message}"));
+                }
+            }
+        }
+
+        private async void DeleteRepositoryReceived(MessageBase message)
+        {
+            if (message is DeleteRepositoryRequest request)
+            {
+                try
+                {
+                    using var response = await _httpClient.DeleteAsync($"api/repositories/{request.Id}", _cancellationToken);
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        var error = await ReadErrorMessageAsync(response);
+                        _messageService.Publish(new RepositoryOperationFailedEvent("Delete", error));
+                        return;
+                    }
+
+                    _messageService.Publish(new RepositoryDeletedEvent(request.Id));
+                }
+                catch (Exception ex)
+                {
+                    _messageService.Publish(new RepositoryOperationFailedEvent("Delete", $"Error deleting repository: {ex.Message}"));
+                }
+            }
+        }
+
+        private static async Task<string> ReadErrorMessageAsync(HttpResponseMessage response)
+        {
+            var raw = await response.Content.ReadAsStringAsync();
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                return $"Request failed with status code {(int)response.StatusCode}.";
+            }
+
+            try
+            {
+                using var doc = JsonDocument.Parse(raw);
+                if (doc.RootElement.TryGetProperty("error", out var errorProperty))
+                {
+                    return errorProperty.GetString() ?? raw;
+                }
+            }
+            catch (JsonException)
+            {
+                // Not a JSON error payload - fall back to the raw content below.
+            }
+
+            return raw;
         }
     }
 }
