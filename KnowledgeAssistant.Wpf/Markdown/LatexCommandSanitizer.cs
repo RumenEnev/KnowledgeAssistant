@@ -41,6 +41,11 @@ namespace KnowledgeAssistant.Wpf.Markdown
             (new Regex(@"\\textstyle\b"), string.Empty),
             (new Regex(@"\\left\.\s*"), string.Empty),
             (new Regex(@"\\right\.\s*"), string.Empty),
+
+            // "\quad"/"\qquad" (wide horizontal gaps) aren't defined in WpfMath's
+            // symbol table - approximate with the supported thick-space command.
+            (new Regex(@"\\qquad\b"), @"\;\;\;\;"),
+            (new Regex(@"\\quad\b"), @"\;\;"),
         };
 
         public static string Sanitize(string latex)
