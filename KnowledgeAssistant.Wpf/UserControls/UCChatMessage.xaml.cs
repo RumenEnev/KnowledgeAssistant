@@ -1,4 +1,5 @@
-﻿using KnowledgeAssistant.Wpf.Messages;
+using KnowledgeAssistant.Wpf.Markdown;
+using KnowledgeAssistant.Wpf.Messages;
 using MessageServices;
 using System.ComponentModel;
 using System.Windows;
@@ -17,6 +18,8 @@ namespace KnowledgeAssistant.Wpf.UserControls
         {
             InitializeComponent();
             DataContext = this;
+
+            MarkdownContent.Pipeline = ChatMarkdownPipeline.Instance;
 
             _messageService = messageService;
             _messageService?.Subscribe<ChunkReceivedEvent>(this, ChunkReceivedEventReceived);
@@ -53,7 +56,7 @@ namespace KnowledgeAssistant.Wpf.UserControls
             get => _message;
             set
             {
-                _message = value;
+                _message = MathDelimiterNormalizer.Normalize(value);
                 OnPropertyChanged(nameof(Message));
             }
         }
