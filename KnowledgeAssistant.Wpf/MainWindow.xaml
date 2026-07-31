@@ -41,6 +41,9 @@
                 <Separator />
                 <MenuItem Click="SetApiUrl_Click" Header="_Set API URL" />
             </MenuItem>
+            <MenuItem Header="_Repositories">
+                <MenuItem Click="ManageRepositories_Click" Header="_Manage repositories" />
+            </MenuItem>
         </Menu>
 
         <Grid

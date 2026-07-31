@@ -10,7 +10,6 @@ namespace KnowledgeAssistant.Wpf.Windows
     public partial class ModelContextWindowsWindow : Window, INotifyPropertyChanged, IMessageServiceSubscriber
     {
         private readonly MessageService _messageService;
-
         private string? _statusMessage;
 
         public ModelContextWindowsWindow(MessageService messageService)

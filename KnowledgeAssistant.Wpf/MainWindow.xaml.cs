@@ -2,6 +2,7 @@
 using KnowledgeAssistant.Wpf.Messages;
 using KnowledgeAssistant.Wpf.Messages.Conversations;
 using KnowledgeAssistant.Wpf.UserControls;
+using KnowledgeAssistant.Wpf.Views;
 using KnowledgeAssistant.Wpf.Windows;
 using MessageServices;
 using MessageServices.Enums;
@@ -503,6 +504,16 @@ namespace KnowledgeAssistant.Wpf
             {
                 _messageService.Publish(new UpdateApiUrlRequest(window.Value));
             }
+        }
+
+        private void ManageRepositories_Click(object sender, RoutedEventArgs e)
+        {
+            var window = new RepositoriesManagerWindow(_messageService)
+            {
+                Owner = this
+            };
+
+            window.ShowDialog();
         }
     }
 }

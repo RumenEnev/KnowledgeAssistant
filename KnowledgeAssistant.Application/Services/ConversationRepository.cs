@@ -20,12 +20,21 @@ namespace KnowledgeAssistant.Application.Services
         {
             await using (NpgsqlConnection connection = new NpgsqlConnection(_connectionString))
             {
-                await connection.OpenAsync();
-                var query = "SELECT c.id, c.title, c.created_at AS CreatedAt, c.updated_at AS UpdatedAt, " +
-                    "c.topic_id AS TopicId, t.name AS Topic " +
-                    "FROM ai_interactions.conversations c " +
-                    "LEFT JOIN rag.topics t ON t.id = c.topic_id";
-                return await connection.QueryAsync<Conversation>(query);
+                try
+                {
+                    await connection.OpenAsync();
+                    var query = "SELECT c.id, c.title, c.created_at AS CreatedAt, c.updated_at AS UpdatedAt, " +
+                        "c.topic_id AS TopicId, t.name AS Topic " +
+                        "FROM ai_interactions.conversations c " +
+                        "LEFT JOIN rag.topics t ON t.id = c.topic_id";
+
+                    return await connection.QueryAsync<Conversation>(query);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error retrieving conversations: {ex.Message}");
+                    throw;
+                }
             }
         }
 
