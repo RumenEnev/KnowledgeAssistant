@@ -26,13 +26,9 @@ public partial class RepositoriesManagerWindow : Window, INotifyPropertyChanged,
         DataContext = this;
 
         _messageService = messageService;
-        _messageService?.Subscribe<RepositoriesReceivedEvent>(this, RepositoriesReceivedEventReceived);
-        _messageService?.Subscribe<RepositoryCreatedEvent>(this, RepositoryCreatedEventReceived);
-        _messageService?.Subscribe<RepositoryUpdatedEvent>(this, RepositoryUpdatedEventReceived);
-        _messageService?.Subscribe<RepositoryDeletedEvent>(this, RepositoryDeletedEventReceived);
-        _messageService?.Subscribe<RepositoryOperationFailedEvent>(this, RepositoryOperationFailedEventReceived);
-
-        Loaded += (_, _) => _messageService?.Publish(new GetRepositoriesRequest());
+        _messageService.Subscribe<RepositoryCreatedEvent>(this, RepositoryCreatedEventReceived);
+        _messageService.Subscribe<RepositoryUpdatedEvent>(this, RepositoryUpdatedEventReceived);
+        _messageService.Subscribe<RepositoryDeletedEvent>(this, RepositoryDeletedEventReceived);
     }
 
     public ObservableCollection<RepositoryDto> Repositories { get; } = new();
@@ -83,16 +79,6 @@ public partial class RepositoriesManagerWindow : Window, INotifyPropertyChanged,
 
     public bool HasError => !string.IsNullOrEmpty(ErrorMessage);
 
-    private void RepositoriesReceivedEventReceived(MessageBase message)
-    {
-        Dispatcher.Invoke(() =>
-        {
-            Repositories.Clear();
-            foreach (var repo in ((RepositoriesReceivedEvent)message).Repositories.OrderBy(r => r.Name))
-                Repositories.Add(repo);
-        });
-    }
-
     private void RepositoryCreatedEventReceived(MessageBase message)
     {
         Dispatcher.Invoke(() =>
@@ -118,11 +104,6 @@ public partial class RepositoriesManagerWindow : Window, INotifyPropertyChanged,
             ClearForm();
             _messageService?.Publish(new GetRepositoriesRequest());
         });
-    }
-
-    private void RepositoryOperationFailedEventReceived(MessageBase message)
-    {
-        Dispatcher.Invoke(() => ErrorMessage = ((RepositoryOperationFailedEvent)message).ErrorMessage);
     }
 
     private void BrowseButton_Click(object sender, System.Windows.RoutedEventArgs e)
@@ -198,4 +179,20 @@ public partial class RepositoriesManagerWindow : Window, INotifyPropertyChanged,
 
     private void OnPropertyChanged(string? propertyName) =>
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+
+    private async void RepositoriesWindow_Loaded(object sender, RoutedEventArgs e)
+    {
+        var result = (await _messageService.RequestAsync<RepositoriesReceivedEvent>(new GetRepositoriesRequest())).FirstOrDefault();
+        if (result != null && result.ErrorMessage == null)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                Repositories.Clear();
+                foreach (var repo in result.Repositories.OrderBy(r => r.Name))
+                {
+                    Repositories.Add(repo);
+                }
+            });
+        }
+    }
 }

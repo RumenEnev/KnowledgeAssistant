@@ -149,7 +149,7 @@ namespace KnowledgeAssistant.Wpf.Windows
         {
             if (message is DocumentsUpdatedEvent @event)
             {
-                Application.Current.Dispatcher.Invoke(() =>
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
                     Documents.Clear();
                     foreach (var document in @event.Documents)
@@ -172,7 +172,7 @@ namespace KnowledgeAssistant.Wpf.Windows
         {
             if (message is TopicsUpdatedEvent @event)
             {
-                Application.Current.Dispatcher.Invoke(() =>
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
                     AvailableTopics.Clear();
                     foreach (var topic in @event.Topics)
@@ -187,7 +187,7 @@ namespace KnowledgeAssistant.Wpf.Windows
         {
             if (message is DocumentAddedEvent)
             {
-                Application.Current.Dispatcher.Invoke(ClearForm);
+                System.Windows.Application.Current.Dispatcher.Invoke(ClearForm);
             }
         }
 
@@ -195,7 +195,7 @@ namespace KnowledgeAssistant.Wpf.Windows
         {
             if (message is DocumentUpdatedEvent @event)
             {
-                Application.Current.Dispatcher.Invoke(() =>
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
                     ClearForm();
                     StatusMessage = "Document updated.";
@@ -207,11 +207,11 @@ namespace KnowledgeAssistant.Wpf.Windows
         {
             if (message is UserMessage { Title: "Add Document Failed" or "Update Document Failed" })
             {
-                Application.Current.Dispatcher.Invoke(() => IsSaving = false);
+                System.Windows.Application.Current.Dispatcher.Invoke(() => IsSaving = false);
             }
             else if (message is UserMessage { Title: "Save Chunking Settings Failed" })
             {
-                Application.Current.Dispatcher.Invoke(() => IsSavingChunkingSettings = false);
+                System.Windows.Application.Current.Dispatcher.Invoke(() => IsSavingChunkingSettings = false);
             }
         }
 
@@ -219,7 +219,7 @@ namespace KnowledgeAssistant.Wpf.Windows
         {
             if (message is ChunkingSettingsUpdatedEvent @event)
             {
-                Application.Current.Dispatcher.Invoke(() =>
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
                     ChunkTargetSizeChars = @event.ChunkTargetSizeChars;
                     ChunkOverlapChars = @event.ChunkOverlapChars;
@@ -232,7 +232,7 @@ namespace KnowledgeAssistant.Wpf.Windows
         {
             if (message is DocumentDeletedEvent @event)
             {
-                Application.Current.Dispatcher.Invoke(() =>
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
                     var document = Documents.FirstOrDefault(d => d.Id == @event.DocumentId);
                     if (document != null)

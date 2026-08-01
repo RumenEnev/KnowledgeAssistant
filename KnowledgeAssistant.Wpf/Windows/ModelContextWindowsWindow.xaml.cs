@@ -45,7 +45,7 @@ namespace KnowledgeAssistant.Wpf.Windows
         {
             if (message is ModelContextWindowsUpdatedEvent @event)
             {
-                Application.Current.Dispatcher.Invoke(() =>
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
                     Models.Clear();
                     foreach (var model in @event.Models)

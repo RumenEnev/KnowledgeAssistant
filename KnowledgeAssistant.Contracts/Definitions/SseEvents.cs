@@ -15,5 +15,9 @@
         public const string Done = "done";
 
         public const string Error = "error";
+
+        public const string DocumentationForFile = "documentation-for-file";
+
+        public const string Progress = "progress";
     }
 }

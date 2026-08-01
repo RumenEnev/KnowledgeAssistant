@@ -1,8 +1,8 @@
 ﻿using KnowledgeAssistant.Wpf.Messages.Documents;
 using MessageServices;
-using MessageServices.Messages;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Linq;
 using System.Windows;
 
 namespace KnowledgeAssistant.Wpf.Windows
@@ -59,7 +59,7 @@ namespace KnowledgeAssistant.Wpf.Windows
         {
             if (message is TopicsUpdatedEvent @event)
             {
-                Application.Current.Dispatcher.Invoke(() =>
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
                     Topics.Clear();
                     Topics.Add(new TopicOption { Id = null, Name = "No topic" });

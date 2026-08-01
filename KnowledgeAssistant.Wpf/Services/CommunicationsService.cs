@@ -5,6 +5,7 @@ using KnowledgeAssistant.Domain.Conversation;
 using KnowledgeAssistant.Domain.Documents;
 using KnowledgeAssistant.Wpf.Messages;
 using KnowledgeAssistant.Wpf.Messages.Conversations;
+using KnowledgeAssistant.Wpf.Messages.Documentation;
 using KnowledgeAssistant.Wpf.Messages.Documents;
 using KnowledgeAssistant.Wpf.Messages.ModelContextWindows;
 using KnowledgeAssistant.Wpf.Messages.RepositoriesManagement;
@@ -13,6 +14,8 @@ using MessageServices;
 using MessageServices.Enums;
 using MessageServices.Messages;
 using Microsoft.Extensions.Configuration;
+using Microsoft.VisualBasic.FileIO;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Net.Http;
 using System.Net.Http.Json;
@@ -70,10 +73,12 @@ namespace KnowledgeAssistant.Wpf.Services
             _messageService.Subscribe<UpdateChunkingSettingsRequest>(this, UpdateChunkingSettingsReceived);
             _messageService.Subscribe<GetModelContextWindowsRequest>(this, GetModelContextWindowsReceived);
             _messageService.Subscribe<UpdateApiUrlRequest>(this, UpdateApiUrlReceived);
-            _messageService.Subscribe<GetRepositoriesRequest>(this, GetRepositoriesReceived);
             _messageService.Subscribe<CreateRepositoryRequest>(this, CreateRepositoryReceived);
             _messageService.Subscribe<UpdateRepositoryRequest>(this, UpdateRepositoryReceived);
             _messageService.Subscribe<DeleteRepositoryRequest>(this, DeleteRepositoryReceived);
+            _messageService.Subscribe<SaveDocumentationRequest>(this, SaveDocumentationReceived);
+
+            _messageService.SubscribeAsync<GetRepositoriesRequest>(this, GetRepositoriesReceived);
         }
 
         private void UpdateApiUrlReceived(MessageBase message)
@@ -610,9 +615,7 @@ namespace KnowledgeAssistant.Wpf.Services
                 };
 
                 var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-
                 httpRequest.Content = new StringContent(JsonSerializer.Serialize(dto), Encoding.UTF8, "application/json");
-
                 try
                 {
                     using var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, _cancellationToken);
@@ -659,6 +662,49 @@ namespace KnowledgeAssistant.Wpf.Services
                                     _messageService.Publish(new UserMessage("Error", error?.Message ?? "An error occurred while generating the response.", MessageType.Error));
                                     _messageService.Publish(new ChatCompletedEvent(0, 0));
                                     break;
+                                case SseEvents.DocumentationForFile:
+                                    var fileName = JsonSerializer.Deserialize<ProgressEventDto>(data, jsonOptions)?.Message;
+                                    if (fileName != null)
+                                    {
+                                        var repositories = await _httpClient.GetFromJsonAsync<List<RepositoryDto>>("api/repositories", _cancellationToken);
+                                        var folders = repositories?.Select(r => r.RootPath).ToList() ?? new List<string>();
+                                        var results = new ConcurrentBag<string>();
+                                        if (folders.Any())
+                                        {
+                                            Parallel.ForEach(folders, folder =>
+                                            {
+                                                if (!Directory.Exists(folder))
+                                                {
+                                                    return;
+                                                }
+
+                                                try
+                                                {
+                                                    // Use "*" to enumerate all files, then filter manually for case-insensitive match
+                                                    var allFiles = Directory.EnumerateFiles(folder, "*", System.IO.SearchOption.AllDirectories);
+                                                    foreach (var file in allFiles)
+                                                    {
+                                                        if (string.Equals(Path.GetFileName(file), fileName, StringComparison.OrdinalIgnoreCase))
+                                                        {
+                                                            results.Add(file);
+                                                        }
+                                                    }
+                                                }
+                                                catch (UnauthorizedAccessException) { }
+                                                catch (PathTooLongException) { }
+                                            });
+
+                                            var files = results.ToArray();
+                                        }
+                                    }
+                                    break;
+                                case SseEvents.Progress:
+                                    var progress = JsonSerializer.Deserialize<ProgressEventDto>(data, jsonOptions);
+                                    if (!string.IsNullOrWhiteSpace(progress?.Message))
+                                    {
+                                        _messageService.Publish(new UserMessage("Info", progress.Message, MessageType.ShortInfo));
+                                    }
+                                    break;
                                     //    case SseEvents.MessageCompleted: _messageService.Publish(new ChatCompletedEvent(conversationId)); break;
                             }
                         }
@@ -672,25 +718,22 @@ namespace KnowledgeAssistant.Wpf.Services
             }
         }
 
-        private async void GetRepositoriesReceived(MessageBase message)
+        private async Task<MessageBase> GetRepositoriesReceived(MessageBase message)
         {
             if (message is GetRepositoriesRequest)
             {
-                await LoadRepositoriesAsync();
+                try
+                {
+                    var repositories = await _httpClient.GetFromJsonAsync<List<RepositoryDto>>("api/repositories", _cancellationToken);
+                    return new RepositoriesReceivedEvent(repositories ?? Enumerable.Empty<RepositoryDto>());
+                }
+                catch (Exception ex)
+                {
+                    return new RepositoriesReceivedEvent(Enumerable.Empty<RepositoryDto>(), $"Error fetching repositories: {ex.Message}");
+                }
             }
-        }
 
-        private async Task LoadRepositoriesAsync()
-        {
-            try
-            {
-                var repositories = await _httpClient.GetFromJsonAsync<List<RepositoryDto>>("api/repositories", _cancellationToken);
-                _messageService.Publish(new RepositoriesReceivedEvent(repositories ?? Enumerable.Empty<RepositoryDto>()));
-            }
-            catch (Exception ex)
-            {
-                _messageService.Publish(new RepositoryOperationFailedEvent("Get", $"Error fetching repositories: {ex.Message}"));
-            }
+            return new RepositoriesReceivedEvent(Enumerable.Empty<RepositoryDto>(), $"Wrong message type");
         }
 
         private async void CreateRepositoryReceived(MessageBase message)
@@ -705,7 +748,6 @@ namespace KnowledgeAssistant.Wpf.Services
                     if (!response.IsSuccessStatusCode)
                     {
                         var error = await ReadErrorMessageAsync(response);
-                        _messageService.Publish(new RepositoryOperationFailedEvent("Create", error));
                         return;
                     }
 
@@ -717,7 +759,7 @@ namespace KnowledgeAssistant.Wpf.Services
                 }
                 catch (Exception ex)
                 {
-                    _messageService.Publish(new RepositoryOperationFailedEvent("Create", $"Error creating repository: {ex.Message}"));
+                    // _messageService.Publish(new RepositoryOperationFailedEvent("Create", $"Error creating repository: {ex.Message}"));
                 }
             }
         }
@@ -734,7 +776,7 @@ namespace KnowledgeAssistant.Wpf.Services
                     if (!response.IsSuccessStatusCode)
                     {
                         var error = await ReadErrorMessageAsync(response);
-                        _messageService.Publish(new RepositoryOperationFailedEvent("Update", error));
+                        //    _messageService.Publish(new RepositoryOperationFailedEvent("Update", error));
                         return;
                     }
 
@@ -742,7 +784,7 @@ namespace KnowledgeAssistant.Wpf.Services
                 }
                 catch (Exception ex)
                 {
-                    _messageService.Publish(new RepositoryOperationFailedEvent("Update", $"Error updating repository: {ex.Message}"));
+                    // _messageService.Publish(new RepositoryOperationFailedEvent("Update", $"Error updating repository: {ex.Message}"));
                 }
             }
         }
@@ -758,7 +800,7 @@ namespace KnowledgeAssistant.Wpf.Services
                     if (!response.IsSuccessStatusCode)
                     {
                         var error = await ReadErrorMessageAsync(response);
-                        _messageService.Publish(new RepositoryOperationFailedEvent("Delete", error));
+                        // _messageService.Publish(new RepositoryOperationFailedEvent("Delete", error));
                         return;
                     }
 
@@ -766,7 +808,45 @@ namespace KnowledgeAssistant.Wpf.Services
                 }
                 catch (Exception ex)
                 {
-                    _messageService.Publish(new RepositoryOperationFailedEvent("Delete", $"Error deleting repository: {ex.Message}"));
+                    // _messageService.Publish(new RepositoryOperationFailedEvent("Delete", $"Error deleting repository: {ex.Message}"));
+                }
+            }
+        }
+
+        private async void SaveDocumentationReceived(MessageBase message)
+        {
+            if (message is SaveDocumentationRequest request)
+            {
+                try
+                {
+                    _messageService.Publish(new UserMessage("Info", $"Saving documentation for '{request.RelativeFilePath}' and ingesting it into the RAG index...", MessageType.ShortInfo));
+
+                    var dto = new SaveDocumentationRequestDto
+                    {
+                        RepositoryId = request.RepositoryId,
+                        RelativeFilePath = request.RelativeFilePath,
+                        Title = request.Title,
+                        Markdown = request.Markdown
+                    };
+
+                    using var response = await _httpClient.PostAsJsonAsync("api/documentation/save", dto, _cancellationToken);
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        var error = await ReadErrorMessageAsync(response);
+                        _messageService.Publish(new UserMessage("Info", $"Failed to save documentation: {error}", MessageType.ShortInfo));
+                        _messageService.Publish(new DocumentationSaveFailedEvent(request.CorrelationId, error));
+                        return;
+                    }
+
+                    var result = await response.Content.ReadFromJsonAsync<SaveDocumentationResultDto>(_cancellationToken);
+                    _messageService.Publish(new UserMessage("Info", $"Documentation saved to {result?.SavedFilePath} and ingested into the RAG index.", MessageType.ShortInfo));
+                    _messageService.Publish(new DocumentationSavedEvent(request.CorrelationId, result?.DocumentId ?? 0, result?.SavedFilePath ?? string.Empty));
+                }
+                catch (Exception ex)
+                {
+                    _messageService.Publish(new UserMessage("Info", $"Error saving documentation: {ex.Message}", MessageType.ShortInfo));
+                    _messageService.Publish(new DocumentationSaveFailedEvent(request.CorrelationId, $"Error saving documentation: {ex.Message}"));
                 }
             }
         }

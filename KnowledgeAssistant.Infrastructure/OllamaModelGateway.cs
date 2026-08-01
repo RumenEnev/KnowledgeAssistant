@@ -4,6 +4,7 @@ using KnowledgeAssistant.Infrastructure.Dto;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace KnowledgeAssistant.Infrastructure
 {
@@ -90,6 +91,68 @@ namespace KnowledgeAssistant.Infrastructure
                     yield break;
                 }
             }
+        }
+
+        public async Task<ToolChatResult> ChatWithToolsAsync(
+            string model,
+            ChatMessage userMessage,
+            ChatMessage systemMessage,
+            IReadOnlyList<ToolDefinition> tools,
+            CancellationToken cancellationToken)
+        {
+            var toolsArray = new JsonArray();
+            foreach (var tool in tools)
+            {
+                var parametersNode = JsonNode.Parse(tool.ParametersJsonSchema);
+                toolsArray.Add(new JsonObject
+                {
+                    ["type"] = "function",
+                    ["function"] = new JsonObject
+                    {
+                        ["name"] = tool.Name,
+                        ["description"] = tool.Description,
+                        ["parameters"] = parametersNode
+                    }
+                });
+            }
+
+            var requestBody = new JsonObject
+            {
+                ["model"] = model,
+                ["messages"] = new JsonArray(
+                    new JsonObject { ["role"] = systemMessage.Role, ["content"] = systemMessage.Content },
+                    new JsonObject { ["role"] = userMessage.Role, ["content"] = userMessage.Content }),
+                ["tools"] = toolsArray,
+                ["stream"] = false,
+                // Tool-calling decisions should be deterministic: a temperature of 0 makes models much more
+                // consistent about calling (or not calling) the offered tool for a given prompt.
+                ["options"] = new JsonObject { ["temperature"] = 0 }
+            };
+
+            using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "/api/chat");
+            httpRequest.Content = new StringContent(requestBody.ToJsonString(), Encoding.UTF8, "application/json");
+            using var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            await EnsureSuccessAsync(response, model, cancellationToken);
+
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            var result = JsonSerializer.Deserialize<OllamaChatResponseDto>(content);
+
+            var toolCalls = (result?.Message?.ToolCalls ?? new List<OllamaToolCallDto>())
+                .Where(tc => tc.Function is not null && !string.IsNullOrWhiteSpace(tc.Function.Name))
+                .Select(tc => new ToolCallRequest
+                {
+                    Name = tc.Function!.Name!,
+                    ArgumentsJson = tc.Function.Arguments.ValueKind == JsonValueKind.Undefined
+                        ? "{}"
+                        : tc.Function.Arguments.GetRawText()
+                })
+                .ToList();
+
+            return new ToolChatResult
+            {
+                Content = result?.Message?.Content,
+                ToolCalls = toolCalls
+            };
         }
 
         public async Task<float[]> GetEmbeddingAsync(string model, string text, CancellationToken cancellationToken)

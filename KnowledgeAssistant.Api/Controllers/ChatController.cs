@@ -14,12 +14,18 @@ namespace KnowledgeAssistant.Api.Controllers
     {
         private readonly ConversationService _conversationService;
         private readonly IConversationRepository _conversationRepository;
+        private readonly DocumentationGenerationService _documentationGenerationService;
         private readonly ILogger<ChatController> _logger;
 
-        public ChatController(ConversationService conversationService, IConversationRepository conversationRepository, ILogger<ChatController> logger)
+        public ChatController(
+            ConversationService conversationService,
+            IConversationRepository conversationRepository,
+            DocumentationGenerationService documentationGenerationService,
+            ILogger<ChatController> logger)
         {
             _conversationService = conversationService;
             _conversationRepository = conversationRepository;
+            _documentationGenerationService = documentationGenerationService;
             _logger = logger;
         }
 
@@ -39,7 +45,19 @@ namespace KnowledgeAssistant.Api.Controllers
 
             try
             {
+                await writer.WriteAsync(SseEvents.Progress, new ProgressEventDto { Message = "Analyzing your request..." }, cancellationToken);
+
+                var fileHint = await _documentationGenerationService.TryDetectRequestAsync(request.Message, request.Model, cancellationToken);
+                if (fileHint != null)
+                {
+                    await HandleDocumentationRequestAsync(writer, request, fileHint, cancellationToken);
+                    return;
+                }
+
                 var conversationId = await _conversationService.EnsureConversationAsync(request, cancellationToken);
+
+                await writer.WriteAsync(SseEvents.Progress, new ProgressEventDto { Message = "Retrieving relevant context and generating a response..." }, cancellationToken);
+
                 await foreach (var token in _conversationService.GenerateAssistantMessageAsync(conversationId, request.Message, request.Model, cancellationToken))
                 {
                     await writer.WriteAsync(SseEvents.Token, new { conversationId, content = token }, cancellationToken);
@@ -74,6 +92,80 @@ namespace KnowledgeAssistant.Api.Controllers
             }
         }
 
+        private async Task HandleDocumentationRequestAsync(SseWriter writer, ChatRequestDto request, string fileHint, CancellationToken cancellationToken)
+        {
+            await writer.WriteAsync(SseEvents.DocumentationForFile, new ProgressEventDto { Message = fileHint }, cancellationToken);
+            var conversationId = await _conversationService.EnsureConversationAsync(request, cancellationToken);
+            var userMessage = new ChatMessage
+            {
+                Id = Guid.NewGuid(),
+                ConversationId = conversationId,
+                Role = "user",
+                Content = request.Message,
+                CreatedAt = DateTime.UtcNow
+            };
+            await _conversationService.CreateMessageAsync(conversationId, userMessage, cancellationToken);
+
+            //var located = await _documentationGenerationService.LocateFileAsync(fileHint, cancellationToken);
+            //if (located is null)
+            //{
+            //    await writer.WriteAsync(SseEvents.Progress, new ProgressEventDto { Message = $"No file matching '{fileHint}' was found in any configured repository." }, cancellationToken);
+
+            //    var notFoundText = $"I couldn't find a file matching '{fileHint}' in any configured repository. " +
+            //                        "Make sure the repository containing it is registered and the file name is correct.";
+
+            //    await writer.WriteAsync(SseEvents.Token, new { conversationId, content = notFoundText }, cancellationToken);
+            //    await _conversationService.CreateMessageAsync(conversationId, new ChatMessage
+            //    {
+            //        Id = Guid.NewGuid(),
+            //        ConversationId = conversationId,
+            //        Role = "assistant",
+            //        Content = notFoundText,
+            //        CreatedAt = DateTime.UtcNow
+            //    }, cancellationToken);
+
+            //    await writer.WriteAsync(SseEvents.Done, new MessageDoneDto { PromptTokens = 0, ResponseTokens = 0 }, cancellationToken);
+            //    return;
+            //}
+
+            //await writer.WriteAsync(SseEvents.Progress, new ProgressEventDto { Message = $"Found '{located.RelativeFilePath}' in repository '{located.Repository.Name}'. Reading file content..." }, cancellationToken);
+
+            //var fileContent = await System.IO.File.ReadAllTextAsync(located.FullPath, cancellationToken);
+
+            //await writer.WriteAsync(SseEvents.Progress, new ProgressEventDto { Message = "Generating documentation..." }, cancellationToken);
+
+            //var markdown = await _documentationGenerationService.GenerateDocumentationMarkdownAsync(
+            //    request.Model!, located.FileName, located.RelativeFilePath, fileContent, cancellationToken);
+
+            //var chatNote = $"I've generated documentation for '{located.RelativeFilePath}'. " +
+            //                "It's opened in a separate Documentation window for your review - " +
+            //                "confirm there to save it to disk and ingest it into the RAG index.";
+
+            //await writer.WriteAsync(SseEvents.Token, new { conversationId, content = chatNote }, cancellationToken);
+            //await _conversationService.CreateMessageAsync(conversationId, new ChatMessage
+            //{
+            //    Id = Guid.NewGuid(),
+            //    ConversationId = conversationId,
+            //    Role = "assistant",
+            //    Content = chatNote,
+            //    CreatedAt = DateTime.UtcNow
+            //}, cancellationToken);
+
+            //await writer.WriteAsync(SseEvents.Progress, new ProgressEventDto { Message = "Documentation generated. Review it in the Documentation window and confirm to save & ingest." }, cancellationToken);
+
+            //await writer.WriteAsync(SseEvents.Documentation, new DocumentationEventDto
+            //{
+            //    RepositoryId = located.Repository.Id,
+            //    RepositoryName = located.Repository.Name,
+            //    FileName = located.FileName,
+            //    RelativeFilePath = located.RelativeFilePath,
+            //    Title = $"Documentation: {located.FileName}",
+            //    Markdown = markdown
+            //}, cancellationToken);
+
+            //await writer.WriteAsync(SseEvents.Done, new MessageDoneDto { PromptTokens = 0, ResponseTokens = 0 }, cancellationToken);
+        }
+
         [HttpPost("title")]
         public async Task<IActionResult> GenerateTitle([FromBody] ChatRequestDto request, CancellationToken cancellationToken)
         {
@@ -92,3 +184,4 @@ namespace KnowledgeAssistant.Api.Controllers
         }
     }
 }
+

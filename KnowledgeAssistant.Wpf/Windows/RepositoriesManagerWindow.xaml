@@ -1,13 +1,18 @@
-﻿<Window x:Class="KnowledgeAssistant.Wpf.Views.RepositoriesManagerWindow"
-             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             mc:Ignorable="d"
-             d:DesignHeight="450" d:DesignWidth="700">
+﻿<Window
+    x:Class="KnowledgeAssistant.Wpf.Views.RepositoriesManagerWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    d:DesignHeight="450"
+    d:DesignWidth="700"
+    Loaded="RepositoriesWindow_Loaded"
+    mc:Ignorable="d">
+    
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
     </Window.Resources>
+    
     <Grid Margin="12">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="2*" />
@@ -15,51 +20,89 @@
             <ColumnDefinition Width="1*" />
         </Grid.ColumnDefinitions>
 
-        <!-- Repository list -->
         <DockPanel Grid.Column="0">
-            <TextBlock DockPanel.Dock="Top" Text="Registered Repositories" FontWeight="Bold" Margin="0,0,0,8" />
-            <DataGrid ItemsSource="{Binding Repositories}"
-                      SelectedItem="{Binding SelectedRepository, Mode=TwoWay}"
-                      AutoGenerateColumns="False"
-                      IsReadOnly="True"
-                      SelectionMode="Single"
-                      CanUserAddRows="False">
+            <TextBlock
+                Margin="0,0,0,8"
+                DockPanel.Dock="Top"
+                FontWeight="Bold"
+                Text="Registered Repositories" />
+            <DataGrid
+                AutoGenerateColumns="False"
+                CanUserAddRows="False"
+                IsReadOnly="True"
+                ItemsSource="{Binding Repositories}"
+                SelectedItem="{Binding SelectedRepository, Mode=TwoWay}"
+                SelectionMode="Single">
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="150" />
-                    <DataGridTextColumn Header="Root Path" Binding="{Binding RootPath}" Width="*" />
-                    <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="180" />
+                    <DataGridTextColumn
+                        Width="150"
+                        Binding="{Binding Name}"
+                        Header="Name" />
+                    <DataGridTextColumn
+                        Width="*"
+                        Binding="{Binding RootPath}"
+                        Header="Root Path" />
+                    <DataGridTextColumn
+                        Width="180"
+                        Binding="{Binding Description}"
+                        Header="Description" />
                 </DataGrid.Columns>
             </DataGrid>
         </DockPanel>
 
-        <!-- Add / Edit form -->
+        <!--  Add / Edit form  -->
         <StackPanel Grid.Column="2">
-            <TextBlock Text="{Binding FormHeaderText}" FontWeight="Bold" Margin="0,0,0,8" />
+            <TextBlock
+                Margin="0,0,0,8"
+                FontWeight="Bold"
+                Text="{Binding FormHeaderText}" />
 
-            <TextBlock Text="Name" Margin="0,4,0,2" />
+            <TextBlock Margin="0,4,0,2" Text="Name" />
             <TextBox Text="{Binding RepositoryName, UpdateSourceTrigger=PropertyChanged}" />
 
-            <TextBlock Text="Root Path" Margin="0,10,0,2" />
+            <TextBlock Margin="0,10,0,2" Text="Root Path" />
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <TextBox Grid.Column="0" Text="{Binding RootPath, UpdateSourceTrigger=PropertyChanged}" />
-                <Button Grid.Column="1" Content="Browse..." Margin="6,0,0,0" Click="BrowseButton_Click" />
+                <Button
+                    Grid.Column="1"
+                    Margin="6,0,0,0"
+                    Click="BrowseButton_Click"
+                    Content="Browse..." />
             </Grid>
 
-            <TextBlock Text="Description" Margin="0,10,0,2" />
-            <TextBox Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}"
-                      AcceptsReturn="True" Height="60" TextWrapping="Wrap" />
+            <TextBlock Margin="0,10,0,2" Text="Description" />
+            <TextBox
+                Height="60"
+                AcceptsReturn="True"
+                Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}"
+                TextWrapping="Wrap" />
 
-            <TextBlock Text="{Binding ErrorMessage}" Foreground="Red" TextWrapping="Wrap" Margin="0,10,0,0"
-                       Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}" />
+            <TextBlock
+                Margin="0,10,0,0"
+                Foreground="Red"
+                Text="{Binding ErrorMessage}"
+                TextWrapping="Wrap"
+                Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}" />
 
-            <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
-                <Button Content="Save" Width="80" Margin="0,0,8,0" Click="SaveButton_Click" />
-                <Button Content="Delete" Width="80" Margin="0,0,8,0" Click="DeleteButton_Click" />
-                <Button Content="New" Width="80" Click="NewButton_Click" />
+            <StackPanel Margin="0,16,0,0" Orientation="Horizontal">
+                <Button
+                    Width="80"
+                    Margin="0,0,8,0"
+                    Click="SaveButton_Click"
+                    Content="Save" />
+                <Button
+                    Width="80"
+                    Margin="0,0,8,0"
+                    Click="DeleteButton_Click"
+                    Content="Delete" />
+                <Button
+                    Width="80"
+                    Click="NewButton_Click"
+                    Content="New" />
             </StackPanel>
         </StackPanel>
     </Grid>

@@ -99,7 +99,7 @@ namespace KnowledgeAssistant.Wpf.Windows
         {
             if (message is TopicsUpdatedEvent @event)
             {
-                Application.Current.Dispatcher.Invoke(() =>
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
                     Topics.Clear();
                     foreach (var topic in @event.Topics.OrderBy(t => t.Name))
@@ -117,7 +117,7 @@ namespace KnowledgeAssistant.Wpf.Windows
         {
             if (message is UserMessage { Title: "Add Topic Failed" or "Update Topic Failed" or "Delete Topic Failed" })
             {
-                Application.Current.Dispatcher.Invoke(() => IsSaving = false);
+                System.Windows.Application.Current.Dispatcher.Invoke(() => IsSaving = false);
             }
         }
 

@@ -1,6 +1,7 @@
 ﻿using KnowledgeAssistant.Domain.Conversation;
 using KnowledgeAssistant.Wpf.Messages;
 using KnowledgeAssistant.Wpf.Messages.Conversations;
+using KnowledgeAssistant.Wpf.Messages.Documentation;
 using KnowledgeAssistant.Wpf.UserControls;
 using KnowledgeAssistant.Wpf.Views;
 using KnowledgeAssistant.Wpf.Windows;
@@ -51,6 +52,7 @@ namespace KnowledgeAssistant.Wpf
             _messageService.Subscribe<ConversationUpdatedEvent>(this, ConversationUpdatedEventReceived);
             _messageService.Subscribe<ConversationDeletedEvent>(this, ConversationDeletedEventReceived);
             _messageService.Subscribe<SelectedModelUpdatedEvent>(this, SelectedModelUpdatedEventReceived);
+            _messageService.Subscribe<DocumentationReadyEvent>(this, DocumentationReadyEventReceived);
         }
 
         public string? SelectedModel
@@ -200,7 +202,7 @@ namespace KnowledgeAssistant.Wpf
         {
             if (message is ConversationCreatedEvent request)
             {
-                Application.Current.Dispatcher.Invoke(() =>
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
                     Conversations.Insert(0, request.Conversation);
                     SelectedConversation = request.Conversation;
@@ -212,7 +214,7 @@ namespace KnowledgeAssistant.Wpf
         {
             if (message is ConversationDeletedEvent deleteEvent)
             {
-                Application.Current.Dispatcher.Invoke(() =>
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
                     var conversationToDelete = Conversations.FirstOrDefault(c => c.Id == deleteEvent.ConversationId);
                     if (conversationToDelete != null)
@@ -231,7 +233,7 @@ namespace KnowledgeAssistant.Wpf
         {
             if (message is ConversationUpdatedEvent request)
             {
-                Application.Current.Dispatcher.Invoke(() =>
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
                     var conversationToUpdate = Conversations.FirstOrDefault(c => c.Id == request.Conversation.Id);
                     if (conversationToUpdate != null)
@@ -248,10 +250,10 @@ namespace KnowledgeAssistant.Wpf
 
         private void UpdateConversationMessagesReceived(MessageBase message)
         {
-            Application.Current.Dispatcher.Invoke(ChatMessages.Clear);
+            System.Windows.Application.Current.Dispatcher.Invoke(ChatMessages.Clear);
             if (message is UpdateConversationMessages request)
             {
-                Application.Current.Dispatcher.Invoke(() =>
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
                     if (!string.IsNullOrWhiteSpace(request.Conversation?.SelectedModel) && Models != null && Models.Contains(request.Conversation.SelectedModel))
                     {
@@ -317,7 +319,7 @@ namespace KnowledgeAssistant.Wpf
         {
             if (message is SelectedModelUpdatedEvent request)
             {
-                Application.Current.Dispatcher.Invoke(() =>
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
                     if (!string.IsNullOrWhiteSpace(request.SelectedModel) && Models != null && Models.Contains(request.SelectedModel))
                     {
@@ -327,11 +329,35 @@ namespace KnowledgeAssistant.Wpf
             }
         }
 
+        private void DocumentationReadyEventReceived(MessageBase message)
+        {
+            if (message is DocumentationReadyEvent request)
+            {
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                {
+                    var window = new DocumentationPreviewWindow(
+                        _messageService,
+                        request.CorrelationId,
+                        request.RepositoryId,
+                        request.RepositoryName,
+                        request.FileName,
+                        request.RelativeFilePath,
+                        request.Title,
+                        request.Markdown)
+                    {
+                        Owner = this
+                    };
+
+                    window.Show();
+                });
+            }
+        }
+
         private void ChatCompletedEventReceived(MessageBase message)
         {
             if (message is ChatCompletedEvent completedEvent)
             {
-                Application.Current.Dispatcher.Invoke(() =>
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
                     ChatMessages.Last().MessageCompleted = true;
                     StatusMessage = $"Prompt Tokens: {completedEvent.PromptTokens}, Response Tokens: {completedEvent.ResponseTokens}";
@@ -347,7 +373,7 @@ namespace KnowledgeAssistant.Wpf
         {
             if (message is TitleGeneratedEvent request)
             {
-                Application.Current.Dispatcher.Invoke(() =>
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
                     var conversationToUpdate = Conversations.FirstOrDefault(c => c.Id == request.ConversationId);
                     if (conversationToUpdate != null)
@@ -456,7 +482,7 @@ namespace KnowledgeAssistant.Wpf
 
         private void Exit_Click(object sender, RoutedEventArgs e)
         {
-            Application.Current.Shutdown();
+            System.Windows.Application.Current.Shutdown();
         }
 
         private void ManageDocuments_Click(object sender, RoutedEventArgs e)

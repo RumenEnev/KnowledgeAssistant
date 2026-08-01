@@ -9,7 +9,7 @@ using System.Windows;
 
 namespace KnowledgeAssistant.Wpf
 {
-    public partial class App : Application
+    public partial class App : System.Windows.Application
     {
         private MessageService? _messageService;
 
@@ -18,16 +18,9 @@ namespace KnowledgeAssistant.Wpf
         public App()
         {
             AppHost = Host.CreateDefaultBuilder()
-                        // WPF apps can be launched with a working directory that differs from the
-                        // executable's folder (e.g. desktop shortcuts), which would otherwise cause
-                        // appsettings.json to be missed and the localhost defaults to be used silently.
                         .UseContentRoot(AppContext.BaseDirectory)
                         .ConfigureAppConfiguration(config =>
                         {
-                            // appsettings.local.json is NOT part of the project's Content items, so it is
-                            // never copied, overwritten, or deleted by a build/publish. Drop it next to the
-                            // exe on a deployment machine to point at the real API/SignalR host without the
-                            // setting reverting to the repo's localhost default on every rebuild.
                             config.AddJsonFile("appsettings.local.json", optional: true, reloadOnChange: true);
                         })
                         .UseSerilog()
@@ -37,6 +30,7 @@ namespace KnowledgeAssistant.Wpf
                             services.AddSingleton<MessageService>();
                             services.AddSingleton<CommunicationsService>();
                             services.AddSingleton<ConversationsService>();
+                            services.AddSingleton<FilesProcessingService>();
                         })
                         .Build();
         }
@@ -74,6 +68,7 @@ namespace KnowledgeAssistant.Wpf
         {
             AppHost!.Services.GetRequiredService<CommunicationsService>();
             AppHost!.Services.GetRequiredService<ConversationsService>();
+            AppHost!.Services.GetRequiredService<FilesProcessingService>();
         }
     }
 }

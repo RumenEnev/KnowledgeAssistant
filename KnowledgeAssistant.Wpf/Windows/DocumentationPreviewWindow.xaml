@@ -1,0 +1,68 @@
+﻿<Window
+    x:Class="KnowledgeAssistant.Wpf.Windows.DocumentationPreviewWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:mdxaml="clr-namespace:Markdig.Wpf;assembly=Markdig.Wpf"
+    Title="{Binding WindowTitle}"
+    Width="800"
+    Height="700"
+    WindowStartupLocation="CenterOwner">
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+    </Window.Resources>
+
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock
+            Grid.Row="0"
+            Margin="0,0,0,8"
+            FontWeight="Bold"
+            Text="{Binding SubHeaderText}"
+            TextWrapping="Wrap" />
+
+        <Border
+            Grid.Row="1"
+            Padding="8"
+            Background="White"
+            BorderBrush="#CCCCCC"
+            BorderThickness="1">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <mdxaml:MarkdownViewer x:Name="MarkdownContent" Markdown="{Binding Markdown}" />
+            </ScrollViewer>
+        </Border>
+
+        <TextBlock
+            Grid.Row="2"
+            Margin="0,8,0,0"
+            FontStyle="Italic"
+            Text="{Binding StatusMessage}"
+            TextWrapping="Wrap"
+            Visibility="{Binding HasStatusMessage, Converter={StaticResource BoolToVisibility}}" />
+
+        <StackPanel
+            Grid.Row="3"
+            Margin="0,10,0,0"
+            HorizontalAlignment="Right"
+            Orientation="Horizontal">
+            <Button
+                Width="120"
+                Margin="0,0,8,0"
+                Padding="8,4"
+                Click="SaveAndIngest_Click"
+                Content="Save &amp; Ingest"
+                IsEnabled="{Binding CanSave}" />
+            <Button
+                Width="100"
+                Padding="8,4"
+                Click="Close_Click"
+                Content="Close" />
+        </StackPanel>
+    </Grid>
+</Window>

@@ -72,7 +72,7 @@ namespace KnowledgeAssistant.Wpf.UserControls
         {
             if (message is ChunkReceivedEvent request && !MessageCompleted)
             {
-                Application.Current.Dispatcher.Invoke(() =>
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
                     Message += request.Content;
                 });
