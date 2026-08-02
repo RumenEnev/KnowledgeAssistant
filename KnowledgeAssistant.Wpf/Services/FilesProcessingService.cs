@@ -1,6 +1,7 @@
-﻿using KnowledgeAssistant.Wpf.Messages.RepositoriesManagement;
-using KnowledgeAssistant.Wpf.Models.Files;
+﻿using KnowledgeAssistant.Wpf.Messages.Files;
+using KnowledgeAssistant.Wpf.Models.Files.CSharp;
 using MessageServices;
+using System.Collections.Concurrent;
 using System.IO;
 
 namespace KnowledgeAssistant.Wpf.Services
@@ -12,39 +13,44 @@ namespace KnowledgeAssistant.Wpf.Services
         public FilesProcessingService(MessageService messageService)
         {
             _messageService = messageService;
+
+            _messageService.Subscribe<CreateFileDocumentationRequest>(this, CreateFileDocumentationRequestReceived);
         }
 
-        private async Task<LocatedFile?> LocateFileAsync(string fileHint, CancellationToken cancellationToken)
+        private void CreateFileDocumentationRequestReceived(MessageBase message)
         {
-            var repositories = await _messageService.RequestAsync<RepositoriesReceivedEvent>(new GetRepositoriesRequest());
-            var normalizedHint = fileHint.Replace('\\', '/');
-            var hintFileName = Path.GetFileName(normalizedHint);
-            var candidates = new List<LocatedFile>();
-            //foreach (var repository in repositories.OrderBy(r => r.Name, StringComparer.OrdinalIgnoreCase))
-            //{
-            //    if (!Directory.Exists(repository.RootPath))
-            //    {
-            //        continue;
-            //    }
+            if (message is CreateFileDocumentationRequest request)
+            {
+                var results = new ConcurrentBag<string>();
+                if (request.Repositories.Any())
+                {
+                    Parallel.ForEach(request.Repositories, folder =>
+                    {
+                        if (!Directory.Exists(folder))
+                        {
+                            return;
+                        }
 
-            //    foreach (var fullPath in EnumerateFilesSafely(repository.RootPath))
-            //    {
-            //        cancellationToken.ThrowIfCancellationRequested();
+                        try
+                        {
+                            var allFiles = Directory.EnumerateFiles(folder, "*", System.IO.SearchOption.AllDirectories);
+                            foreach (var file in allFiles)
+                            {
+                                if (string.Equals(Path.GetFileName(file), request.FileName, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    results.Add(file);
+                                }
+                            }
+                        }
+                        catch (UnauthorizedAccessException) { }
+                        catch (PathTooLongException) { }
+                    });
 
-            //        var relativePath = Path.GetRelativePath(repository.RootPath, fullPath).Replace('\\', '/');
-            //        var isMatch = string.Equals(relativePath, normalizedHint, StringComparison.OrdinalIgnoreCase)
-            //            || relativePath.EndsWith("/" + normalizedHint, StringComparison.OrdinalIgnoreCase)
-            //            || string.Equals(Path.GetFileName(fullPath), hintFileName, StringComparison.OrdinalIgnoreCase);
-
-            //        if (isMatch)
-            //        {
-            //            candidates.Add(new LocatedFile(repository, relativePath, fullPath));
-            //        }
-            //    }
-            //}
-
-            var exactMatch = candidates.FirstOrDefault(c => string.Equals(c.RelativeFilePath, normalizedHint, StringComparison.OrdinalIgnoreCase));
-            return exactMatch ?? candidates.FirstOrDefault();
+                    var fileContent = File.ReadAllText(results.FirstOrDefault() ?? string.Empty);
+                    var types = TypeExtractor.ExtractTypes(fileContent);
+                    //_messageService.Publish(new SendPromptRequest(request.Prompt, _conversation?.SelectedModel ?? _currentModel, "tool", null));
+                }
+            }
         }
     }
 }

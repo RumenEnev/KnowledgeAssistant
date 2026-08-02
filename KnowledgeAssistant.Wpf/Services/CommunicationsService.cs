@@ -7,6 +7,7 @@ using KnowledgeAssistant.Wpf.Messages;
 using KnowledgeAssistant.Wpf.Messages.Conversations;
 using KnowledgeAssistant.Wpf.Messages.Documentation;
 using KnowledgeAssistant.Wpf.Messages.Documents;
+using KnowledgeAssistant.Wpf.Messages.Files;
 using KnowledgeAssistant.Wpf.Messages.ModelContextWindows;
 using KnowledgeAssistant.Wpf.Messages.RepositoriesManagement;
 using KnowledgeAssistant.Wpf.Models;
@@ -14,7 +15,6 @@ using MessageServices;
 using MessageServices.Enums;
 using MessageServices.Messages;
 using Microsoft.Extensions.Configuration;
-using Microsoft.VisualBasic.FileIO;
 using System.Collections.Concurrent;
 using System.IO;
 using System.Net.Http;
@@ -50,7 +50,6 @@ namespace KnowledgeAssistant.Wpf.Services
             }
 
             _messageService.Subscribe<GenerateTitleRequest>(this, GenerateTitleReceived);
-            _messageService.Subscribe<SendUserMessageRequest>(this, SendPromptReceived);
             _messageService.Subscribe<GetAvailableModelsRequest>(this, GetAvailableModelsReceived);
             _messageService.Subscribe<GetConversationsRequest>(this, GetConversationsReceived);
             _messageService.Subscribe<GetConversationRequest>(this, GetConversationReceived);
@@ -77,6 +76,7 @@ namespace KnowledgeAssistant.Wpf.Services
             _messageService.Subscribe<UpdateRepositoryRequest>(this, UpdateRepositoryReceived);
             _messageService.Subscribe<DeleteRepositoryRequest>(this, DeleteRepositoryReceived);
             _messageService.Subscribe<SaveDocumentationRequest>(this, SaveDocumentationReceived);
+            _messageService.Subscribe<SendPromptRequest>(this, SendPromptReceived);
 
             _messageService.SubscribeAsync<GetRepositoriesRequest>(this, GetRepositoriesReceived);
         }
@@ -604,7 +604,7 @@ namespace KnowledgeAssistant.Wpf.Services
 
         private async void SendPromptReceived(MessageBase message)
         {
-            if (message is SendUserMessageRequest request)
+            if (message is SendPromptRequest request)
             {
                 var httpRequest = new HttpRequestMessage(HttpMethod.Post, "api/chat");
                 var dto = new ChatRequestDto
@@ -667,34 +667,9 @@ namespace KnowledgeAssistant.Wpf.Services
                                     if (fileName != null)
                                     {
                                         var repositories = await _httpClient.GetFromJsonAsync<List<RepositoryDto>>("api/repositories", _cancellationToken);
-                                        var folders = repositories?.Select(r => r.RootPath).ToList() ?? new List<string>();
-                                        var results = new ConcurrentBag<string>();
-                                        if (folders.Any())
+                                        if (repositories?.Any() == true)
                                         {
-                                            Parallel.ForEach(folders, folder =>
-                                            {
-                                                if (!Directory.Exists(folder))
-                                                {
-                                                    return;
-                                                }
-
-                                                try
-                                                {
-                                                    // Use "*" to enumerate all files, then filter manually for case-insensitive match
-                                                    var allFiles = Directory.EnumerateFiles(folder, "*", System.IO.SearchOption.AllDirectories);
-                                                    foreach (var file in allFiles)
-                                                    {
-                                                        if (string.Equals(Path.GetFileName(file), fileName, StringComparison.OrdinalIgnoreCase))
-                                                        {
-                                                            results.Add(file);
-                                                        }
-                                                    }
-                                                }
-                                                catch (UnauthorizedAccessException) { }
-                                                catch (PathTooLongException) { }
-                                            });
-
-                                            var files = results.ToArray();
+                                            _messageService.Publish(new CreateFileDocumentationRequest(fileName, repositories.Select(r => r.RootPath).ToList()));
                                         }
                                     }
                                     break;

@@ -15,6 +15,7 @@ namespace KnowledgeAssistant.Wpf.Services
         private readonly MessageService _messageService;
         private readonly HashSet<Guid> _titleGenerationRequested = new();
         private ConversationCompositionModel? _conversation;
+        private string _currentModel = string.Empty;
 
         public ConversationsService(MessageService messageService)
         {
@@ -26,7 +27,20 @@ namespace KnowledgeAssistant.Wpf.Services
             _messageService.Subscribe<ConversationLoadedEvent>(this, ConversationLoadedReceived);
             _messageService.Subscribe<ConversationDeletedEvent>(this, ConversationDeletedEventReceived);
             _messageService.Subscribe<CreateConversationsRequest>(this, CreateConversationsReceived);
+            _messageService.Subscribe<UpdateSelectedModelRequest>(this, UpdateSelectedModelReceived);
 
+        }
+
+        private void UpdateSelectedModelReceived(MessageBase message)
+        {
+            if (message is UpdateSelectedModelRequest request)
+            {
+                _currentModel = request.SelectedModel;
+                if (_conversation != null)
+                {
+                    _conversation.SelectedModel = request.SelectedModel;
+                }
+            }
         }
 
         private async void CreateConversationsReceived(MessageBase message)
@@ -107,14 +121,15 @@ namespace KnowledgeAssistant.Wpf.Services
                 if (_conversation == null)
                 {
                     await CreateNewConversationAsync();
-                    _messageService.Publish(new SendUserPromptRequest(request.Prompt, request.Model, null));
                 }
 
                 if (_conversation != null && ShouldGenerateTitle(_conversation))
                 {
                     _titleGenerationRequested.Add(_conversation.Id);
-                    _messageService.Publish(new GenerateTitleRequest(request.Prompt, request.Model, _conversation.Id));
+                    _messageService.Publish(new GenerateTitleRequest(request.Prompt, _conversation.SelectedModel ?? _currentModel, _conversation.Id));
                 }
+
+                _messageService.Publish(new SendPromptRequest(request.Prompt, _conversation?.SelectedModel ?? _currentModel, "user", null));
             }
         }
 

@@ -1,4 +1,5 @@
-﻿using KnowledgeAssistant.Domain.Conversation;
+﻿using Infrastructure.Dto;
+using KnowledgeAssistant.Domain.Conversation;
 using KnowledgeAssistant.Wpf.Messages;
 using KnowledgeAssistant.Wpf.Messages.Conversations;
 using KnowledgeAssistant.Wpf.Messages.Documentation;
@@ -405,7 +406,7 @@ namespace KnowledgeAssistant.Wpf
 
         private async void Send_Click(object sender, RoutedEventArgs e)
         {
-            if (!string.IsNullOrWhiteSpace(UserPrompt) && !string.IsNullOrWhiteSpace(SelectedModel))
+            if (!string.IsNullOrWhiteSpace(UserPrompt))
             {
                 var userMessage = new UCChatMessage(null)
                 {
@@ -416,7 +417,7 @@ namespace KnowledgeAssistant.Wpf
 
                 ChatMessages.Add(userMessage);
                 ChatMessages.Add(new UCChatMessage(_messageService));
-                _messageService.Publish(new SendUserMessageRequest(UserPrompt, SelectedModel, SelectedConversation?.Id));
+                _messageService.Publish(new SendUserMessageRequest(UserPrompt));
                 UserPrompt = string.Empty;
             }
         }
