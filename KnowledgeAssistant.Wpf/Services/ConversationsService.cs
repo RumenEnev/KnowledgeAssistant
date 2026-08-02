@@ -22,13 +22,46 @@ namespace KnowledgeAssistant.Wpf.Services
             _messageService = messageService;
 
             _messageService.Subscribe<SendUserMessageRequest>(this, SendUserMessageReceived);
+            _messageService.Subscribe<SendToolPromptRequest>(this, SendToolPromptReceived);
             _messageService.Subscribe<TitleGeneratedEvent>(this, TitleGeneratedReceived);
             _messageService.Subscribe<SelectedConversationChangedRequest>(this, SelectedConversationChangedReceived);
             _messageService.Subscribe<ConversationLoadedEvent>(this, ConversationLoadedReceived);
             _messageService.Subscribe<ConversationDeletedEvent>(this, ConversationDeletedEventReceived);
             _messageService.Subscribe<CreateConversationsRequest>(this, CreateConversationsReceived);
             _messageService.Subscribe<UpdateSelectedModelRequest>(this, UpdateSelectedModelReceived);
+        }
 
+        private async void SendUserMessageReceived(MessageBase message)
+        {
+            if (message is SendUserMessageRequest request)
+            {
+                if (_conversation == null)
+                {
+                    await CreateNewConversationAsync();
+                }
+
+                if (_conversation != null && ShouldGenerateTitle(_conversation))
+                {
+                    _titleGenerationRequested.Add(_conversation.Id);
+                    _messageService.Publish(new GenerateTitleRequest(request.Prompt, _conversation.SelectedModel ?? _currentModel, _conversation.Id));
+                }
+
+                _messageService.Publish(new SendPromptRequest(request.Prompt, _conversation?.SelectedModel ?? _currentModel, "user", _conversation?.Id));
+            }
+        }
+
+        private void SendToolPromptReceived(MessageBase message)
+        {
+            if (message is SendToolPromptRequest request)
+            {
+                if (_conversation == null)
+                {
+                    _messageService.Publish(new UserMessage("Error", "No active conversation to send the tool prompt.", MessageType.Error));
+                    return;
+                }
+
+                _messageService.Publish(new SendPromptRequest(request.Context, _conversation.SelectedModel ?? _currentModel, "tool", _conversation.Id, request.SystemPrompt));
+            }
         }
 
         private void UpdateSelectedModelReceived(MessageBase message)
@@ -111,25 +144,6 @@ namespace KnowledgeAssistant.Wpf.Services
                     _conversation.Title = @event.Title;
                     _conversation.UpdatedOn = DateTime.UtcNow;
                 }
-            }
-        }
-
-        private async void SendUserMessageReceived(MessageBase message)
-        {
-            if (message is SendUserMessageRequest request)
-            {
-                if (_conversation == null)
-                {
-                    await CreateNewConversationAsync();
-                }
-
-                if (_conversation != null && ShouldGenerateTitle(_conversation))
-                {
-                    _titleGenerationRequested.Add(_conversation.Id);
-                    _messageService.Publish(new GenerateTitleRequest(request.Prompt, _conversation.SelectedModel ?? _currentModel, _conversation.Id));
-                }
-
-                _messageService.Publish(new SendPromptRequest(request.Prompt, _conversation?.SelectedModel ?? _currentModel, "user", null));
             }
         }
 

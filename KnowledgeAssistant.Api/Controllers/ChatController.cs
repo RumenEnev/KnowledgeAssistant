@@ -14,18 +14,15 @@ namespace KnowledgeAssistant.Api.Controllers
     {
         private readonly ConversationService _conversationService;
         private readonly IConversationRepository _conversationRepository;
-        private readonly DocumentationGenerationService _documentationGenerationService;
         private readonly ILogger<ChatController> _logger;
 
         public ChatController(
             ConversationService conversationService,
             IConversationRepository conversationRepository,
-            DocumentationGenerationService documentationGenerationService,
             ILogger<ChatController> logger)
         {
             _conversationService = conversationService;
             _conversationRepository = conversationRepository;
-            _documentationGenerationService = documentationGenerationService;
             _logger = logger;
         }
 
@@ -46,18 +43,8 @@ namespace KnowledgeAssistant.Api.Controllers
             try
             {
                 await writer.WriteAsync(SseEvents.Progress, new ProgressEventDto { Message = "Analyzing your request..." }, cancellationToken);
-
-                var fileHint = await _documentationGenerationService.TryDetectRequestAsync(request.Message, request.Model, cancellationToken);
-                if (fileHint != null)
-                {
-                    await HandleDocumentationRequestAsync(writer, request, fileHint, cancellationToken);
-                    return;
-                }
-
                 var conversationId = await _conversationService.EnsureConversationAsync(request, cancellationToken);
-
                 await writer.WriteAsync(SseEvents.Progress, new ProgressEventDto { Message = "Retrieving relevant context and generating a response..." }, cancellationToken);
-
                 await foreach (var token in _conversationService.GenerateAssistantMessageAsync(conversationId, request.Message, request.Model, cancellationToken))
                 {
                     await writer.WriteAsync(SseEvents.Token, new { conversationId, content = token }, cancellationToken);

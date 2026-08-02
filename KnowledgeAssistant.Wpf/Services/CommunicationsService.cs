@@ -576,6 +576,7 @@ namespace KnowledgeAssistant.Wpf.Services
                 var httpRequest = new HttpRequestMessage(HttpMethod.Post, "api/chat/title");
                 var dto = new ChatRequestDto
                 {
+                    Role = "user",
                     Message = request.UserPrompt,
                     Model = request.Model,
                 };
@@ -609,9 +610,11 @@ namespace KnowledgeAssistant.Wpf.Services
                 var httpRequest = new HttpRequestMessage(HttpMethod.Post, "api/chat");
                 var dto = new ChatRequestDto
                 {
+                    Role = request.Role,
                     Message = request.Prompt,
                     Model = request.Model,
-                    ConversationId = request.ConversationId
+                    ConversationId = request.ConversationId,
+                    SystemPromt = request.SystemPrompt
                 };
 
                 var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
