@@ -1,5 +1,6 @@
-﻿using KnowledgeAssistant.Wpf.Models.Files.CSharp;
-using System.Text;
+﻿using System.Text;
+
+namespace DocumentCreator.Services.CSharp;
 
 public static class DocPromptBuilder
 {

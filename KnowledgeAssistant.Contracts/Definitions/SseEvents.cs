@@ -16,7 +16,7 @@
 
         public const string Error = "error";
 
-        public const string DocumentationForFile = "documentation-for-file";
+        public const string ToolCall = "tool-call";
 
         public const string Progress = "progress";
     }

@@ -1,22 +1,16 @@
 ﻿using KnowledgeAssistant.Domain.Conversation;
 
-namespace KnowledgeAssistant.Application.Abstraction
+namespace KnowledgeAssistant.Application.Abstraction;
+
+public interface IModelGateway
 {
-    public interface IModelGateway
-    {
-        IAsyncEnumerable<string> StreamAsync(string model, List<ChatMessage> messages, CancellationToken cancellationToken);
-        
-        Task<string> GenerateAsync(string model, ChatMessage userMessage, ChatMessage systemMessage, CancellationToken cancellationToken);
+    IAsyncEnumerable<string> StreamAsync(string model, List<ChatMessage> messages, CancellationToken cancellationToken);
     
-        (int, int) GetTokenConsumption();
+    Task<string> GenerateAsync(string model, ChatMessage userMessage, ChatMessage systemMessage, CancellationToken cancellationToken);
 
-        Task<float[]> GetEmbeddingAsync(string model, string text, CancellationToken cancellationToken);
+    (int, int) GetTokenConsumption();
 
-        /// <summary>
-        /// Sends a single-turn chat request (system + user message) along with a list of tools the model
-        /// may call. Returns either plain text content or the tool call(s) the model wants to make.
-        /// Models/providers that don't support tool calling will simply return plain content with no tool calls.
-        /// </summary>
-        Task<ToolChatResult> ChatWithToolsAsync(string model, ChatMessage userMessage, ChatMessage systemMessage, IReadOnlyList<ToolDefinition> tools, CancellationToken cancellationToken);
-    }
+    Task<float[]> GetEmbeddingAsync(string model, string text, CancellationToken cancellationToken);
+
+    Task<ToolChatResult> ChatWithToolsAsync(string model, ChatMessage userMessage, ChatMessage systemMessage, IReadOnlyList<ToolDefinition> tools, CancellationToken cancellationToken);
 }

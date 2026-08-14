@@ -7,15 +7,15 @@ using KnowledgeAssistant.Wpf.Messages;
 using KnowledgeAssistant.Wpf.Messages.Conversations;
 using KnowledgeAssistant.Wpf.Messages.Documentation;
 using KnowledgeAssistant.Wpf.Messages.Documents;
-using KnowledgeAssistant.Wpf.Messages.Files;
 using KnowledgeAssistant.Wpf.Messages.ModelContextWindows;
 using KnowledgeAssistant.Wpf.Messages.RepositoriesManagement;
+using KnowledgeAssistant.Wpf.Messages.ToolsManagement;
 using KnowledgeAssistant.Wpf.Models;
+using KnowledgeAssistant.Contracts.Tools;
 using MessageServices;
 using MessageServices.Enums;
 using MessageServices.Messages;
 using Microsoft.Extensions.Configuration;
-using System.Collections.Concurrent;
 using System.IO;
 using System.Net.Http;
 using System.Net.Http.Json;
@@ -75,10 +75,27 @@ namespace KnowledgeAssistant.Wpf.Services
             _messageService.Subscribe<CreateRepositoryRequest>(this, CreateRepositoryReceived);
             _messageService.Subscribe<UpdateRepositoryRequest>(this, UpdateRepositoryReceived);
             _messageService.Subscribe<DeleteRepositoryRequest>(this, DeleteRepositoryReceived);
+            _messageService.Subscribe<CreateToolRequest>(this, CreateToolReceived);
+            _messageService.Subscribe<UpdateToolRequest>(this, UpdateToolReceived);
+            _messageService.Subscribe<DeleteToolRequest>(this, DeleteToolReceived);
+            _messageService.SubscribeAsync<GetToolsRequest>(this, GetToolsReceived);
             _messageService.Subscribe<SaveDocumentationRequest>(this, SaveDocumentationReceived);
             _messageService.Subscribe<SendPromptRequest>(this, SendPromptReceived);
+            _messageService.Subscribe<ToolExecutionCompletedRequest>(this, ToolExecutionCompletedReceived);
 
             _messageService.SubscribeAsync<GetRepositoriesRequest>(this, GetRepositoriesReceived);
+        }
+
+        private async void ToolExecutionCompletedReceived(MessageBase message)
+        {
+            if (message is ToolExecutionCompletedRequest request)
+            {
+                var response = await _httpClient.PostAsJsonAsync($"api/chat/tool-calls/{request.ToolId}/result", request.Result);
+                if (!response.IsSuccessStatusCode)
+                {
+                    var body = await response.Content.ReadAsStringAsync();
+                }
+            }
         }
 
         private void UpdateApiUrlReceived(MessageBase message)
@@ -665,16 +682,18 @@ namespace KnowledgeAssistant.Wpf.Services
                                     _messageService.Publish(new UserMessage("Error", error?.Message ?? "An error occurred while generating the response.", MessageType.Error));
                                     _messageService.Publish(new ChatCompletedEvent(0, 0));
                                     break;
-                                case SseEvents.DocumentationForFile:
-                                    var fileName = JsonSerializer.Deserialize<ProgressEventDto>(data, jsonOptions)?.Message;
-                                    if (fileName != null)
-                                    {
-                                        var repositories = await _httpClient.GetFromJsonAsync<List<RepositoryDto>>("api/repositories", _cancellationToken);
-                                        if (repositories?.Any() == true)
-                                        {
-                                            _messageService.Publish(new CreateFileDocumentationRequest(fileName, repositories.Select(r => r.RootPath).ToList()));
-                                        }
-                                    }
+                                case SseEvents.ToolCall:
+                                    var toolCallDto = JsonSerializer.Deserialize<ToolCallDto>(data, jsonOptions);
+                                    var repositories = await _httpClient.GetFromJsonAsync<List<RepositoryDto>>("api/repositories", _cancellationToken);
+                                    string? fileName = toolCallDto?.Arguments.TryGetProperty("fileName", out var fileNameProp) == true
+                                        ? fileNameProp.GetString()
+                                        : null;
+
+                                    var folders = repositories?.Select(repo => repo.RootPath);
+                                    var arguments = new List<string>() { fileName ?? string.Empty };
+                                    arguments.AddRange(folders ?? Enumerable.Empty<string>());
+                                    _messageService.Publish(new ExecuteToolRequest(toolCallDto.ToolCallId, @"C:\My\DPF and AI\KnowledgeAssistant\src\KnowledgeAssistant\KnowledgeAssistant.Tools\DocumentCreator\bin\Debug\net10.0\DocumentCreator.exe",
+                                        JsonSerializer.Serialize(arguments)));
                                     break;
                                 case SseEvents.Progress:
                                     var progress = JsonSerializer.Deserialize<ProgressEventDto>(data, jsonOptions);
@@ -787,6 +806,102 @@ namespace KnowledgeAssistant.Wpf.Services
                 catch (Exception ex)
                 {
                     // _messageService.Publish(new RepositoryOperationFailedEvent("Delete", $"Error deleting repository: {ex.Message}"));
+                }
+            }
+        }
+
+        private async Task<MessageBase> GetToolsReceived(MessageBase message)
+        {
+            if (message is GetToolsRequest)
+            {
+                try
+                {
+                    var tools = await _httpClient.GetFromJsonAsync<List<ToolDto>>("api/tools", _cancellationToken);
+                    return new ToolsReceivedEvent(tools ?? Enumerable.Empty<ToolDto>());
+                }
+                catch (Exception ex)
+                {
+                    return new ToolsReceivedEvent(Enumerable.Empty<ToolDto>(), $"Error fetching tools: {ex.Message}");
+                }
+            }
+
+            return new ToolsReceivedEvent(Enumerable.Empty<ToolDto>(), $"Wrong message type");
+        }
+
+        private async void CreateToolReceived(MessageBase message)
+        {
+            if (message is CreateToolRequest request)
+            {
+                try
+                {
+                    var dto = new CreateToolDto(request.Name, request.Description, request.ParametersJsonSchema, request.IsEnabled);
+                    using var response = await _httpClient.PostAsJsonAsync("api/tools", dto, _cancellationToken);
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        var error = await ReadErrorMessageAsync(response);
+                        _messageService.Publish(new UserMessage("Error", $"Error creating tool: {error}", MessageType.Error));
+                        return;
+                    }
+
+                    var created = await response.Content.ReadFromJsonAsync<ToolDto>(cancellationToken: _cancellationToken);
+                    if (created != null)
+                    {
+                        _messageService.Publish(new ToolCreatedEvent(created));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _messageService.Publish(new UserMessage("Error", $"Error creating tool: {ex.Message}", MessageType.Error));
+                }
+            }
+        }
+
+        private async void UpdateToolReceived(MessageBase message)
+        {
+            if (message is UpdateToolRequest request)
+            {
+                try
+                {
+                    var dto = new UpdateToolDto(request.Name, request.Description, request.ParametersJsonSchema, request.IsEnabled);
+                    using var response = await _httpClient.PutAsJsonAsync($"api/tools/{request.Id}", dto, _cancellationToken);
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        var error = await ReadErrorMessageAsync(response);
+                        _messageService.Publish(new UserMessage("Error", $"Error updating tool: {error}", MessageType.Error));
+                        return;
+                    }
+
+                    _messageService.Publish(new ToolUpdatedEvent(request.Id));
+                }
+                catch (Exception ex)
+                {
+                    _messageService.Publish(new UserMessage("Error", $"Error updating tool: {ex.Message}", MessageType.Error));
+                }
+            }
+        }
+
+        private async void DeleteToolReceived(MessageBase message)
+        {
+            if (message is DeleteToolRequest request)
+            {
+                try
+                {
+                    using var response = await _httpClient.DeleteAsync($"api/tools/{request.Id}", _cancellationToken);
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        var error = await ReadErrorMessageAsync(response);
+                        _messageService.Publish(new UserMessage("Error", $"Error deleting tool: {error}", MessageType.Error));
+                        return;
+                    }
+
+                    _messageService.Publish(new ToolDeletedEvent(request.Id));
+                }
+                catch (Exception ex)
+                {
+                    _messageService.Publish(new UserMessage("Error", $"Error deleting tool: {ex.Message}", MessageType.Error));
                 }
             }
         }

@@ -542,5 +542,15 @@ namespace KnowledgeAssistant.Wpf
 
             window.ShowDialog();
         }
+
+        private void ManageTools_Click(object sender, RoutedEventArgs e)
+        {
+            var window = new ToolsManagerWindow(_messageService)
+            {
+                Owner = this
+            };
+
+            window.ShowDialog();
+        }
     }
 }

@@ -6,11 +6,12 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
-    <Version>1.1.7.286</Version>
+    <Version>1.1.8.538</Version>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="CommunicationsClients" Version="6.0.118" />
+    <PackageReference Include="Infrastructure" Version="14.9.251" />
     <PackageReference Include="Markdig.Wpf" Version="0.5.0.1" />
     <PackageReference Include="MessageServices" Version="3.4.33" />
     <PackageReference Include="Microsoft.CodeAnalysis.Common" Version="5.6.0" />
@@ -33,6 +34,10 @@
     <ProjectReference Include="..\KnowledgeAssistant.Application\KnowledgeAssistant.Application.csproj" />
     <ProjectReference Include="..\KnowledgeAssistant.Contracts\KnowledgeAssistant.Contracts.csproj" />
     <ProjectReference Include="..\KnowledgeAssistant.Domain\KnowledgeAssistant.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Messages\Files\" />
   </ItemGroup>
 
 </Project>

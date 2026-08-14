@@ -3,6 +3,8 @@ using KnowledgeAssistant.Api.ErrorHandling;
 using KnowledgeAssistant.Application.Abstraction;
 using KnowledgeAssistant.Application.Services;
 using KnowledgeAssistant.Infrastructure;
+using KnowledgeAssistant.Infrastructure.Streaming;
+using KnowledgeAssistant.Infrastructure.ToolCallRegistry;
 using Npgsql;
 using System.Text.RegularExpressions;
 
@@ -24,6 +26,7 @@ builder.Services.AddScoped<IConversationRepository, ConversationRepository>();
 builder.Services.AddScoped<IConfigurationRepository, ConfigurationRepository>();
 builder.Services.AddScoped<IModelRepository, ModelRepository>();
 builder.Services.AddScoped<IDocumentRepository, DocumentRepository>();
+builder.Services.AddScoped<IToolRepository, ToolRepository>();
 
 var ollamaBaseUrl = builder.Configuration["Ollama:BaseUrl"]
     ?? throw new InvalidOperationException("Configuration value 'Ollama:BaseUrl' is missing.");
@@ -37,6 +40,11 @@ builder.Services.AddHttpClient<IModelCatalogGateway, OllamaModelCatalogGateway>(
 {
     client.BaseAddress = new Uri(ollamaBaseUrl);
 });
+
+// No fixed base address: each tool's endpoint_url is a full URL stored in the database.
+builder.Services.AddSingleton<IPendingToolCallRegistry, PendingToolCallRegistry>();  // must outlive any single request
+builder.Services.AddScoped<SseWriterAccessor>();                                     // one per request
+builder.Services.AddScoped<IToolExecutor, LocalToolExecutor>();                      // was: HttpToolExecutor
 
 var dataSourceBuilder = new NpgsqlDataSourceBuilder(builder.Configuration.GetConnectionString("KnowledgeAssistant"));
 dataSourceBuilder.UseVector();

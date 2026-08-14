@@ -1,0 +1,111 @@
+﻿<Window
+    x:Class="KnowledgeAssistant.Wpf.Views.ToolsManagerWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    Title="Manage Tools"
+    d:DesignHeight="500"
+    d:DesignWidth="800"
+    Loaded="ToolsWindow_Loaded"
+    mc:Ignorable="d">
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+    </Window.Resources>
+
+    <Grid Margin="12">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="2*" />
+            <ColumnDefinition Width="12" />
+            <ColumnDefinition Width="1*" />
+        </Grid.ColumnDefinitions>
+
+        <DockPanel Grid.Column="0">
+            <TextBlock
+                Margin="0,0,0,8"
+                DockPanel.Dock="Top"
+                FontWeight="Bold"
+                Text="Registered Tools" />
+            <DataGrid
+                AutoGenerateColumns="False"
+                CanUserAddRows="False"
+                IsReadOnly="True"
+                ItemsSource="{Binding Tools}"
+                SelectedItem="{Binding SelectedTool, Mode=TwoWay}"
+                SelectionMode="Single">
+                <DataGrid.Columns>
+                    <DataGridTextColumn
+                        Width="150"
+                        Binding="{Binding Name}"
+                        Header="Name" />
+                    <DataGridTextColumn
+                        Width="*"
+                        Binding="{Binding Description}"
+                        Header="Description" />
+                    <DataGridCheckBoxColumn
+                        Width="70"
+                        Binding="{Binding IsEnabled}"
+                        Header="Enabled" />
+                </DataGrid.Columns>
+            </DataGrid>
+        </DockPanel>
+
+        <!--  Add / Edit form  -->
+        <StackPanel Grid.Column="2">
+            <TextBlock
+                Margin="0,0,0,8"
+                FontWeight="Bold"
+                Text="{Binding FormHeaderText}" />
+
+            <TextBlock Margin="0,4,0,2" Text="Name" />
+            <TextBox Text="{Binding ToolName, UpdateSourceTrigger=PropertyChanged}" />
+
+            <TextBlock Margin="0,10,0,2" Text="Description" />
+            <TextBox
+                Height="60"
+                AcceptsReturn="True"
+                Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}"
+                TextWrapping="Wrap" />
+
+            <TextBlock Margin="0,10,0,2" Text="Parameters JSON Schema" />
+            <TextBox
+                Height="120"
+                AcceptsReturn="True"
+                AcceptsTab="True"
+                FontFamily="Consolas"
+                Text="{Binding ParametersJsonSchema, UpdateSourceTrigger=PropertyChanged}"
+                TextWrapping="NoWrap"
+                VerticalScrollBarVisibility="Auto" />
+
+            <CheckBox
+                Margin="0,10,0,0"
+                Content="Enabled"
+                IsChecked="{Binding IsEnabled}" />
+
+            <TextBlock
+                Margin="0,10,0,0"
+                Foreground="Red"
+                Text="{Binding ErrorMessage}"
+                TextWrapping="Wrap"
+                Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+            <StackPanel Margin="0,16,0,0" Orientation="Horizontal">
+                <Button
+                    Width="80"
+                    Margin="0,0,8,0"
+                    Click="SaveButton_Click"
+                    Content="Save" />
+                <Button
+                    Width="80"
+                    Margin="0,0,8,0"
+                    Click="DeleteButton_Click"
+                    Content="Delete" />
+                <Button
+                    Width="80"
+                    Click="NewButton_Click"
+                    Content="New" />
+            </StackPanel>
+        </StackPanel>
+    </Grid>
+</Window>

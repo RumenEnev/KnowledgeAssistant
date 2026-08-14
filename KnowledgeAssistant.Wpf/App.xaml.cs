@@ -30,7 +30,7 @@ namespace KnowledgeAssistant.Wpf
                             services.AddSingleton<MessageService>();
                             services.AddSingleton<CommunicationsService>();
                             services.AddSingleton<ConversationsService>();
-                            services.AddSingleton<FilesProcessingService>();
+                            services.AddSingleton<ToolsExecutionService>();
                         })
                         .Build();
         }
@@ -68,7 +68,7 @@ namespace KnowledgeAssistant.Wpf
         {
             AppHost!.Services.GetRequiredService<CommunicationsService>();
             AppHost!.Services.GetRequiredService<ConversationsService>();
-            AppHost!.Services.GetRequiredService<FilesProcessingService>();
+            AppHost!.Services.GetRequiredService<ToolsExecutionService>();
         }
     }
 }

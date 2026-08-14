@@ -3,6 +3,9 @@
     <Platform Name="Any CPU" />
     <Platform Name="x86" />
   </Configurations>
+  <Folder Name="/Tools/">
+    <Project Path="KnowledgeAssistant.Tools/DocumentCreator/DocumentCreator.csproj" />
+  </Folder>
   <Project Path="KnowledgeAssistant.Api/KnowledgeAssistant.Api.csproj" />
   <Project Path="KnowledgeAssistant.Application/KnowledgeAssistant.Application.csproj" />
   <Project Path="KnowledgeAssistant.Contracts/KnowledgeAssistant.Contracts.csproj" />

@@ -8,11 +8,11 @@
     d:DesignWidth="700"
     Loaded="RepositoriesWindow_Loaded"
     mc:Ignorable="d">
-    
+
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
     </Window.Resources>
-    
+
     <Grid Margin="12">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="2*" />

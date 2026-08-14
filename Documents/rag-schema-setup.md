@@ -173,3 +173,45 @@ CREATE TABLE IF NOT EXISTS ai_interactions.models
 ```
 
 `context_window_tokens` is nullable and stores the configured context window size (in tokens) for the model, editable from the "Settings > Model Context Windows" screen in both UIs. When `NULL`, the model's default context window is used.
+
+### `ai_interactions.tools`
+
+Stores tool definitions the model may call (see `ToolDefinition` in `KnowledgeAssistant.Application.Abstraction`), so tools can be added/edited/enabled without redeploying code:
+
+```sql
+CREATE TABLE IF NOT EXISTS ai_interactions.tools (
+    id uuid PRIMARY KEY,
+    name character varying(100) NOT NULL UNIQUE,
+    description text NOT NULL,
+    parameters_json_schema text NOT NULL,
+    is_enabled boolean NOT NULL DEFAULT true,
+    endpoint_url text,
+    http_method character varying(10) NOT NULL DEFAULT 'GET',
+    auth_login_url text,
+    auth_username text,
+    auth_password text,
+    created_at timestamp NOT NULL DEFAULT now(),
+    updated_at timestamp NOT NULL DEFAULT now()
+);
+```
+
+`name` must be unique since it's what the model uses to reference the tool in a tool call. `parameters_json_schema` holds the raw JSON Schema text describing the tool's parameters object. `is_enabled` lets a tool be disabled without deleting its row. `endpoint_url` / `http_method` tell the app how to actually execute the tool when the model calls it: the app makes an HTTP request to `endpoint_url` using `http_method` and feeds the response back to the model as context.
+
+`auth_login_url` / `auth_username` / `auth_password` are optional: when `auth_login_url` is set, the app first `POST`s `{"email": auth_username, "password": auth_password}` to it, reads the `token` field from the JSON response, and sends it as `Authorization: Bearer {token}` on the call to `endpoint_url`. A fresh login is performed on every tool call (no token caching yet). **Note:** `auth_password` is currently stored as plain text in the database, matching this app's existing practice of keeping credentials in plain configuration (e.g. the Postgres connection string in `appsettings.json`) rather than a secrets manager — restrict access to this table/database accordingly.
+
+### Seeding the `get_tasks` tool
+
+Example row that lets the assistant answer prompts like "show me my tasks" by calling a task-list API:
+
+```sql
+INSERT INTO ai_interactions.tools (id, name, description, parameters_json_schema, is_enabled, endpoint_url, http_method)
+VALUES (
+    gen_random_uuid(),
+    'get_tasks',
+    'Gets the current list of the user''s tasks/todos. Use this whenever the user asks to see, show, or list their tasks.',
+    '{"type":"object","properties":{}}',
+    true,
+    'http://192.168.0.200:4401/tasks',
+    'GET'
+);
+```

@@ -1,6 +1,7 @@
 ﻿using KnowledgeAssistant.Application.Abstraction;
 using KnowledgeAssistant.Contracts.Dto;
 using KnowledgeAssistant.Domain.Conversation;
+using Microsoft.Extensions.Logging;
 using System.Runtime.CompilerServices;
 using System.Text;
 
@@ -15,6 +16,9 @@ namespace KnowledgeAssistant.Application.Services
         private readonly IModelRepository _modelRepository;
         private readonly IDocumentRepository _documentRepository;
         private readonly DocumentsHandlingService _documentsHandlingService;
+        private readonly IToolRepository _toolRepository;
+        private readonly IToolExecutor _toolExecutor;
+        private readonly ILogger<ConversationService> _logger;
         private int _promptTokensCount;
         private int _responseTokensCount;
 
@@ -22,13 +26,19 @@ namespace KnowledgeAssistant.Application.Services
                                     IConversationRepository repository,
                                     IModelRepository modelRepository,
                                     IDocumentRepository documentRepository,
-                                    DocumentsHandlingService documentsHandlingService)
+                                    DocumentsHandlingService documentsHandlingService,
+                                    IToolRepository toolRepository,
+                                    IToolExecutor toolExecutor,
+                                    ILogger<ConversationService> logger)
         {
             _modelGateway = modelGateway;
             _repository = repository;
             _modelRepository = modelRepository;
             _documentRepository = documentRepository;
             _documentsHandlingService = documentsHandlingService;
+            _toolRepository = toolRepository;
+            _toolExecutor = toolExecutor;
+            _logger = logger;
         }
 
         public async Task<string> GenerateTitleAsync(string userMessage, string model, CancellationToken cancellationToken)
@@ -156,6 +166,12 @@ namespace KnowledgeAssistant.Application.Services
                 messages.Add(contextMessage);
             }
 
+            var toolResultsMessage = await TryExecuteToolsAsync(conversationId, message, model, cancellationToken);
+            if (toolResultsMessage is not null)
+            {
+                messages.Add(toolResultsMessage);
+            }
+
             messages.Add(userMessage);
 
             var selectedModel = model;
@@ -187,6 +203,104 @@ namespace KnowledgeAssistant.Application.Services
             {
                 await ClassifyTopicAsync(conversationId, messages, selectedModel, cancellationToken);
             }
+        }
+
+        private async Task<ChatMessage?> TryExecuteToolsAsync(Guid conversationId, string message, string model, CancellationToken cancellationToken)
+        {
+            var enabledTools = await _toolRepository.GetEnabledToolsAsync(cancellationToken);
+            if (enabledTools.Count == 0)
+            {
+                return null;
+            }
+
+            var toolDefinitions = enabledTools.Select(t => new ToolDefinition
+            {
+                Name = t.Name,
+                Description = t.Description,
+                ParametersJsonSchema = t.ParametersJsonSchema
+            }).ToList();
+
+            ToolChatResult toolCheckResult;
+            try
+            {
+                toolCheckResult = await _modelGateway.ChatWithToolsAsync(
+                    model: model,
+                    userMessage: new ChatMessage { Role = "user", Content = message },
+                    systemMessage: new ChatMessage
+                    {
+                        Role = "system",
+                        Content = "You can call tools when the user's request clearly needs one. " +
+                                   "Only call a tool if it is relevant to the user's message; otherwise reply normally without calling any tool."
+                    },
+                    tools: toolDefinitions,
+                    cancellationToken: cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                // Tool-call detection is a best-effort enhancement; fall back to the normal chat flow on failure.
+                _logger.LogError(ex, "Tool-call detection failed for model {Model}.", model);
+                return null;
+            }
+
+            if (!toolCheckResult.HasToolCalls)
+            {
+                return null;
+            }
+
+            var resultSections = new List<string>();
+            foreach (var call in toolCheckResult.ToolCalls)
+            {
+                var tool = enabledTools.FirstOrDefault(t => string.Equals(t.Name, call.Name, StringComparison.OrdinalIgnoreCase));
+                if (tool is null)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    var toolResult = await _toolExecutor.ExecuteAsync(tool, call.ArgumentsJson, cancellationToken);
+                    resultSections.Add($"Tool `{tool.Name}` returned:\n{toolResult}");
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Tool '{ToolName}' execution failed.", tool.Name);
+                    resultSections.Add($"Tool `{tool.Name}` failed: {ex.Message}");
+                }
+            }
+
+            if (resultSections.Count == 0)
+            {
+                return null;
+            }
+
+            return new ChatMessage
+            {
+                Id = Guid.NewGuid(),
+                Content = $"""
+                            The following tool results are available. For each one:
+                            - If the result contains data meant to be shown to the user (e.g. a list, a lookup value),
+                              present that data clearly.
+                            - If the result is only a status/confirmation (e.g. success/error with no content field),
+                              simply confirm the outcome in one or two sentences. Do NOT invent, guess, or reproduce
+                              any content, code, or details that are not literally present in the result JSON below.
+                            - If a tool failed, tell the user what went wrong based on the reason/message given.
+
+                            --- Tool Results ---
+                            {string.Join("\n\n", resultSections)}
+                            --- End Tool Results ---
+                            """,
+                ConversationId = conversationId,
+                Role = "system",
+                CreatedAt = DateTime.UtcNow
+            };
         }
 
         private async Task ClassifyTopicAsync(Guid conversationId, IEnumerable<ChatMessage> messages, string model, CancellationToken cancellationToken)

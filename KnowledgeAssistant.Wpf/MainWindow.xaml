@@ -44,6 +44,9 @@
             <MenuItem Header="_Repositories">
                 <MenuItem Click="ManageRepositories_Click" Header="_Manage repositories" />
             </MenuItem>
+            <MenuItem Header="_Tools">
+                <MenuItem Click="ManageTools_Click" Header="_Manage tools" />
+            </MenuItem>
         </Menu>
 
         <Grid
