@@ -15,5 +15,9 @@
         public string? QuantizationLevel { get; set; }
 
         public string? ParameterSize { get; set; }
+
+        public bool InternalUseOnly { get; set; }
+
+        public bool CanCallTools { get; set; }
     }
 }

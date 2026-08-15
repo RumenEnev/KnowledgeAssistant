@@ -61,6 +61,16 @@ namespace KnowledgeAssistant.Application.Services
             return await connection.QuerySingleOrDefaultAsync<int?>(query, new { Id = modelId });
         }
 
+        public async Task<ModelFlags> GetModelFlagsAsync(Guid modelId, CancellationToken cancellationToken)
+        {
+            await using var connection = new NpgsqlConnection(_connectionString);
+            await connection.OpenAsync(cancellationToken);
+
+            var query = "SELECT internal_use_only, can_call_tools FROM ai_interactions.models WHERE \"Id\" = @Id";
+            var row = await connection.QuerySingleOrDefaultAsync<(bool internal_use_only, bool can_call_tools)>(query, new { Id = modelId });
+            return new ModelFlags(row.internal_use_only, row.can_call_tools);
+        }
+
         public async Task UpdateContextWindowTokensAsync(Guid modelId, int? contextWindowTokens, CancellationToken cancellationToken)
         {
             await using var connection = new NpgsqlConnection(_connectionString);
@@ -68,6 +78,22 @@ namespace KnowledgeAssistant.Application.Services
 
             var query = "UPDATE ai_interactions.models SET context_window_tokens = @ContextWindowTokens WHERE \"Id\" = @Id";
             await connection.ExecuteAsync(query, new { Id = modelId, ContextWindowTokens = contextWindowTokens });
+        }
+
+        public async Task UpdateModelFlagsAsync(Guid modelId, bool internalUseOnly, bool canCallTools, CancellationToken cancellationToken)
+        {
+            await using var connection = new NpgsqlConnection(_connectionString);
+            await connection.OpenAsync(cancellationToken);
+
+            var query = "UPDATE ai_interactions.models " +
+                         "SET internal_use_only = @InternalUseOnly, can_call_tools = @CanCallTools " +
+                         "WHERE \"Id\" = @Id";
+            await connection.ExecuteAsync(query, new
+            {
+                Id = modelId,
+                InternalUseOnly = internalUseOnly,
+                CanCallTools = canCallTools
+            });
         }
     }
 }

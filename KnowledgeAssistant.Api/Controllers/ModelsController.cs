@@ -22,10 +22,24 @@ namespace KnowledgeAssistant.Api.Controllers
         public async Task<IEnumerable<ModelInfoDto>> Get(CancellationToken cancellationToken)
         {
             var models = await _service.GetModelsAsync(cancellationToken);
-            return models.Select(x => new ModelInfoDto
+            var result = new List<ModelInfoDto>();
+            foreach (var model in models)
             {
-                Name = x.Name
-            });
+                var id = await _modelRepository.GetOrCreateModelIdAsync(model.Name, cancellationToken);
+                var flags = await _modelRepository.GetModelFlagsAsync(id, cancellationToken);
+                if (flags.InternalUseOnly)
+                {
+                    continue;
+                }
+
+                result.Add(new ModelInfoDto
+                {
+                    Name = model.Name,
+                    CanCallTools = flags.CanCallTools
+                });
+            }
+
+            return result;
         }
 
         [HttpGet("context-windows")]
@@ -36,6 +50,7 @@ namespace KnowledgeAssistant.Api.Controllers
             foreach (var model in models)
             {
                 var id = await _modelRepository.GetOrCreateModelIdAsync(model.Name, cancellationToken);
+                var flags = await _modelRepository.GetModelFlagsAsync(id, cancellationToken);
                 result.Add(new ModelContextWindowDto
                 {
                     Id = id,
@@ -44,7 +59,9 @@ namespace KnowledgeAssistant.Api.Controllers
                     ContextLength = model.ContextLength,
                     Family = model.Family,
                     QuantizationLevel = model.QuantizationLevel,
-                    ParameterSize = model.ParameterSize
+                    ParameterSize = model.ParameterSize,
+                    InternalUseOnly = flags.InternalUseOnly,
+                    CanCallTools = flags.CanCallTools
                 });
             }
 
@@ -54,12 +71,7 @@ namespace KnowledgeAssistant.Api.Controllers
         [HttpPut("{id}/context-window")]
         public async Task<IActionResult> UpdateContextWindow(Guid id, [FromBody] UpdateModelContextWindowDto request, CancellationToken cancellationToken)
         {
-            if (request.ContextWindowTokens.HasValue && request.ContextWindowTokens.Value <= 0)
-            {
-                return BadRequest("Context window tokens must be greater than zero.");
-            }
-
-            await _modelRepository.UpdateContextWindowTokensAsync(id, request.ContextWindowTokens, cancellationToken);
+            await _modelRepository.UpdateModelFlagsAsync(id, request.InternalUseOnly, request.CanCallTools, cancellationToken);
             return NoContent();
         }
     }

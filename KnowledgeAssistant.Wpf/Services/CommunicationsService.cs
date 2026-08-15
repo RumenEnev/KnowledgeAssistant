@@ -71,6 +71,7 @@ namespace KnowledgeAssistant.Wpf.Services
             _messageService.Subscribe<GetChunkingSettingsRequest>(this, GetChunkingSettingsReceived);
             _messageService.Subscribe<UpdateChunkingSettingsRequest>(this, UpdateChunkingSettingsReceived);
             _messageService.Subscribe<GetModelContextWindowsRequest>(this, GetModelContextWindowsReceived);
+            _messageService.Subscribe<UpdateModelContextWindowRequest>(this, UpdateModelContextWindowReceived);
             _messageService.Subscribe<UpdateApiUrlRequest>(this, UpdateApiUrlReceived);
             _messageService.Subscribe<CreateRepositoryRequest>(this, CreateRepositoryReceived);
             _messageService.Subscribe<UpdateRepositoryRequest>(this, UpdateRepositoryReceived);
@@ -371,13 +372,42 @@ namespace KnowledgeAssistant.Wpf.Services
                 {
                     var dtos = await _httpClient.GetFromJsonAsync<List<ModelContextWindowDto>>("api/models/context-windows", _cancellationToken);
                     var models = (dtos ?? new List<ModelContextWindowDto>())
-                        .Select(d => new ModelContextWindowInfo(d.Id, d.Name, d.Size, d.ContextLength, d.Family, d.QuantizationLevel, d.ParameterSize))
+                        .Select(d => new ModelContextWindowInfo(d.Id, d.Name, d.Size, d.ContextLength, d.Family, d.QuantizationLevel, d.ParameterSize, d.InternalUseOnly, d.CanCallTools))
                         .ToList();
                     _messageService.Publish(new ModelContextWindowsUpdatedEvent(models));
                 }
                 catch (Exception ex)
                 {
                     _messageService.Publish(new UserMessage("Error", $"Error fetching model context windows: {ex.Message}", MessageType.Error));
+                }
+            }
+        }
+
+        private async void UpdateModelContextWindowReceived(MessageBase message)
+        {
+            if (message is UpdateModelContextWindowRequest request)
+            {
+                try
+                {
+                    var dto = new UpdateModelContextWindowDto
+                    {
+                        InternalUseOnly = request.InternalUseOnly,
+                        CanCallTools = request.CanCallTools
+                    };
+                    using var response = await _httpClient.PutAsJsonAsync($"api/models/{request.Id}/context-window", dto, _cancellationToken);
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        var error = await ReadErrorMessageAsync(response);
+                        _messageService.Publish(new ModelContextWindowSaveResultEvent(request.Id, false, error));
+                        return;
+                    }
+
+                    _messageService.Publish(new ModelContextWindowSaveResultEvent(request.Id, true, null));
+                }
+                catch (Exception ex)
+                {
+                    _messageService.Publish(new ModelContextWindowSaveResultEvent(request.Id, false, ex.Message));
                 }
             }
         }
@@ -577,7 +607,7 @@ namespace KnowledgeAssistant.Wpf.Services
                 try
                 {
                     var models = await _httpClient.GetFromJsonAsync<List<ModelInfoDto>>("api/models");
-                    _messageService.Publish(new AvailableModelsUpdatedEvent(models?.Select(model => model.Name) ?? Enumerable.Empty<string>()));
+                    _messageService.Publish(new AvailableModelsUpdatedEvent(models?.Select(model => new AvailableModelInfo(model.Name, model.CanCallTools)) ?? Enumerable.Empty<AvailableModelInfo>()));
                 }
                 catch (Exception ex)
                 {

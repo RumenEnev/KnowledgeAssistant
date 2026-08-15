@@ -1,6 +1,7 @@
-import { Component, effect, ElementRef, inject, NgZone, OnInit, signal, ViewChild } from '@angular/core';
+import { Component, computed, effect, ElementRef, inject, NgZone, OnInit, signal, ViewChild } from '@angular/core';
 import { ChatResponseChunk } from './models/chat-response-chunk';
 import { Conversation } from './models/conversation';
+import { ModelInfo } from './models/model-info';
 import { Topic } from './models/document';
 import { ChatService } from './services/chat.service';
 import { DocumentsService } from './services/documents.service';
@@ -32,7 +33,13 @@ export class AppComponent implements OnInit {
   @ViewChild('messageList') private messageListRef!: ElementRef<HTMLElement>;
 
   isStreaming = signal(false);
-  models = signal<string[]>([]);
+  allModels = signal<ModelInfo[]>([]);
+  showOnlyToolCallingModels = signal(false);
+  models = computed(() =>
+    this.allModels()
+      .filter(model => !this.showOnlyToolCallingModels() || model.canCallTools)
+      .map(model => model.name)
+  );
   selectedModel = signal<string>('');
   userPrompt = signal<string>('');
   messages = signal([{ role: 'user', text: ''}]);
@@ -56,6 +63,14 @@ export class AppComponent implements OnInit {
     });
 
     effect(() => {
+      const visibleModels = this.models();
+      const current = this.selectedModel();
+      if (visibleModels.length > 0 && !visibleModels.includes(current)) {
+        this.selectedModel.set(visibleModels[0]);
+      }
+    }, { allowSignalWrites: true });
+
+    effect(() => {
       const model = this.selectedModel();
       if (!model) {
         return;
@@ -70,7 +85,7 @@ export class AppComponent implements OnInit {
   async ngOnInit() {
     try {
       const models = await this.chatService.getModels();
-      this.models.set(models.map(model => model.name));
+      this.allModels.set(models);
       if (models.length > 0) {
         this.selectedModel.set(models[0].name);
       }

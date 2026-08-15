@@ -3,8 +3,9 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="Model Context Windows"
-    Width="820"
-    Height="480"
+    Width="900"
+    Height="520"
+    ResizeMode="NoResize"
     Loaded="ModelContextWindowsWindow_Loaded"
     WindowStartupLocation="CenterOwner">
 
@@ -18,42 +19,69 @@
         <TextBlock
             Grid.Row="0"
             Margin="0,0,0,8"
-            Text="Installed models and their catalog information."
+            Text="Installed models and their catalog information. Edit internal use only and can call tools, then click Save."
             TextWrapping="Wrap" />
 
-        <ListView
+        <DataGrid
             Grid.Row="1"
             Margin="0,0,0,8"
+            AutoGenerateColumns="False"
+            CanUserAddRows="False"
+            CanUserDeleteRows="False"
             ItemsSource="{Binding Models}">
-            <ListView.View>
-                <GridView>
-                    <GridViewColumn
-                        Width="200"
-                        DisplayMemberBinding="{Binding Name}"
-                        Header="Model" />
-                    <GridViewColumn
-                        Width="90"
-                        DisplayMemberBinding="{Binding SizeDisplay}"
-                        Header="Size" />
-                    <GridViewColumn
-                        Width="100"
-                        DisplayMemberBinding="{Binding ParameterSize}"
-                        Header="Parameters" />
-                    <GridViewColumn
-                        Width="110"
-                        DisplayMemberBinding="{Binding ContextLength}"
-                        Header="Context Length" />
-                    <GridViewColumn
-                        Width="100"
-                        DisplayMemberBinding="{Binding Family}"
-                        Header="Family" />
-                    <GridViewColumn
-                        Width="110"
-                        DisplayMemberBinding="{Binding QuantizationLevel}"
-                        Header="Quantization" />
-                </GridView>
-            </ListView.View>
-        </ListView>
+            <DataGrid.Columns>
+                <DataGridTextColumn
+                    Width="180"
+                    Binding="{Binding Name}"
+                    Header="Model"
+                    IsReadOnly="True" />
+                <DataGridTextColumn
+                    Width="80"
+                    Binding="{Binding SizeDisplay}"
+                    Header="Size"
+                    IsReadOnly="True" />
+                <DataGridTextColumn
+                    Width="90"
+                    Binding="{Binding ParameterSize}"
+                    Header="Parameters"
+                    IsReadOnly="True" />
+                <DataGridTextColumn
+                    Width="90"
+                    Binding="{Binding ContextLength}"
+                    Header="Context Length"
+                    IsReadOnly="True" />
+                <DataGridTextColumn
+                    Width="90"
+                    Binding="{Binding Family}"
+                    Header="Family"
+                    IsReadOnly="True" />
+                <DataGridTextColumn
+                    Width="100"
+                    Binding="{Binding QuantizationLevel}"
+                    Header="Quantization"
+                    IsReadOnly="True" />
+                <DataGridCheckBoxColumn
+                    Width="110"
+                    Binding="{Binding InternalUseOnly, UpdateSourceTrigger=PropertyChanged}"
+                    Header="Internal Use Only" />
+                <DataGridCheckBoxColumn
+                    Width="100"
+                    Binding="{Binding CanCallTools, UpdateSourceTrigger=PropertyChanged}"
+                    Header="Can Call Tools" />
+                <DataGridTemplateColumn Width="90" Header="">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Button
+                                Padding="8,2"
+                                Click="SaveButton_Click"
+                                Content="{Binding SaveButtonText}"
+                                IsEnabled="{Binding IsDirty}"
+                                Tag="{Binding}" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
 
         <StatusBar Grid.Row="2">
             <StatusBarItem>

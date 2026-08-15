@@ -4,11 +4,11 @@ namespace KnowledgeAssistant.Wpf.Messages
 {
     public record AvailableModelsUpdatedEvent : MessageBase
     {
-        public AvailableModelsUpdatedEvent(IEnumerable<string> models)
+        public AvailableModelsUpdatedEvent(IEnumerable<AvailableModelInfo> models)
         {
             Models = models;
         }
 
-        public IEnumerable<string> Models { get; }
+        public IEnumerable<AvailableModelInfo> Models { get; }
     }
 }

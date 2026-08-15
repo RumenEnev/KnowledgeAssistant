@@ -7,5 +7,7 @@
         int? ContextLength,
         string? Family,
         string? QuantizationLevel,
-        string? ParameterSize);
+        string? ParameterSize,
+        bool InternalUseOnly,
+        bool CanCallTools);
 }

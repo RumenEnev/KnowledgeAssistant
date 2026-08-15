@@ -122,13 +122,26 @@
             </ListBox.ContextMenu>
         </ListBox>
 
-        <ComboBox
+        <Grid
             Grid.Row="1"
             Grid.Column="1"
             Grid.ColumnSpan="2"
-            Margin="2"
-            ItemsSource="{Binding Models}"
-            SelectedItem="{Binding SelectedModel}" />
+            Margin="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <ComboBox
+                Grid.Column="0"
+                ItemsSource="{Binding Models}"
+                SelectedItem="{Binding SelectedModel}" />
+            <CheckBox
+                Grid.Column="1"
+                Margin="8,0,0,0"
+                VerticalAlignment="Center"
+                Content="Show only can-call-tools models"
+                IsChecked="{Binding ShowOnlyToolCallingModels}" />
+        </Grid>
 
         <ListView
             x:Name="ChatListView"

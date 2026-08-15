@@ -1,12 +1,18 @@
 import { Component, EventEmitter, inject, OnInit, Output, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { ChatService } from '../../services/chat.service';
 import { NotificationService } from '../../services/notification.service';
 import { ModelContextWindow } from '../../models/model-context-window';
 
+interface ModelContextWindowRow extends ModelContextWindow {
+  isSaving: boolean;
+  isDirty: boolean;
+}
+
 @Component({
   selector: 'app-model-context-windows-manager',
   standalone: true,
-  imports: [],
+  imports: [FormsModule],
   templateUrl: './model-context-windows-manager.component.html',
   styleUrl: './model-context-windows-manager.component.css'
 })
@@ -16,7 +22,7 @@ export class ModelContextWindowsManagerComponent implements OnInit {
   private chatService = inject(ChatService);
   private notificationService = inject(NotificationService);
 
-  models = signal<ModelContextWindow[]>([]);
+  rows = signal<ModelContextWindowRow[]>([]);
   isLoading = signal(false);
 
   private overlayMouseDownOnBackdrop = false;
@@ -29,11 +35,31 @@ export class ModelContextWindowsManagerComponent implements OnInit {
     this.isLoading.set(true);
     try {
       const models = await this.chatService.getModelContextWindows();
-      this.models.set(models);
+      this.rows.set(models.map(model => ({ ...model, isSaving: false, isDirty: false })));
     } catch (err) {
       this.notificationService.error(this.toMessage(err, 'Failed to load models.'));
     } finally {
       this.isLoading.set(false);
+    }
+  }
+
+  markDirty(row: ModelContextWindowRow): void {
+    row.isDirty = true;
+  }
+
+  async saveRow(row: ModelContextWindowRow) {
+    row.isSaving = true;
+    try {
+      await this.chatService.updateModelContextWindow(row.id, {
+        internalUseOnly: row.internalUseOnly,
+        canCallTools: row.canCallTools
+      });
+      row.isDirty = false;
+      this.notificationService.success(`Saved settings for ${row.name}.`);
+    } catch (err) {
+      this.notificationService.error(this.toMessage(err, `Failed to save settings for ${row.name}.`));
+    } finally {
+      row.isSaving = false;
     }
   }
 

@@ -2,6 +2,8 @@
 {
     public class UpdateModelContextWindowDto
     {
-        public int? ContextWindowTokens { get; set; }
+        public bool InternalUseOnly { get; set; }
+
+        public bool CanCallTools { get; set; }
     }
 }

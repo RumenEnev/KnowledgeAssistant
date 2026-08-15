@@ -34,6 +34,10 @@
             <option>{{ model }}</option>
           }
       </select>
+      <label class="hide-tool-models-label">
+        <input type="checkbox" [(ngModel)]="showOnlyToolCallingModels" />
+        Show only can-call-tools models
+      </label>
     </div>
 
     <div class="message-list" #messageList>

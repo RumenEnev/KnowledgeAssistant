@@ -7,26 +7,65 @@
 
     <div class="modal-body">
       <p class="hint">
-        Installed models and their catalog information.
+        Installed models and their catalog information. Internal use only and can call tools can be edited and saved
+        per model.
       </p>
 
       @if (isLoading()) {
         <p>Loading models...</p>
-      } @else if (models().length === 0) {
+      } @else if (rows().length === 0) {
         <p>No models available.</p>
       } @else {
-        <ul class="models-list">
-          @for (model of models(); track model.id) {
-            <li class="model-item">
-              <span class="model-name">{{ model.name }}</span>
-              <span class="model-size">{{ formatSize(model.size) }}</span>
-              <span class="model-parameters">{{ model.parameterSize ?? '—' }}</span>
-              <span class="model-context-length">{{ model.contextLength ?? '—' }}</span>
-              <span class="model-family">{{ model.family ?? '—' }}</span>
-              <span class="model-quantization">{{ model.quantizationLevel ?? '—' }}</span>
-            </li>
-          }
-        </ul>
+        <div class="models-table-wrapper">
+          <table class="models-table">
+            <thead>
+              <tr>
+                <th class="col-name">Model</th>
+                <th class="col-size">Size</th>
+                <th class="col-parameters">Parameters</th>
+                <th class="col-context-length">Context Length</th>
+                <th class="col-family">Family</th>
+                <th class="col-quantization">Quantization</th>
+                <th class="col-flag">Internal Use Only</th>
+                <th class="col-flag">Can Call Tools</th>
+                <th class="col-actions"></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of rows(); track row.id) {
+                <tr [class.dirty]="row.isDirty">
+                  <td class="col-name">{{ row.name }}</td>
+                  <td class="col-size">{{ formatSize(row.size) }}</td>
+                  <td class="col-parameters">{{ row.parameterSize ?? '—' }}</td>
+                  <td class="col-context-length">{{ row.contextLength ?? '—' }}</td>
+                  <td class="col-family">{{ row.family ?? '—' }}</td>
+                  <td class="col-quantization">{{ row.quantizationLevel ?? '—' }}</td>
+                  <td class="col-flag">
+                    <input
+                      type="checkbox"
+                      [ngModel]="row.internalUseOnly"
+                      (ngModelChange)="row.internalUseOnly = $event; markDirty(row)" />
+                  </td>
+                  <td class="col-flag">
+                    <input
+                      type="checkbox"
+                      [ngModel]="row.canCallTools"
+                      (ngModelChange)="row.canCallTools = $event; markDirty(row)" />
+                  </td>
+                  <td class="col-actions">
+                    <button
+                      type="button"
+                      class="save-btn"
+                      [disabled]="!row.isDirty || row.isSaving"
+                      (click)="saveRow(row)">
+                      {{ row.isSaving ? 'Saving...' : 'Save' }}
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
       }
     </div>
   </div>

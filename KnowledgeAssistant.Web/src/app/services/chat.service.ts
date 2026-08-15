@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { ChatRequest } from '../models/chat-request';
 import { ModelInfo } from '../models/model-info';
-import { ModelContextWindow } from '../models/model-context-window';
+import { ModelContextWindow, UpdateModelContextWindow } from '../models/model-context-window';
 import { Conversation } from '../models/conversation';
 import { ChatResponseChunk } from '../models/chat-response-chunk';
 
@@ -117,6 +117,15 @@ export class ChatService {
     const response = await fetch(`${this.baseUrl}/api/models/context-windows`);
     await this.assertOk(response);
     return response.json();
+  }
+
+  async updateModelContextWindow(id: string, update: UpdateModelContextWindow): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/api/models/${id}/context-window`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(update)
+    });
+    await this.assertOk(response);
   }
 
   async streamChat(

@@ -31,6 +31,8 @@ namespace KnowledgeAssistant.Wpf
         private Conversation? _selectedConversation;
         private Guid? _lastConversationId;
         private ObservableCollection<string>? _models;
+        private List<AvailableModelInfo> _allModels = new List<AvailableModelInfo>();
+        private bool _showOnlyToolCallingModels;
         private ObservableCollection<Conversation> _conversations;
         private ObservableCollection<UCChatMessage> _chatMessages = new ObservableCollection<UCChatMessage>();
 
@@ -137,6 +139,20 @@ namespace KnowledgeAssistant.Wpf
                 {
                     _models = value;
                     OnPropertyChanged(nameof(Models));
+                }
+            }
+        }
+
+        public bool ShowOnlyToolCallingModels
+        {
+            get => _showOnlyToolCallingModels;
+            set
+            {
+                if (_showOnlyToolCallingModels != value)
+                {
+                    _showOnlyToolCallingModels = value;
+                    OnPropertyChanged(nameof(ShowOnlyToolCallingModels));
+                    RecalculateModels();
                 }
             }
         }
@@ -310,10 +326,25 @@ namespace KnowledgeAssistant.Wpf
         {
             if (message is AvailableModelsUpdatedEvent availableModelsUpdatedEvent)
             {
-                Models = new ObservableCollection<string>(availableModelsUpdatedEvent.Models);
-                SelectedModel = Models.FirstOrDefault();
+                _allModels = availableModelsUpdatedEvent.Models.ToList();
+                RecalculateModels();
+                SelectedModel = Models?.FirstOrDefault();
                 _messageService.Publish(new GetSelectedModelRequest());
             }
+        }
+
+        private void RecalculateModels()
+        {
+            var previouslySelected = SelectedModel;
+            var filtered = _allModels
+                .Where(m => !ShowOnlyToolCallingModels || m.CanCallTools)
+                .Select(m => m.Name);
+
+            Models = new ObservableCollection<string>(filtered);
+
+            SelectedModel = previouslySelected != null && Models.Contains(previouslySelected)
+                ? previouslySelected
+                : Models.FirstOrDefault();
         }
 
         private void SelectedModelUpdatedEventReceived(MessageBase message)
