@@ -97,7 +97,7 @@ namespace KnowledgeAssistant.Wpf
                     _statusMessage = value;
                     OnPropertyChanged(nameof(StatusMessage));
                 }
-            }   
+            }
         }
 
         public Thickness ChatMessageMargin
@@ -336,15 +336,7 @@ namespace KnowledgeAssistant.Wpf
             {
                 System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
-                    var window = new DocumentationPreviewWindow(
-                        _messageService,
-                        request.CorrelationId,
-                        request.RepositoryId,
-                        request.RepositoryName,
-                        request.FileName,
-                        request.RelativeFilePath,
-                        request.Title,
-                        request.Markdown)
+                    var window = new DocumentationPreviewWindow(_messageService, request.OutputPath, request.Title)
                     {
                         Owner = this
                     };

@@ -1,8 +1,10 @@
 ﻿using KnowledgeAssistant.Contracts.Dto;
+using KnowledgeAssistant.Wpf.Messages.Documentation;
 using KnowledgeAssistant.Wpf.Messages.ToolsManagement;
 using KnowledgeAssistant.Wpf.Models;
 using MessageServices;
 using System.Diagnostics;
+using System.IO;
 using System.Text.Json;
 
 namespace KnowledgeAssistant.Wpf.Services;
@@ -42,6 +44,7 @@ public class ToolsExecutionService : IMessageServiceSubscriber
 
                 var toolResult = JsonSerializer.Deserialize<ToolResult>(await stdOutTask);
                 _messageService.Publish(new ToolExecutionCompletedRequest(request.ToolId, toolResult));
+                _messageService.Publish(new DocumentationReadyEvent(toolResult.OutputPath, Path.GetFileName(request.Path)));
             }
             catch (OperationCanceledException)
             {
