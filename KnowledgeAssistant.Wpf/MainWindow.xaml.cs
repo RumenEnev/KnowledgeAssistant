@@ -334,15 +334,22 @@ namespace KnowledgeAssistant.Wpf
         {
             if (message is DocumentationReadyEvent request)
             {
-                System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                try
                 {
-                    var window = new DocumentationPreviewWindow(_messageService, request.OutputPath, request.Title)
+                    System.Windows.Application.Current.Dispatcher.Invoke(() =>
                     {
-                        Owner = this
-                    };
+                        var window = new DocumentationPreviewWindow(_messageService, request.OutputPath, request.Title)
+                        {
+                            Owner = this
+                        };
 
-                    window.Show();
-                });
+                        window.Show();
+                    });
+                }
+                catch (Exception e)
+                {
+                    MessageBox.Show($"Error opening documentation preview window: {e.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             }
         }
 

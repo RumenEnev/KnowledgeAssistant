@@ -68,6 +68,7 @@ internal class Program
                     }
                 }
 
+                fileName = Path.GetFileNameWithoutExtension(fileName);
                 File.WriteAllText($"{config.Output.Directory}\\{fileName}.md", document.ToString().Trim());
             }
 
