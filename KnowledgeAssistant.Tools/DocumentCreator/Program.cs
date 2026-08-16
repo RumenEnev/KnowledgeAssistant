@@ -8,6 +8,7 @@ using Microsoft.Extensions.Configuration;
 using System.Collections.Concurrent;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 internal class Program
 {
@@ -32,7 +33,24 @@ internal class Program
 
         string output;
         var folders = JsonSerializer.Deserialize<string[]>(args[0]);
-        var fileName = folders[0];
+        var fileName = Path.GetFileName(folders[0]);
+
+        // Sanitize the file name to prevent directory traversal and invalid characters
+        if (Regex.IsMatch(fileName, @"\.\.(?:/|\\)"))
+        {
+            output = JsonSerializer.Serialize(new ToolResult()
+            {
+                Status = "error",
+                OutputPath = null,
+                Message = "Invalid file path.",
+                Reason = "invalid_file_path"
+            });
+
+            Console.WriteLine(output);
+            Environment.Exit(1);
+        }
+
+        fileName = Regex.Replace(fileName, @"[^a-zA-Z0-9_.-]", "");
         folders = folders.Skip(1).ToArray();
         if (folders?.Any() == true)
         {
