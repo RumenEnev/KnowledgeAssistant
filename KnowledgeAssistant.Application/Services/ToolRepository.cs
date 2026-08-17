@@ -59,7 +59,7 @@ public class ToolRepository : IToolRepository
         const string sql = """
                             SELECT id AS "Id", name AS "Name", description AS "Description",
                                    parameters_json_schema AS "ParametersJsonSchema", is_enabled AS "IsEnabled",
-                                   created_at AS "CreatedAt", updated_at AS "UpdatedAt", scope AS "Scope"
+                                   created_at AS "CreatedAt", updated_at AS "UpdatedAt", scope AS "Scope", path AS "Path"
                             FROM ai_interactions.tools WHERE id = @Id
                             """;
 
@@ -89,7 +89,7 @@ public class ToolRepository : IToolRepository
         const string sql = """
                             SELECT id AS "Id", name AS "Name", description AS "Description",
                                    parameters_json_schema AS "ParametersJsonSchema", is_enabled AS "IsEnabled",
-                                   created_at AS "CreatedAt", updated_at AS "UpdatedAt", scope AS "Scope"
+                                   created_at AS "CreatedAt", updated_at AS "UpdatedAt", scope AS "Scope", path AS "Path"
                             FROM ai_interactions.tools ORDER BY name
                             """;
 
@@ -105,7 +105,7 @@ public class ToolRepository : IToolRepository
         const string sql = """
                             SELECT id AS "Id", name AS "Name", description AS "Description",
                                    parameters_json_schema AS "ParametersJsonSchema", is_enabled AS "IsEnabled",
-                                   created_at AS "CreatedAt", updated_at AS "UpdatedAt", scope AS "Scope"
+                                   created_at AS "CreatedAt", updated_at AS "UpdatedAt", scope AS "Scope", path AS "Path"
                             FROM ai_interactions.tools WHERE is_enabled = TRUE ORDER BY name
                             """;
 

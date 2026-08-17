@@ -722,8 +722,8 @@ namespace KnowledgeAssistant.Wpf.Services
                                     var folders = repositories?.Select(repo => repo.RootPath);
                                     var arguments = new List<string>() { fileName ?? string.Empty };
                                     arguments.AddRange(folders ?? Enumerable.Empty<string>());
-                                    _messageService.Publish(new ExecuteToolRequest(toolCallDto.ToolCallId, @"C:\My\DPF and AI\KnowledgeAssistant\src\KnowledgeAssistant\KnowledgeAssistant.Tools\DocumentCreator\bin\Debug\net10.0\DocumentCreator.exe",
-                                        JsonSerializer.Serialize(arguments)));
+
+                                    _messageService.Publish(new ExecuteToolRequest(toolCallDto.ToolCallId, toolCallDto.ToolPath, JsonSerializer.Serialize(arguments)));
                                     break;
                                 case SseEvents.Progress:
                                     var progress = JsonSerializer.Deserialize<ProgressEventDto>(data, jsonOptions);

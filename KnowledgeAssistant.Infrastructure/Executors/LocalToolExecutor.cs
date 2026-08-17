@@ -29,24 +29,20 @@ public sealed class LocalToolExecutor : IToolExecutor
     {
         if (!tool.Scope.Equals("Desktop", StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException(
-                $"Tool '{tool.Name}' has scope '{tool.Scope}', but no server-side execution path is configured.");
+            throw new InvalidOperationException($"Tool '{tool.Name}' has scope '{tool.Scope}', but no server-side execution path is configured.");
         }
 
-        var writer = _sseWriterAccessor.Writer
-            ?? throw new InvalidOperationException("No SseWriter is available on this request. LocalToolExecutor can only run inside a streaming request.");
-
+        var writer = _sseWriterAccessor.Writer ?? throw new InvalidOperationException("No SseWriter is available on this request. LocalToolExecutor can only run inside a streaming request.");
         var toolCallId = Guid.NewGuid().ToString();
-        _logger.LogInformation(
-            "Handing off tool '{ToolName}' (call {ToolCallId}) to client for execution.",
-            tool.Name, toolCallId);
-
+        _logger.LogInformation("Handing off tool '{ToolName}' (call {ToolCallId}) to client for execution.", tool.Name, toolCallId);
         await writer.WriteAsync(
             SseEvents.ToolCall,
             new ToolCallDto
             {
                 ToolCallId = Guid.Parse(toolCallId),
+                ToolId = tool.Id,
                 ToolName = tool.Name,
+                ToolPath = tool.Path,
                 Arguments = JsonSerializer.Deserialize<JsonElement>(argumentsJson)
             },
             cancellationToken);
@@ -58,7 +54,6 @@ public sealed class LocalToolExecutor : IToolExecutor
         catch (TimeoutException)
         {
             _logger.LogWarning("Tool call {ToolCallId} timed out waiting for client execution.", toolCallId);
-
             await writer.WriteAsync(
                 SseEvents.Error,
                 new { toolCallId, message = $"Client did not report a result for '{tool.Name}' in time." },

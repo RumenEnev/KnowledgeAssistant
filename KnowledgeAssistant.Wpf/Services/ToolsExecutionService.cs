@@ -46,10 +46,10 @@ public class ToolsExecutionService : IMessageServiceSubscriber
                 _messageService.Publish(new ToolExecutionCompletedRequest(request.ToolId, toolResult));
                 _messageService.Publish(new DocumentationReadyEvent(toolResult.OutputPath, Path.GetFileName(request.Path)));
             }
-            catch (OperationCanceledException)
+            catch (Exception ex)
             {
                 TryKill(process);
-                // return new ExternalApplicationResult { TimedOut = true, ExitCode = -1 };
+                _messageService.Publish(new ToolExecutionCompletedRequest(request.ToolId, new ToolResult { Reason = "Operation failed", Message = ex.Message }));
             }
         }
     }

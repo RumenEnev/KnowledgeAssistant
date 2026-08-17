@@ -17,4 +17,6 @@ public class ToolDefinitionEntity
     public DateTime UpdatedAt { get; set; }
 
     public required string Scope { get; set; }
+
+    public string? Path { get; set; }
 }
