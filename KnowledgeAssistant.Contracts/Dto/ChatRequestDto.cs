@@ -1,4 +1,6 @@
-﻿namespace KnowledgeAssistant.Contracts.Dto
+﻿using KnowledgeAssistant.Contracts.Enums;
+
+namespace KnowledgeAssistant.Contracts.Dto
 {
     public class ChatRequestDto
     {
@@ -13,5 +15,7 @@
         public double? Temperature { get; set; }
 
         public string SystemPromt { get; set; } = string.Empty;
+
+        public MessageSource Source { get; set; } = MessageSource.Web;
     }
 }

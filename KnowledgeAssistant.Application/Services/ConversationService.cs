@@ -1,5 +1,6 @@
 ﻿using KnowledgeAssistant.Application.Abstraction;
 using KnowledgeAssistant.Contracts.Dto;
+using KnowledgeAssistant.Contracts.Enums;
 using KnowledgeAssistant.Domain.Conversation;
 using Microsoft.Extensions.Logging;
 using System.Runtime.CompilerServices;
@@ -126,13 +127,15 @@ namespace KnowledgeAssistant.Application.Services
             await _repository.CreateMessageAsync(conversationId, message, cancellationToken);
         }
 
-        public async IAsyncEnumerable<string> GenerateAssistantMessageAsync(Guid conversationId, string message, string model, [EnumeratorCancellation] CancellationToken cancellationToken)
+        public async IAsyncEnumerable<string> GenerateAssistantMessageAsync(Guid conversationId, string message, string model, MessageSource source, [EnumeratorCancellation] CancellationToken cancellationToken)
         {
             var conversation = await _repository.GetAsync(conversationId, cancellationToken);
             if (conversation is null)
             {
                 throw new InvalidOperationException($"Conversation with ID {conversationId} not found.");
             }
+
+            _logger.LogInformation("Generating assistant message for conversation {ConversationId} from {Source} client.", conversationId, source);
 
             var relevantContext = await _documentsHandlingService.GetRelevantContextAsync(model, conversation.Topic, message, cancellationToken);
             var userMessage = new ChatMessage
@@ -166,7 +169,7 @@ namespace KnowledgeAssistant.Application.Services
                 messages.Add(contextMessage);
             }
 
-            var toolResultsMessage = await TryExecuteToolsAsync(conversationId, message, model, cancellationToken);
+            var toolResultsMessage = await TryExecuteToolsAsync(conversationId, message, model, source, cancellationToken);
             if (toolResultsMessage is not null)
             {
                 messages.Add(toolResultsMessage);
@@ -205,9 +208,9 @@ namespace KnowledgeAssistant.Application.Services
             }
         }
 
-        private async Task<ChatMessage?> TryExecuteToolsAsync(Guid conversationId, string message, string model, CancellationToken cancellationToken)
+        private async Task<ChatMessage?> TryExecuteToolsAsync(Guid conversationId, string message, string model, MessageSource source, CancellationToken cancellationToken)
         {
-            var enabledTools = await _toolRepository.GetEnabledToolsAsync(cancellationToken);
+            var enabledTools = await _toolRepository.GetEnabledToolsAsync(source, cancellationToken);
             if (enabledTools.Count == 0)
             {
                 return null;

@@ -1,3 +1,4 @@
+using KnowledgeAssistant.Contracts.Enums;
 using KnowledgeAssistant.Domain;
 
 namespace KnowledgeAssistant.Application.Abstraction;
@@ -10,9 +11,9 @@ public interface IToolRepository
 
     Task<IReadOnlyList<ToolDefinitionEntity>> GetToolsAsync(CancellationToken cancellationToken);
 
-    Task<IReadOnlyList<ToolDefinitionEntity>> GetEnabledToolsAsync(CancellationToken cancellationToken);
+    Task<IReadOnlyList<ToolDefinitionEntity>> GetEnabledToolsAsync(MessageSource? source, CancellationToken cancellationToken);
 
-    Task<IReadOnlyList<ToolDefinition>> GetEnabledToolDefinitionsAsync(CancellationToken cancellationToken);
+    Task<IReadOnlyList<ToolDefinition>> GetEnabledToolDefinitionsAsync(MessageSource? source, CancellationToken cancellationToken);
 
     Task<bool> UpdateToolAsync(Guid id, string? name, string? description, string? parametersJsonSchema, bool? isEnabled, CancellationToken cancellationToken);
 

@@ -1,3 +1,4 @@
+using KnowledgeAssistant.Contracts.Enums;
 using KnowledgeAssistant.Domain;
 
 namespace KnowledgeAssistant.Application.Abstraction

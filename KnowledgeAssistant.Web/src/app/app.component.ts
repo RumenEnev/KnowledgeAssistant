@@ -276,7 +276,8 @@ export class AppComponent implements OnInit {
         {
           conversationId,
           message: text,
-          model: this.selectedModel()
+          model: this.selectedModel(),
+          source: 'Web'
         },
 
         // EVENT CALLBACK — runs outside Angular zone (fetch ReadableStream), so wrap with ngZone.run()

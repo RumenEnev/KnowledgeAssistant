@@ -1,5 +1,6 @@
 using Dapper;
 using KnowledgeAssistant.Application.Abstraction;
+using KnowledgeAssistant.Contracts.Enums;
 using KnowledgeAssistant.Domain;
 using Microsoft.Extensions.Configuration;
 using Npgsql;
@@ -47,7 +48,7 @@ public class ToolRepository : IToolRepository
             IsEnabled = isEnabled,
             CreatedAt = now,
             UpdatedAt = now,
-            Scope = "Desktop"
+            Scope = ToolScope.Desktop.ToString()
         }, cancellationToken: cancellationToken);
 
         await connection.ExecuteAsync(command);
@@ -100,25 +101,40 @@ public class ToolRepository : IToolRepository
         return results.ToList();
     }
 
-    public async Task<IReadOnlyList<ToolDefinitionEntity>> GetEnabledToolsAsync(CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<ToolDefinitionEntity>> GetEnabledToolsAsync(MessageSource? source, CancellationToken cancellationToken)
     {
-        const string sql = """
-                            SELECT id AS "Id", name AS "Name", description AS "Description",
-                                   parameters_json_schema AS "ParametersJsonSchema", is_enabled AS "IsEnabled",
-                                   created_at AS "CreatedAt", updated_at AS "UpdatedAt", scope AS "Scope", path AS "Path"
-                            FROM ai_interactions.tools WHERE is_enabled = TRUE ORDER BY name
-                            """;
+        var sql = """
+                  SELECT id AS "Id", name AS "Name", description AS "Description",
+                         parameters_json_schema AS "ParametersJsonSchema", is_enabled AS "IsEnabled",
+                         created_at AS "CreatedAt", updated_at AS "UpdatedAt", scope AS "Scope", path AS "Path"
+                  FROM ai_interactions.tools WHERE is_enabled = TRUE
+                  """;
 
+        if (source.HasValue)
+        {
+            sql += " AND (scope ILIKE @Scope OR scope ILIKE @AllScope)";
+        }
+
+        sql += " ORDER BY name";
+
+        var scope = source.HasValue ? MapToToolScope(source.Value).ToString() : null;
         await using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
-        var command = new CommandDefinition(sql, cancellationToken: cancellationToken);
+        var command = new CommandDefinition(sql, new { Scope = scope, AllScope = ToolScope.All.ToString() }, cancellationToken: cancellationToken);
         var results = await connection.QueryAsync<ToolDefinitionEntity>(command);
         return results.ToList();
     }
 
-    public async Task<IReadOnlyList<ToolDefinition>> GetEnabledToolDefinitionsAsync(CancellationToken cancellationToken)
+    private static ToolScope MapToToolScope(MessageSource source) => source switch
     {
-        var enabledTools = await GetEnabledToolsAsync(cancellationToken);
+        MessageSource.Desktop => ToolScope.Desktop,
+        MessageSource.Web => ToolScope.Web,
+        _ => throw new ArgumentOutOfRangeException(nameof(source), source, "Unsupported message source.")
+    };
+
+    public async Task<IReadOnlyList<ToolDefinition>> GetEnabledToolDefinitionsAsync(MessageSource? source, CancellationToken cancellationToken)
+    {
+        var enabledTools = await GetEnabledToolsAsync(source, cancellationToken);
         return enabledTools.Select(t => new ToolDefinition
         {
             Name = t.Name,

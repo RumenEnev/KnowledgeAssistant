@@ -1,5 +1,6 @@
 ﻿using KnowledgeAssistant.Contracts.Definitions;
 using KnowledgeAssistant.Contracts.Dto;
+using KnowledgeAssistant.Contracts.Enums;
 using KnowledgeAssistant.Contracts.Repositories;
 using KnowledgeAssistant.Domain.Conversation;
 using KnowledgeAssistant.Domain.Documents;
@@ -626,6 +627,7 @@ namespace KnowledgeAssistant.Wpf.Services
                     Role = "user",
                     Message = request.UserPrompt,
                     Model = request.Model,
+                    Source = MessageSource.Desktop
                 };
 
                 httpRequest.Content = new StringContent(JsonSerializer.Serialize(dto), Encoding.UTF8, "application/json");
@@ -661,7 +663,8 @@ namespace KnowledgeAssistant.Wpf.Services
                     Message = request.Prompt,
                     Model = request.Model,
                     ConversationId = request.ConversationId,
-                    SystemPromt = request.SystemPrompt
+                    SystemPromt = request.SystemPrompt,
+                    Source = MessageSource.Desktop
                 };
 
                 var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };

@@ -3,4 +3,5 @@ export interface ChatRequest {
   message: string;
   model?: string;
   temperature?: number;
+  source?: 'Web' | 'Desktop';
 }

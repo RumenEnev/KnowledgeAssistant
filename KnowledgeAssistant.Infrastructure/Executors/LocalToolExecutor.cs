@@ -27,11 +27,6 @@ public sealed class LocalToolExecutor : IToolExecutor
 
     public async Task<string> ExecuteAsync(ToolDefinitionEntity tool, string argumentsJson, CancellationToken cancellationToken)
     {
-        if (!tool.Scope.Equals("Desktop", StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidOperationException($"Tool '{tool.Name}' has scope '{tool.Scope}', but no server-side execution path is configured.");
-        }
-
         var writer = _sseWriterAccessor.Writer ?? throw new InvalidOperationException("No SseWriter is available on this request. LocalToolExecutor can only run inside a streaming request.");
         var toolCallId = Guid.NewGuid().ToString();
         _logger.LogInformation("Handing off tool '{ToolName}' (call {ToolCallId}) to client for execution.", tool.Name, toolCallId);
