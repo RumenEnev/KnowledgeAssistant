@@ -8,11 +8,7 @@
 
         Task<string?> GetModelNameAsync(Guid modelId, CancellationToken cancellationToken);
 
-        Task<int?> GetContextWindowTokensAsync(Guid modelId, CancellationToken cancellationToken);
-
         Task<ModelFlags> GetModelFlagsAsync(Guid modelId, CancellationToken cancellationToken);
-
-        Task UpdateContextWindowTokensAsync(Guid modelId, int? contextWindowTokens, CancellationToken cancellationToken);
 
         Task UpdateModelFlagsAsync(Guid modelId, bool internalUseOnly, bool canCallTools, CancellationToken cancellationToken);
     }

@@ -1,6 +1,5 @@
 ﻿using KnowledgeAssistant.Application.Abstraction;
 using KnowledgeAssistant.Contracts.Enums;
-using Microsoft.Extensions.Configuration;
 using System.Collections.Concurrent;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -15,6 +14,7 @@ namespace KnowledgeAssistant.Application.Services
         private readonly IModelRepository _modelRepository;
         private static readonly ConcurrentDictionary<string, int> _contextWindowCache = new();
         private readonly int _fallbackContextWindowTokens;
+        private readonly ModelCatalogService _modelCatalogService;
 
         private const string EmbeddingModel = "nomic-embed-text";
         private const int CandidatePoolSize = 10;
@@ -22,12 +22,17 @@ namespace KnowledgeAssistant.Application.Services
         private const double MaxInjectionFraction = 0.50;
         private const int CharsPerTokenApprox = 4;
 
-        public DocumentsHandlingService(IModelGateway modelGateway, IDocumentRepository documentRepository, IModelRepository modelRepository, IConfigurationRepository configurationRepository)
+        public DocumentsHandlingService(IModelGateway modelGateway, 
+            IDocumentRepository documentRepository,
+            IModelRepository modelRepository, 
+            IConfigurationRepository configurationRepository,
+            ModelCatalogService modelCatalogService)
         {
             _modelGateway = modelGateway;
             _documentRepository = documentRepository;
             _modelRepository = modelRepository;
             _configurationRepository = configurationRepository;
+            _modelCatalogService = modelCatalogService;
             _fallbackContextWindowTokens = 4096;
         }
 
@@ -357,8 +362,8 @@ namespace KnowledgeAssistant.Application.Services
             }
 
             var modelId = await _modelRepository.GetOrCreateModelIdAsync(model, cancellationToken);
-            int? reported = await _modelRepository.GetContextWindowTokensAsync(modelId, cancellationToken);
-            int resolved = reported ?? _fallbackContextWindowTokens;
+            int reported = await _modelCatalogService.GetModelContextWindowAsync(model, cancellationToken);
+            int resolved = reported > 0 ? reported : _fallbackContextWindowTokens;
             _contextWindowCache[model] = resolved;
 
             return resolved;

@@ -93,12 +93,7 @@ namespace KnowledgeAssistant.Infrastructure
             }
         }
 
-        public async Task<ToolChatResult> ChatWithToolsAsync(
-            string model,
-            ChatMessage userMessage,
-            ChatMessage systemMessage,
-            IReadOnlyList<ToolDefinition> tools,
-            CancellationToken cancellationToken)
+        public async Task<ToolChatResult> ChatWithToolsAsync(string model, ChatMessage userMessage, ChatMessage systemMessage, IReadOnlyList<ToolDefinition> tools, CancellationToken cancellationToken)
         {
             var toolsArray = new JsonArray();
             foreach (var tool in tools)
@@ -173,10 +168,6 @@ namespace KnowledgeAssistant.Infrastructure
             return result?.Embedding ?? Array.Empty<float>();
         }
 
-        /// <summary>
-        /// Throws with the actual Ollama error body (e.g. "model 'llama3' not found") instead of the
-        /// generic HttpRequestException message from EnsureSuccessStatusCode, to make failures diagnosable.
-        /// </summary>
         private static async Task EnsureSuccessAsync(HttpResponseMessage response, string model, CancellationToken cancellationToken)
         {
             if (response.IsSuccessStatusCode)

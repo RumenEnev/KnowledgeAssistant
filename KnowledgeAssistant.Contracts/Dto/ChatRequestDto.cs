@@ -6,7 +6,7 @@ namespace KnowledgeAssistant.Contracts.Dto
     {
         public Guid? ConversationId { get; set; }
 
-        public required string Role { get; set; }
+        public string Role { get; set; } = "user";
 
         public string Message { get; set; } = default!;
 

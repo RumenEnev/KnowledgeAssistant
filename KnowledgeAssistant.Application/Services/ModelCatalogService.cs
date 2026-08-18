@@ -16,5 +16,10 @@ namespace KnowledgeAssistant.Application.Services
         {
             return _gateway.GetModelsAsync(cancellationToken);
         }
+
+        public async Task<int> GetModelContextWindowAsync(string modelName, CancellationToken cancellationToken)
+        {
+            return (await _gateway.GetModelsAsync(cancellationToken)).FirstOrDefault(m => m.Name == modelName)?.ContextLength ?? 0;
+        }
     }
 }
