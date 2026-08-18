@@ -7,6 +7,7 @@
         (manageDocuments)="openDocumentsManager()"
         (manageModelContextWindows)="openModelContextWindowsManager()"
         (manageTopics)="openTopicsManager()"
+        (manageTools)="openManageTools()"
         (exit)="exitApp()" />
       <h3>Conversations</h3>
       <button title="Add conversation" (click)="newConversation()">+</button>
@@ -74,4 +75,8 @@
 
 @if (showTopicsManager()) {
   <app-topics-manager (closed)="closeTopicsManager()" />
+}
+
+@if (showManageTools()) {
+  <app-manage-tools (close)="closeManageTools()" />
 }

@@ -9,7 +9,7 @@ public interface IToolRepository
 
     Task<ToolDefinitionEntity?> GetToolByIdAsync(Guid id, CancellationToken cancellationToken);
 
-    Task<IReadOnlyList<ToolDefinitionEntity>> GetToolsAsync(CancellationToken cancellationToken);
+    Task<IReadOnlyList<ToolDefinitionEntity>> GetToolsAsync(MessageSource? source, CancellationToken cancellationToken);
 
     Task<IReadOnlyList<ToolDefinitionEntity>> GetEnabledToolsAsync(MessageSource? source, CancellationToken cancellationToken);
 

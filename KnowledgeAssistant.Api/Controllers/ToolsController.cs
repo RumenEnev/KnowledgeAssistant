@@ -1,4 +1,5 @@
 using KnowledgeAssistant.Application.Abstraction;
+using KnowledgeAssistant.Contracts.Enums;
 using KnowledgeAssistant.Contracts.Tools;
 using Microsoft.AspNetCore.Mvc;
 
@@ -16,9 +17,9 @@ public class ToolsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<ToolDto>>> GetAll(CancellationToken cancellationToken)
+    public async Task<ActionResult<IReadOnlyList<ToolDto>>> GetAll([FromQuery] MessageSource? source, CancellationToken cancellationToken)
     {
-        var tools = await _toolRepository.GetToolsAsync(cancellationToken);
+        var tools = await _toolRepository.GetToolsAsync(source, cancellationToken);
         return Ok(tools.Select(ToDto));
     }
 

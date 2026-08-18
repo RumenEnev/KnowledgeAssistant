@@ -1,0 +1,80 @@
+<div class="overlay" (click)="onClose()">
+  <div class="window" (click)="$event.stopPropagation()">
+    <div class="title-bar">
+      <span>Manage Tools</span>
+      <button class="close-btn" (click)="onClose()">✕</button>
+    </div>
+
+    <div class="content">
+      <!-- Left: tools grid -->
+      <div class="grid-panel">
+        <div class="panel-label">Registered Tools</div>
+        <div class="data-grid">
+          <div class="grid-header">
+            <span class="col-name">Name</span>
+            <span class="col-desc">Description</span>
+            <span class="col-enabled">Enabled</span>
+          </div>
+          <div class="grid-body">
+            @for (tool of tools(); track tool.id) {
+              <div
+                class="grid-row"
+                [class.selected]="selectedTool()?.id === tool.id"
+                (click)="selectTool(tool)">
+                <span class="col-name">{{ tool.name }}</span>
+                <span class="col-desc">{{ tool.description }}</span>
+                <span class="col-enabled">
+                  <input type="checkbox" [checked]="tool.isEnabled" disabled />
+                </span>
+              </div>
+            }
+            @if (tools().length === 0) {
+              <div class="empty-row">No tools registered.</div>
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: add/edit form -->
+      <div class="form-panel">
+        <div class="panel-label">{{ formHeaderText }}</div>
+
+        <label>Name</label>
+        <input type="text" [ngModel]="toolName()" (ngModelChange)="toolName.set($event)" />
+
+        <label>Description</label>
+        <textarea
+          rows="3"
+          [ngModel]="description()"
+          (ngModelChange)="description.set($event)">
+        </textarea>
+
+        <label>Parameters JSON Schema</label>
+        <textarea
+          class="json-area"
+          rows="6"
+          [ngModel]="parametersJsonSchema()"
+          (ngModelChange)="parametersJsonSchema.set($event)">
+        </textarea>
+
+        <label class="checkbox-label">
+          <input
+            type="checkbox"
+            [ngModel]="isEnabled()"
+            (ngModelChange)="isEnabled.set($event)" />
+          Enabled
+        </label>
+
+        @if (hasError) {
+          <div class="error-message">{{ errorMessage() }}</div>
+        }
+
+        <div class="button-row">
+          <button (click)="onSave()">Save</button>
+          <button (click)="onDelete()">Delete</button>
+          <button (click)="onNew()">New</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

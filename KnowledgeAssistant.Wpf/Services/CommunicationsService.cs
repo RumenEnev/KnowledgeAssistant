@@ -849,7 +849,7 @@ namespace KnowledgeAssistant.Wpf.Services
             {
                 try
                 {
-                    var tools = await _httpClient.GetFromJsonAsync<List<ToolDto>>("api/tools", _cancellationToken);
+                    var tools = await _httpClient.GetFromJsonAsync<List<ToolDto>>($"api/tools?source={MessageSource.Desktop}", _cancellationToken);
                     return new ToolsReceivedEvent(tools ?? Enumerable.Empty<ToolDto>());
                 }
                 catch (Exception ex)

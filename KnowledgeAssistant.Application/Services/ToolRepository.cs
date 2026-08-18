@@ -85,18 +85,21 @@ public class ToolRepository : IToolRepository
         return await connection.QueryFirstOrDefaultAsync<ToolDefinitionEntity>(command);
     }
 
-    public async Task<IReadOnlyList<ToolDefinitionEntity>> GetToolsAsync(CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<ToolDefinitionEntity>> GetToolsAsync(MessageSource? source, CancellationToken cancellationToken)
     {
-        const string sql = """
-                            SELECT id AS "Id", name AS "Name", description AS "Description",
-                                   parameters_json_schema AS "ParametersJsonSchema", is_enabled AS "IsEnabled",
-                                   created_at AS "CreatedAt", updated_at AS "UpdatedAt", scope AS "Scope", path AS "Path"
-                            FROM ai_interactions.tools ORDER BY name
-                            """;
+        var sql = """
+                  SELECT id AS "Id", name AS "Name", description AS "Description",
+                         parameters_json_schema AS "ParametersJsonSchema", is_enabled AS "IsEnabled",
+                         created_at AS "CreatedAt", updated_at AS "UpdatedAt", scope AS "Scope", path AS "Path"
+                  FROM ai_interactions.tools WHERE 1 = 1
+                  """;
+
+        sql = AppendScopeFilter(sql, source);
+        sql += " ORDER BY name";
 
         await using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
-        var command = new CommandDefinition(sql, cancellationToken: cancellationToken);
+        var command = new CommandDefinition(sql, BuildScopeParameters(source), cancellationToken: cancellationToken);
         var results = await connection.QueryAsync<ToolDefinitionEntity>(command);
         return results.ToList();
     }
@@ -110,20 +113,24 @@ public class ToolRepository : IToolRepository
                   FROM ai_interactions.tools WHERE is_enabled = TRUE
                   """;
 
-        if (source.HasValue)
-        {
-            sql += " AND (scope ILIKE @Scope OR scope ILIKE @AllScope)";
-        }
-
+        sql = AppendScopeFilter(sql, source);
         sql += " ORDER BY name";
 
-        var scope = source.HasValue ? MapToToolScope(source.Value).ToString() : null;
         await using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
-        var command = new CommandDefinition(sql, new { Scope = scope, AllScope = ToolScope.All.ToString() }, cancellationToken: cancellationToken);
+        var command = new CommandDefinition(sql, BuildScopeParameters(source), cancellationToken: cancellationToken);
         var results = await connection.QueryAsync<ToolDefinitionEntity>(command);
         return results.ToList();
     }
+
+    private static string AppendScopeFilter(string sql, MessageSource? source) =>
+        source.HasValue ? sql + " AND (scope ILIKE @Scope OR scope ILIKE @AllScope)" : sql;
+
+    private static object BuildScopeParameters(MessageSource? source) => new
+    {
+        Scope = source.HasValue ? MapToToolScope(source.Value).ToString() : null,
+        AllScope = ToolScope.All.ToString()
+    };
 
     private static ToolScope MapToToolScope(MessageSource source) => source switch
     {

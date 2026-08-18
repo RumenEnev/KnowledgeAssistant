@@ -15,12 +15,15 @@ import { MainMenuComponent } from './components/main-menu/main-menu.component';
 import { DocumentsManagerComponent } from './components/documents-manager/documents-manager.component';
 import { ModelContextWindowsManagerComponent } from './components/model-context-windows-manager/model-context-windows-manager.component';
 import { TopicsManagerComponent } from './components/topics-manager/topics-manager.component';
+import { ManageToolsComponent } from './components/manage-tools/manage-tools.component';
 
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [FormsModule, ConversationTitleComponent, MessageComponent, NotificationToastComponent, MainMenuComponent, DocumentsManagerComponent, ModelContextWindowsManagerComponent, TopicsManagerComponent],
+  imports: [FormsModule, ConversationTitleComponent, MessageComponent, 
+    NotificationToastComponent, MainMenuComponent, DocumentsManagerComponent, 
+    ModelContextWindowsManagerComponent, TopicsManagerComponent, ManageToolsComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css'
 })
@@ -50,6 +53,7 @@ export class AppComponent implements OnInit {
   showDocumentsManager = signal(false);
   showModelContextWindowsManager = signal(false);
   showTopicsManager = signal(false);
+  showManageTools = signal(false);
 
   constructor() {
     effect(() => {
@@ -193,8 +197,6 @@ export class AppComponent implements OnInit {
 
   async closeTopicsManager(): Promise<void> {
     this.showTopicsManager.set(false);
-    // Refresh the cached topic list in case topics were added, renamed or removed
-    // while the manager was open, so the conversation topic picker stays in sync.
     try {
       const topics = await this.documentsService.getTopics();
       this.topics.set(topics);
@@ -203,9 +205,15 @@ export class AppComponent implements OnInit {
     }
   }
 
+  openManageTools(): void {
+    this.showManageTools.set(true);
+  }
+
+  closeManageTools(): void {
+    this.showManageTools.set(false);
+  }
+
   exitApp(): void {
-    // Browsers only allow scripts to close windows/tabs they opened themselves;
-    // this is a best-effort "exit" for when the app runs as a standalone window/PWA.
     window.close();
   }
 
