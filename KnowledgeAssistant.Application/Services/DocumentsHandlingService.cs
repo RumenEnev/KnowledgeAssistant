@@ -261,6 +261,7 @@ namespace KnowledgeAssistant.Application.Services
                 sections.Add(currentContent.ToString().Trim());
                 currentContent.Clear();
             }
+
             return sections;
         }
 

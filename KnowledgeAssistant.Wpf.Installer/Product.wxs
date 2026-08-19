@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"><?define KnowledgeAssistant.Wpf_TargetDir=$(var.KnowledgeAssistant.Wpf.TargetDir)?>
-	<Product Id="*" Name="KnowledgeAssistant.Wpf.Installer" Language="1033" Version="1.0.47.279" Manufacturer="Rumen Enev" UpgradeCode="b8db19bb-f705-44ef-896a-49c01d52de83">
+	<Product Id="*" Name="KnowledgeAssistant.Wpf.Installer" Language="1033" Version="1.1.13.543" Manufacturer="Rumen Enev" UpgradeCode="b8db19bb-f705-44ef-896a-49c01d52de83">
 		<Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" />
 
 		<MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
