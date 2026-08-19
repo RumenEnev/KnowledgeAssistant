@@ -7,7 +7,7 @@
 
     <div class="modal-body">
       <p class="hint">
-        Topics are used to organize documents and conversations.
+        Topics are used to organize documents and conversations. Drag a topic onto another to nest it, or onto the list background to make it top-level.
       </p>
 
       <div class="add-topic">
@@ -17,6 +17,14 @@
           [ngModel]="newTopicName()"
           (ngModelChange)="newTopicName.set($event)"
           (keydown.enter)="createTopic()" />
+        <select
+          class="parent-select"
+          [ngModel]="newTopicParentId()"
+          (ngModelChange)="newTopicParentId.set($event)">
+          @for (opt of parentOptionsForCreate(); track opt.id) {
+            <option [ngValue]="opt.id">{{ opt.label }}</option>
+          }
+        </select>
         <button type="button" [disabled]="isCreating()" (click)="createTopic()">
           {{ isCreating() ? 'Adding...' : 'Add' }}
         </button>
@@ -27,39 +35,79 @@
       } @else if (topics().length === 0) {
         <p>No topics yet.</p>
       } @else {
-        <ul class="topics-list">
-          @for (topic of topics(); track topic.id) {
-            <li class="topic-item">
-              @if (editingTopicId() === topic.id) {
-                <input
-                  type="text"
-                  class="edit-input"
-                  [ngModel]="editingName()"
-                  (ngModelChange)="editingName.set($event)"
-                  (keydown.enter)="saveEdit(topic)"
-                  (keydown.escape)="cancelEdit()" />
-                <button
-                  type="button"
-                  [disabled]="savingTopicId() === topic.id"
-                  (click)="saveEdit(topic)">
-                  {{ savingTopicId() === topic.id ? 'Saving...' : 'Save' }}
-                </button>
-                <button type="button" (click)="cancelEdit()">Cancel</button>
-              } @else {
-                <span class="topic-name">{{ topic.name }}</span>
-                <button type="button" (click)="startEdit(topic)">Rename</button>
-                <button
-                  type="button"
-                  class="delete-btn"
-                  [disabled]="deletingTopicId() === topic.id"
-                  (click)="deleteTopic(topic)">
-                  {{ deletingTopicId() === topic.id ? 'Deleting...' : 'Delete' }}
-                </button>
-              }
-            </li>
+        <ul
+          class="topics-list topics-root"
+          (dragover)="onRootDragOver($event)"
+          (drop)="onDropToRoot($event)">
+          @for (node of topicTree(); track node.topic.id) {
+            <ng-container *ngTemplateOutlet="nodeTpl; context: { node: node, depth: 0 }"></ng-container>
           }
         </ul>
       }
     </div>
   </div>
 </div>
+
+<ng-template #nodeTpl let-node="node" let-depth="depth">
+  <li
+    class="topic-item"
+    [class.drag-over]="dragOverId() === node.topic.id"
+    [style.marginLeft.px]="depth * 18"
+    draggable="true"
+    (dragstart)="onDragStart($event, node)"
+    (dragover)="onDragOver($event, node)"
+    (dragleave)="onDragLeave()"
+    (drop)="onDrop($event, node)">
+
+    @if (node.children.length > 0) {
+      <button type="button" class="expand-btn" (click)="toggleExpand(node)">
+        {{ node.expanded ? '▾' : '▸' }}
+      </button>
+    } @else {
+      <span class="expand-spacer"></span>
+    }
+
+    @if (editingTopicId() === node.topic.id) {
+      <input
+        type="text"
+        class="edit-input"
+        [ngModel]="editingName()"
+        (ngModelChange)="editingName.set($event)"
+        (keydown.enter)="saveEdit(node.topic)"
+        (keydown.escape)="cancelEdit()" />
+      <select
+        class="parent-select"
+        [ngModel]="editingParentId()"
+        (ngModelChange)="editingParentId.set($event)">
+        @for (opt of parentOptionsForEdit(); track opt.id) {
+          <option [ngValue]="opt.id">{{ opt.label }}</option>
+        }
+      </select>
+      <button
+        type="button"
+        [disabled]="savingTopicId() === node.topic.id"
+        (click)="saveEdit(node.topic)">
+        {{ savingTopicId() === node.topic.id ? 'Saving...' : 'Save' }}
+      </button>
+      <button type="button" (click)="cancelEdit()">Cancel</button>
+    } @else {
+      <span class="topic-name">{{ node.topic.name }}</span>
+      <button type="button" (click)="startEdit(node.topic)">Edit</button>
+      <button
+        type="button"
+        class="delete-btn"
+        [disabled]="deletingTopicId() === node.topic.id"
+        (click)="deleteTopic(node)">
+        {{ deletingTopicId() === node.topic.id ? 'Deleting...' : 'Delete' }}
+      </button>
+    }
+  </li>
+
+  @if (node.expanded && node.children.length > 0) {
+    <ul class="topics-list nested">
+      @for (child of node.children; track child.topic.id) {
+        <ng-container *ngTemplateOutlet="nodeTpl; context: { node: child, depth: depth + 1 }"></ng-container>
+      }
+    </ul>
+  }
+</ng-template>

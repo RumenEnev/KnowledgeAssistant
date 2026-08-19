@@ -4,7 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="Manage Topics"
     Width="420"
-    Height="520"
+    Height="560"
     Loaded="TopicsManagerWindow_Loaded"
     WindowStartupLocation="CenterOwner">
 
@@ -15,42 +15,47 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <ListView
-            x:Name="topicsList"
+        <TreeView
+            x:Name="topicsTree"
             Grid.Row="0"
             Margin="0,0,0,8"
-            ItemsSource="{Binding Topics}">
-            <ListView.View>
-                <GridView>
-                    <GridViewColumn
-                        Width="200"
-                        DisplayMemberBinding="{Binding Name}"
-                        Header="Name" />
-                    <GridViewColumn Width="80">
-                        <GridViewColumn.CellTemplate>
-                            <DataTemplate>
-                                <Button
-                                    Padding="8,2"
-                                    Click="EditTopic_Click"
-                                    Content="Rename"
-                                    Tag="{Binding}" />
-                            </DataTemplate>
-                        </GridViewColumn.CellTemplate>
-                    </GridViewColumn>
-                    <GridViewColumn Width="80">
-                        <GridViewColumn.CellTemplate>
-                            <DataTemplate>
-                                <Button
-                                    Padding="8,2"
-                                    Click="DeleteTopic_Click"
-                                    Content="Delete"
-                                    Tag="{Binding}" />
-                            </DataTemplate>
-                        </GridViewColumn.CellTemplate>
-                    </GridViewColumn>
-                </GridView>
-            </ListView.View>
-        </ListView>
+            AllowDrop="True"
+            DragOver="TopicsTree_DragOver"
+            Drop="TopicsTree_Drop"
+            ItemsSource="{Binding RootTopics}">
+            <TreeView.ItemContainerStyle>
+                <Style TargetType="{x:Type TreeViewItem}">
+                    <Setter Property="AllowDrop" Value="True" />
+                    <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+                    <EventSetter Event="PreviewMouseLeftButtonDown" Handler="TreeViewItem_PreviewMouseLeftButtonDown" />
+                    <EventSetter Event="PreviewMouseMove" Handler="TreeViewItem_PreviewMouseMove" />
+                    <EventSetter Event="DragOver" Handler="TreeViewItem_DragOver" />
+                    <EventSetter Event="Drop" Handler="TreeViewItem_Drop" />
+                </Style>
+            </TreeView.ItemContainerStyle>
+            <TreeView.ItemTemplate>
+                <HierarchicalDataTemplate ItemsSource="{Binding Children}">
+                    <StackPanel Margin="0,2" Orientation="Horizontal">
+                        <TextBlock
+                            MinWidth="140"
+                            VerticalAlignment="Center"
+                            Text="{Binding Name}" />
+                        <Button
+                            Margin="8,0,0,0"
+                            Padding="8,2"
+                            Click="EditTopic_Click"
+                            Content="Edit"
+                            Tag="{Binding}" />
+                        <Button
+                            Margin="4,0,0,0"
+                            Padding="8,2"
+                            Click="DeleteTopic_Click"
+                            Content="Delete"
+                            Tag="{Binding}" />
+                    </StackPanel>
+                </HierarchicalDataTemplate>
+            </TreeView.ItemTemplate>
+        </TreeView>
 
         <GroupBox
             Grid.Row="1"
@@ -58,6 +63,7 @@
             Header="{Binding FormHeader}">
             <Grid Margin="4">
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
@@ -68,8 +74,17 @@
                     Text="{Binding NewTopicName, UpdateSourceTrigger=PropertyChanged}"
                     ToolTip="A short, descriptive topic name." />
 
-                <StackPanel
+                <ComboBox
                     Grid.Row="1"
+                    Margin="0,0,0,6"
+                    DisplayMemberPath="DisplayName"
+                    ItemsSource="{Binding ParentOptions}"
+                    SelectedValue="{Binding SelectedParentId}"
+                    SelectedValuePath="Id"
+                    ToolTip="Choose a parent topic, or leave as top level." />
+
+                <StackPanel
+                    Grid.Row="2"
                     HorizontalAlignment="Right"
                     Orientation="Horizontal">
                     <Button

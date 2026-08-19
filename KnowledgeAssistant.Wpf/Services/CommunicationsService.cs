@@ -187,7 +187,7 @@ namespace KnowledgeAssistant.Wpf.Services
             {
                 try
                 {
-                    var dto = new TopicRequestDto { Name = request.Name };
+                    var dto = new TopicRequestDto { Name = request.Name, ParentId = request.ParentId };
                     var response = await _httpClient.PutAsJsonAsync($"api/topics/{request.TopicId}", dto, _cancellationToken);
                     if (!response.IsSuccessStatusCode)
                     {

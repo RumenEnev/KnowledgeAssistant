@@ -42,21 +42,21 @@ export class DocumentsService {
     return response.json();
   }
 
-  async createTopic(name: string): Promise<Topic> {
+  async createTopic(name: string, parentId: number | null = null): Promise<Topic> {
     const response = await fetch(`${this.baseUrl}/api/topics`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name })
+      body: JSON.stringify({ name, parentId })
     });
     await this.assertOk(response);
     return response.json();
   }
 
-  async updateTopic(id: number, name: string): Promise<Topic> {
+  async updateTopic(id: number, name: string, parentId: number | null = null): Promise<Topic> {
     const response = await fetch(`${this.baseUrl}/api/topics/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name })
+      body: JSON.stringify({ name, parentId })
     });
     await this.assertOk(response);
     return response.json();

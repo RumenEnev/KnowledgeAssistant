@@ -1,7 +1,8 @@
-﻿namespace KnowledgeAssistant.Contracts.Dto
+﻿namespace KnowledgeAssistant.Contracts.Dto;
+
+public class TopicRequestDto
 {
-    public class TopicRequestDto
-    {
-        public string Name { get; set; } = string.Empty;
-    }
+    public string Name { get; set; } = string.Empty;
+
+    public int? ParentId { get; set; }
 }

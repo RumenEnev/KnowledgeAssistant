@@ -9,4 +9,5 @@ export interface DocumentItem {
 export interface Topic {
   id: number;
   name: string;
+  parentId: number | null;
 }

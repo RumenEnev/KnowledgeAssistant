@@ -1,9 +1,10 @@
-﻿namespace KnowledgeAssistant.Domain.Documents
-{
-    public class Topic
-    {
-        public int Id { get; set; }
+﻿namespace KnowledgeAssistant.Domain.Documents;
 
-        public string Name { get; set; } = string.Empty;
-    }
+public class Topic
+{
+    public int Id { get; set; }
+
+    public string Name { get; set; } = string.Empty;
+
+    public int? ParentId { get; set; }
 }

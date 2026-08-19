@@ -1,14 +1,16 @@
 ﻿using MessageServices;
 
-namespace KnowledgeAssistant.Wpf.Messages.Documents
-{
-    public record CreateTopicRequest : MessageBase
-    {
-        public CreateTopicRequest(string name)
-        {
-            Name = name;
-        }
+namespace KnowledgeAssistant.Wpf.Messages.Documents;
 
-        public string Name { get; init; }
+public record CreateTopicRequest : MessageBase
+{
+    public CreateTopicRequest(string name, int? parentId = null)
+    {
+        Name = name;
+        ParentId = parentId;
     }
+
+    public string Name { get; init; }
+
+    public int? ParentId { get; init; }
 }

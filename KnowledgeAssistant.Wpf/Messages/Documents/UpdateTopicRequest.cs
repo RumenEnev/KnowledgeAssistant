@@ -1,17 +1,19 @@
 ﻿using MessageServices;
 
-namespace KnowledgeAssistant.Wpf.Messages.Documents
+namespace KnowledgeAssistant.Wpf.Messages.Documents;
+
+public record UpdateTopicRequest : MessageBase
 {
-    public record UpdateTopicRequest : MessageBase
+    public UpdateTopicRequest(int topicId, string name, int? parentId)
     {
-        public UpdateTopicRequest(int topicId, string name)
-        {
-            TopicId = topicId;
-            Name = name;
-        }
-
-        public int TopicId { get; init; }
-
-        public string Name { get; init; }
+        TopicId = topicId;
+        Name = name;
+        ParentId = parentId;
     }
+
+    public int TopicId { get; init; }
+
+    public string Name { get; init; }
+
+    public int? ParentId { get; init; }
 }
