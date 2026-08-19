@@ -2,7 +2,6 @@
 
 namespace KnowledgeAssistant.Wpf.Models
 {
-    /// <summary>Selectable topic shown as a checkbox item when adding a document.</summary>
     public class TopicSelectionItem : INotifyPropertyChanged
     {
         private bool _isSelected;
@@ -10,6 +9,8 @@ namespace KnowledgeAssistant.Wpf.Models
         public int Id { get; set; }
 
         public string Name { get; set; } = string.Empty;
+
+        public int? ParentId { get; set; }
 
         public bool IsSelected
         {

@@ -78,32 +78,46 @@
                     Margin="0,2,0,0"
                     FontWeight="Bold"
                     Text="Topics (select at least one, required)" />
-                <Border
-                    Grid.Row="3"
-                    Margin="0,2,0,6"
-                    Padding="4"
-                    BorderBrush="Gray"
-                    BorderThickness="1">
-                    <ItemsControl
-                        MaxHeight="90"
-                        ItemsSource="{Binding AvailableTopics}"
-                        ScrollViewer.VerticalScrollBarVisibility="Auto">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <WrapPanel Orientation="Horizontal" />
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <CheckBox
-                                    Margin="4,2"
-                                    Content="{Binding Name}"
-                                    IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                                    ToolTip="Documents are grouped and searched by topic." />
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </Border>
+                <Grid Grid.Row="3" Margin="0,2,0,6">
+                    <ToggleButton
+                        x:Name="topicsDropdownToggle"
+                        Padding="8,5"
+                        HorizontalContentAlignment="Left"
+                        Content="{Binding SelectedTopicsSummary}"
+                        ToolTip="Documents are grouped and searched by topic." />
+
+                    <Popup
+                        AllowsTransparency="True"
+                        IsOpen="{Binding IsChecked, ElementName=topicsDropdownToggle}"
+                        Placement="Bottom"
+                        PlacementTarget="{Binding ElementName=topicsDropdownToggle}"
+                        StaysOpen="False"
+                        Width="{Binding ActualWidth, ElementName=topicsDropdownToggle}">
+                        <Border
+                            Background="White"
+                            BorderBrush="Gray"
+                            BorderThickness="1">
+                            <TreeView
+                                MaxHeight="220"
+                                BorderThickness="0"
+                                ItemsSource="{Binding TopicTree}">
+                                <TreeView.ItemContainerStyle>
+                                    <Style TargetType="{x:Type TreeViewItem}">
+                                        <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+                                    </Style>
+                                </TreeView.ItemContainerStyle>
+                                <TreeView.ItemTemplate>
+                                    <HierarchicalDataTemplate ItemsSource="{Binding Children}">
+                                        <CheckBox
+                                            Margin="2,3"
+                                            Content="{Binding Name}"
+                                            IsChecked="{Binding IsSelected, Mode=TwoWay}" />
+                                    </HierarchicalDataTemplate>
+                                </TreeView.ItemTemplate>
+                            </TreeView>
+                        </Border>
+                    </Popup>
+                </Grid>
 
                 <TextBlock
                     Grid.Row="4"

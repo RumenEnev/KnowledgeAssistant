@@ -43,6 +43,9 @@ namespace KnowledgeAssistant.Wpf.Windows
 
         public ObservableCollection<TopicSelectionItem> AvailableTopics { get; } = new ObservableCollection<TopicSelectionItem>();
 
+        /// <summary>Hierarchical view of AvailableTopics, bound to the tree-styled dropdown.</summary>
+        public ObservableCollection<TopicSelectionNode> TopicTree { get; } = new ObservableCollection<TopicSelectionNode>();
+
         public string? NewTitle
         {
             get => _newTitle;
@@ -102,6 +105,16 @@ namespace KnowledgeAssistant.Wpf.Windows
         }
 
         public Visibility CancelButtonVisibility => EditingDocumentId is null ? Visibility.Collapsed : Visibility.Visible;
+
+        /// <summary>Text shown on the closed topic dropdown: a comma-separated list of selections, or a placeholder.</summary>
+        public string SelectedTopicsSummary
+        {
+            get
+            {
+                var selected = AvailableTopics.Where(t => t.IsSelected).Select(t => t.Name).ToList();
+                return selected.Count == 0 ? "Select topics..." : string.Join(", ", selected);
+            }
+        }
 
         public int ChunkTargetSizeChars
         {
@@ -174,12 +187,78 @@ namespace KnowledgeAssistant.Wpf.Windows
             {
                 System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
+                    // Preserve current selections across a reload, keyed by topic id.
+                    var previouslySelectedIds = new HashSet<int>(
+                        AvailableTopics.Where(t => t.IsSelected).Select(t => t.Id));
+
+                    foreach (var existing in AvailableTopics)
+                    {
+                        existing.PropertyChanged -= TopicItem_PropertyChanged;
+                    }
+
                     AvailableTopics.Clear();
                     foreach (var topic in @event.Topics)
                     {
-                        AvailableTopics.Add(new TopicSelectionItem { Id = topic.Id, Name = topic.Name });
+                        var item = new TopicSelectionItem
+                        {
+                            Id = topic.Id,
+                            Name = topic.Name,
+                            ParentId = topic.ParentId,
+                            IsSelected = previouslySelectedIds.Contains(topic.Id)
+                        };
+                        item.PropertyChanged += TopicItem_PropertyChanged;
+                        AvailableTopics.Add(item);
                     }
+
+                    RebuildTopicTree();
+                    OnPropertyChanged(nameof(SelectedTopicsSummary));
                 });
+            }
+        }
+
+        private void TopicItem_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(TopicSelectionItem.IsSelected))
+            {
+                OnPropertyChanged(nameof(SelectedTopicsSummary));
+            }
+        }
+
+        /// <summary>Rebuilds the tree of TopicSelectionNode objects bound to the dropdown's TreeView.</summary>
+        private void RebuildTopicTree()
+        {
+            var wasExpanded = new HashSet<int>();
+            CollectExpandedIds(TopicTree, wasExpanded);
+
+            TopicTree.Clear();
+
+            var nodesById = AvailableTopics.ToDictionary(t => t.Id, t => new TopicSelectionNode(t));
+
+            foreach (var node in nodesById.Values.OrderBy(n => n.Name))
+            {
+                node.IsExpanded = wasExpanded.Count == 0 || wasExpanded.Contains(node.Id);
+
+                if (node.Item.ParentId is int parentId && nodesById.TryGetValue(parentId, out var parentNode))
+                {
+                    parentNode.Children.Add(node);
+                }
+                else
+                {
+                    TopicTree.Add(node);
+                }
+            }
+        }
+
+        private static void CollectExpandedIds(IEnumerable<TopicSelectionNode> nodes, HashSet<int> result)
+        {
+            foreach (var node in nodes)
+            {
+                if (node.IsExpanded)
+                {
+                    result.Add(node.Id);
+                }
+
+                CollectExpandedIds(node.Children, result);
             }
         }
 
@@ -380,6 +459,50 @@ namespace KnowledgeAssistant.Wpf.Windows
 
             IsSavingChunkingSettings = true;
             _messageService.Publish(new UpdateChunkingSettingsRequest(ChunkTargetSizeChars, ChunkOverlapChars));
+        }
+    }
+
+    public class TopicSelectionNode : INotifyPropertyChanged
+    {
+        private bool _isExpanded = true;
+
+        public TopicSelectionNode(TopicSelectionItem item)
+        {
+            Item = item;
+            Item.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(TopicSelectionItem.IsSelected))
+                {
+                    OnPropertyChanged(nameof(IsSelected));
+                }
+            };
+        }
+
+        public TopicSelectionItem Item { get; }
+
+        public int Id => Item.Id;
+
+        public string Name => Item.Name;
+
+        public bool IsSelected
+        {
+            get => Item.IsSelected;
+            set => Item.IsSelected = value;
+        }
+
+        public ObservableCollection<TopicSelectionNode> Children { get; } = new ObservableCollection<TopicSelectionNode>();
+
+        public bool IsExpanded
+        {
+            get => _isExpanded;
+            set { _isExpanded = value; OnPropertyChanged(nameof(IsExpanded)); }
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        private void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
     }
 }

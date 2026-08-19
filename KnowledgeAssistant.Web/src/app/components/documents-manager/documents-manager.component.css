@@ -227,15 +227,79 @@
   display: none;
 }
 
-.topics-checklist {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 16px;
+.topics-dropdown {
+  position: relative;
+}
+
+.topics-dropdown-toggle {
+  width: 100%;
+  text-align: left;
   padding: 8px;
   border: 1px solid #ddd;
   border-radius: 6px;
-  max-height: 120px;
+  background: #fff;
+  color: #222;
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.topics-dropdown-toggle:hover {
+  border-color: #bbb;
+}
+
+.topics-dropdown-toggle.disabled {
+  cursor: not-allowed;
+  color: #999;
+}
+
+.topics-dropdown-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 10;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  padding: 6px;
+  max-height: 220px;
   overflow-y: auto;
+}
+
+.topics-tree {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.topics-tree.nested {
+  margin-top: 2px;
+}
+
+.topic-node-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.expand-btn {
+  background: none;
+  border: none;
+  color: #555;
+  padding: 0 2px;
+  font-size: 12px;
+  cursor: pointer;
+  width: 16px;
+}
+
+.expand-spacer {
+  display: inline-block;
+  width: 16px;
 }
 
 .topic-checkbox {
@@ -245,10 +309,11 @@
   font-size: 14px;
   font-weight: normal;
   cursor: pointer;
+  padding: 3px 0;
 }
 
 .topics-empty {
-  margin: 0;
+  margin: 4px;
   font-size: 13px;
   color: #777;
 }

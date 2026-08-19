@@ -41,19 +41,27 @@
           (ngModelChange)="title.set($event)" />
 
         <label class="field-label">Topics (select at least one, required)</label>
-        <div class="topics-checklist">
-          @if (availableTopics().length === 0) {
-            <p class="topics-empty">No topics available. Create one via the admin panel first.</p>
-          } @else {
-            @for (topic of availableTopics(); track topic.id) {
-              <label class="topic-checkbox">
-                <input
-                  type="checkbox"
-                  [checked]="isTopicSelected(topic.name)"
-                  (change)="toggleTopic(topic.name, $event)" />
-                {{ topic.name }}
-              </label>
-            }
+        <div class="topics-dropdown" #topicsDropdownWrapper>
+          <button
+            type="button"
+            class="topics-dropdown-toggle"
+            [class.disabled]="availableTopics().length === 0"
+            (click)="toggleTopicsDropdown()">
+            {{ availableTopics().length === 0 ? 'No topics available' : selectedTopicsSummary() }}
+          </button>
+
+          @if (isTopicsDropdownOpen()) {
+            <div class="topics-dropdown-panel">
+              @if (availableTopics().length === 0) {
+                <p class="topics-empty">No topics available. Create one via the admin panel first.</p>
+              } @else {
+                <ul class="topics-tree">
+                  @for (node of topicTree(); track node.topic.id) {
+                    <ng-container *ngTemplateOutlet="topicNodeTpl; context: { node: node, depth: 0 }"></ng-container>
+                  }
+                </ul>
+              }
+            </div>
           }
         </div>
 
@@ -116,3 +124,32 @@
     </div>
   </div>
 </div>
+
+<ng-template #topicNodeTpl let-node="node" let-depth="depth">
+  <li class="topic-node" [style.marginLeft.px]="depth * 16">
+    <div class="topic-node-row">
+      @if (node.children.length > 0) {
+        <button type="button" class="expand-btn" (click)="toggleExpand(node)">
+          {{ node.expanded ? '▾' : '▸' }}
+        </button>
+      } @else {
+        <span class="expand-spacer"></span>
+      }
+      <label class="topic-checkbox">
+        <input
+          type="checkbox"
+          [checked]="isTopicSelected(node.topic.name)"
+          (change)="toggleTopic(node.topic.name, $event)" />
+        {{ node.topic.name }}
+      </label>
+    </div>
+  </li>
+
+  @if (node.expanded && node.children.length > 0) {
+    <ul class="topics-tree nested">
+      @for (child of node.children; track child.topic.id) {
+        <ng-container *ngTemplateOutlet="topicNodeTpl; context: { node: child, depth: depth + 1 }"></ng-container>
+      }
+    </ul>
+  }
+</ng-template>

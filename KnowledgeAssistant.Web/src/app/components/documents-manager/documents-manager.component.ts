@@ -1,19 +1,27 @@
-import { Component, EventEmitter, inject, OnInit, Output, signal } from '@angular/core';
+import { Component, ElementRef, EventEmitter, HostListener, OnInit, Output, ViewChild, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { NgTemplateOutlet } from '@angular/common';
 import { DocumentsService } from '../../services/documents.service';
 import { ChatService } from '../../services/chat.service';
 import { NotificationService } from '../../services/notification.service';
 import { DocumentItem, Topic } from '../../models/document';
 
+interface TopicNode {
+  topic: Topic;
+  children: TopicNode[];
+  expanded: boolean;
+}
+
 @Component({
   selector: 'app-documents-manager',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, NgTemplateOutlet],
   templateUrl: './documents-manager.component.html',
   styleUrl: './documents-manager.component.css'
 })
 export class DocumentsManagerComponent implements OnInit {
   @Output() closed = new EventEmitter<void>();
+  @ViewChild('topicsDropdownWrapper') private topicsDropdownWrapper?: ElementRef<HTMLElement>;
 
   private documentsService = inject(DocumentsService);
   private chatService = inject(ChatService);
@@ -25,6 +33,7 @@ export class DocumentsManagerComponent implements OnInit {
 
   availableTopics = signal<Topic[]>([]);
   selectedTopicNames = signal<Set<string>>(new Set());
+  isTopicsDropdownOpen = signal(false);
 
   title = signal('');
   text = signal('');
@@ -34,6 +43,21 @@ export class DocumentsManagerComponent implements OnInit {
   chunkTargetSizeChars = signal(1000);
   chunkOverlapChars = signal(150);
   isSavingChunkingSettings = signal(false);
+
+  /** Tracks which node ids are collapsed, so re-fetching topics doesn't reset the tree's expand state. */
+  private collapsedIds = new Set<number>();
+  /** Bumped whenever expand state changes, to force topicTree() to recompute. */
+  private expandVersion = signal(0);
+
+  topicTree = computed<TopicNode[]>(() => {
+    this.expandVersion();
+    return this.buildTree(this.availableTopics());
+  });
+
+  selectedTopicsSummary = computed<string>(() => {
+    const names = Array.from(this.selectedTopicNames());
+    return names.length === 0 ? 'Select topics...' : names.join(', ');
+  });
 
   private overlayMouseDownOnBackdrop = false;
 
@@ -112,6 +136,62 @@ export class DocumentsManagerComponent implements OnInit {
       }
       return next;
     });
+  }
+
+  toggleTopicsDropdown(): void {
+    if (this.availableTopics().length === 0) {
+      return;
+    }
+    this.isTopicsDropdownOpen.update(v => !v);
+  }
+
+  closeTopicsDropdown(): void {
+    this.isTopicsDropdownOpen.set(false);
+  }
+
+  toggleExpand(node: TopicNode): void {
+    if (this.collapsedIds.has(node.topic.id)) {
+      this.collapsedIds.delete(node.topic.id);
+    } else {
+      this.collapsedIds.add(node.topic.id);
+    }
+    this.expandVersion.update(v => v + 1);
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    if (!this.isTopicsDropdownOpen()) {
+      return;
+    }
+    const target = event.target as Node;
+    if (this.topicsDropdownWrapper && !this.topicsDropdownWrapper.nativeElement.contains(target)) {
+      this.closeTopicsDropdown();
+    }
+  }
+
+  private buildTree(topics: Topic[]): TopicNode[] {
+    const byId = new Map<number, TopicNode>();
+    for (const topic of topics) {
+      byId.set(topic.id, { topic, children: [], expanded: !this.collapsedIds.has(topic.id) });
+    }
+
+    const roots: TopicNode[] = [];
+    for (const node of byId.values()) {
+      const parentId = node.topic.parentId;
+      if (parentId != null && byId.has(parentId)) {
+        byId.get(parentId)!.children.push(node);
+      } else {
+        roots.push(node);
+      }
+    }
+
+    const sortRec = (nodes: TopicNode[]) => {
+      nodes.sort((a, b) => a.topic.name.localeCompare(b.topic.name));
+      nodes.forEach(n => sortRec(n.children));
+    };
+    sortRec(roots);
+
+    return roots;
   }
 
   async onTextFileSelected(event: Event): Promise<void> {
