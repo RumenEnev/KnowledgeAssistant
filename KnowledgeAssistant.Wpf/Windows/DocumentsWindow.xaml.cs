@@ -266,7 +266,14 @@ namespace KnowledgeAssistant.Wpf.Windows
         {
             if (message is DocumentAddedEvent)
             {
-                System.Windows.Application.Current.Dispatcher.Invoke(ClearForm);
+                if (message is DocumentAddedEvent @event)
+                {
+                    System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        ClearForm();
+                        MessageBox.Show($"Document added successfully. Chunks count: {@event.ChunksCount}", "Add Document", MessageBoxButton.OK, MessageBoxImage.Information);
+                    });
+                }   
             }
         }
 

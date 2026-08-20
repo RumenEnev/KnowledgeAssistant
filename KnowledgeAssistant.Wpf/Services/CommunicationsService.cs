@@ -254,7 +254,7 @@ namespace KnowledgeAssistant.Wpf.Services
                     }
 
                     var result = await response.Content.ReadFromJsonAsync<AddDocumentResultDto>(_cancellationToken);
-                    _messageService.Publish(new DocumentAddedEvent(result?.DocumentId ?? 0));
+                    _messageService.Publish(new DocumentAddedEvent(result?.DocumentId ?? 0, result?.ChunksCount ?? 0));
                     await LoadDocumentsAsync();
                 }
                 catch (Exception ex)
