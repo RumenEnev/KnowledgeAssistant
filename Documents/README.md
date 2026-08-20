@@ -115,3 +115,9 @@ Starting in version 1.1, Knowledge Assistant supports **tools** that the AI assi
 ### What's New
 
 ** The topis are presenter as tree
+
+
+## Version 1.1.3.xxx
+
+** Count document chunks
+** Tool to extract tables from Web page

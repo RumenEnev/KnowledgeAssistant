@@ -3,8 +3,12 @@
     <Platform Name="Any CPU" />
     <Platform Name="x86" />
   </Configurations>
+  <Folder Name="/Shared/">
+    <Project Path="OllamaClient/OllamaClient.csproj" Id="49327a0f-3a32-41bb-a459-07a2a96b59b8" />
+  </Folder>
   <Folder Name="/Tools/">
     <Project Path="KnowledgeAssistant.Tools/DocumentCreator/DocumentCreator.csproj" />
+    <Project Path="KnowledgeAssistant.Tools/TablesExtractor/TablesExtractor/TablesExtractor.csproj" Id="c2ed7b3c-8db5-488b-8210-570f57e20596" />
   </Folder>
   <Project Path="KnowledgeAssistant.Api/KnowledgeAssistant.Api.csproj" />
   <Project Path="KnowledgeAssistant.Application/KnowledgeAssistant.Application.csproj" />

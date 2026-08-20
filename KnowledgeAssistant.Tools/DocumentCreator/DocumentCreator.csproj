@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\KnowledgeAssistant.Contracts\KnowledgeAssistant.Contracts.csproj" />
+    <ProjectReference Include="..\..\OllamaClient\OllamaClient.csproj" />
   </ItemGroup>
 
   <ItemGroup>

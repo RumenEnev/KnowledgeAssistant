@@ -1,4 +1,4 @@
-﻿namespace DocumentCreator.Models.Ollama;
+﻿namespace OllamaClients.Configuration;
 
 public sealed class OllamaCallException : Exception
 {

@@ -1,7 +1,7 @@
 ﻿using DocumentCreator.Configuration;
 using DocumentCreator.Models;
 using DocumentCreator.Models.Ollama;
-using DocumentCreator.Services;
+using OllamaClients;
 using DocumentCreator.Services.CSharp;
 using KnowledgeAssistant.Contracts.Dto;
 using Microsoft.Extensions.Configuration;

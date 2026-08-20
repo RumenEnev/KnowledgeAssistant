@@ -1,9 +1,8 @@
-﻿using DocumentCreator.Configuration;
-using DocumentCreator.Models.Ollama;
+﻿using OllamaClients.Configuration;
 using System.Text;
 using System.Text.Json;
 
-namespace DocumentCreator.Services;
+namespace OllamaClients;
 
 public sealed class OllamaClient
 {
