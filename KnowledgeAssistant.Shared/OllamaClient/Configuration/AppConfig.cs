@@ -1,6 +1,4 @@
-﻿using OllamaClients.Configuration;
-
-namespace DocumentCreator.Configuration;
+﻿namespace OllamaClients.Configuration;
 
 public sealed class AppConfig
 {

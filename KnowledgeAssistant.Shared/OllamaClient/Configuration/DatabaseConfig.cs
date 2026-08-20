@@ -1,4 +1,4 @@
-﻿namespace DocumentCreator.Configuration;
+﻿namespace OllamaClients.Configuration;
 
 public sealed class DatabaseConfig
 {

@@ -1,10 +1,10 @@
-﻿using DocumentCreator.Configuration;
-using DocumentCreator.Models;
+﻿using DocumentCreator.Models;
 using DocumentCreator.Models.Ollama;
-using OllamaClients;
 using DocumentCreator.Services.CSharp;
 using KnowledgeAssistant.Contracts.Dto;
 using Microsoft.Extensions.Configuration;
+using OllamaClients;
+using OllamaClients.Configuration;
 using System.Collections.Concurrent;
 using System.Text;
 using System.Text.Json;

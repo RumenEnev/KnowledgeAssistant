@@ -4,7 +4,7 @@
     <Platform Name="x86" />
   </Configurations>
   <Folder Name="/Shared/">
-    <Project Path="OllamaClient/OllamaClient.csproj" Id="49327a0f-3a32-41bb-a459-07a2a96b59b8" />
+    <Project Path="KnowledgeAssistant.Shared/OllamaClient/OllamaClient.csproj" Id="49327a0f-3a32-41bb-a459-07a2a96b59b8" />
   </Folder>
   <Folder Name="/Tools/">
     <Project Path="KnowledgeAssistant.Tools/DocumentCreator/DocumentCreator.csproj" />

@@ -36,8 +36,6 @@ public sealed class OllamaClient
 
         try
         {
-            File.WriteAllText(@"C:\My\DPF and AI\KnowledgeAssistant\src\KnowledgeAssistant\KnowledgeAssistant.Tools\DocumentCreator\bin\Debug\net10.0\Ollama request.txt",
-                JsonSerializer.Serialize(requestBody, JsonOptions));
             using var content = new StringContent(JsonSerializer.Serialize(requestBody, JsonOptions), Encoding.UTF8, "application/json");
             using var response = await _httpClient.PostAsync("/api/chat", content);
             if (!response.IsSuccessStatusCode)
@@ -49,8 +47,6 @@ public sealed class OllamaClient
             var responseBody = await response.Content.ReadAsStringAsync();
             using var doc = JsonDocument.Parse(responseBody);
             var text = doc.RootElement.GetProperty("message").GetProperty("content").GetString();
-
-            File.WriteAllText(@"C:\My\DPF and AI\KnowledgeAssistant\src\KnowledgeAssistant\KnowledgeAssistant.Tools\DocumentCreator\bin\Debug\net10.0\Ollama response.txt", text);
             if (text is null || string.IsNullOrWhiteSpace(text))
             {
                 throw new OllamaCallException("Ollama returned an empty response.");
