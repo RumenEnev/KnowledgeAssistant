@@ -37,10 +37,42 @@ namespace TableExtraction
         public async Task<List<string>> ExtractTablesAsync(string url)
         {
             if (string.IsNullOrWhiteSpace(url))
+            {
                 throw new ArgumentException("URL must not be null or empty.", nameof(url));
+            }
 
             string html = await DownloadHtmlAsync(url);
             return ExtractTablesFromHtml(html);
+        }
+
+        public async Task<string> TableHtmlToJsonAsync(OllamaClient ollamaClient, string tableHtml)
+        {
+            if (ollamaClient == null)
+            {
+                throw new ArgumentNullException(nameof(ollamaClient));
+            }
+
+            if (string.IsNullOrWhiteSpace(tableHtml))
+            {
+                throw new ArgumentException("Table HTML must not be null or empty.", nameof(tableHtml));
+            }
+
+            string cleanedHtml = CleanTableHtml(tableHtml);
+            string rawResponse = await ollamaClient.GenerateAsync(Instructions.TableToJsonInstruction(), cleanedHtml);
+            string json = ExtractJsonArray(rawResponse);
+            if (IsValidJsonArray(json))
+            {
+                return json;
+            }
+
+            // The model added commentary or produced malformed JSON — retry once with a stricter nudge.
+            string retryPrompt =
+                "Convert this table to a JSON array. Respond with ONLY the JSON array, " +
+                "starting with [ and ending with ], no words before or after:\n\n" + cleanedHtml;
+            string retryResponse = await ollamaClient.GenerateAsync(Instructions.TableToJsonInstruction(), retryPrompt);
+            string retryJson = ExtractJsonArray(retryResponse);
+
+            return IsValidJsonArray(retryJson) ? retryJson : "[]";
         }
 
         private async Task<string> DownloadHtmlAsync(string url)
@@ -85,32 +117,6 @@ namespace TableExtraction
             return tableNode.OuterHtml;
         }
 
-        public async Task<string> TableHtmlToJsonAsync(OllamaClient ollamaClient, string tableHtml)
-        {
-            if (ollamaClient == null)
-                throw new ArgumentNullException(nameof(ollamaClient));
-            if (string.IsNullOrWhiteSpace(tableHtml))
-                throw new ArgumentException("Table HTML must not be null or empty.", nameof(tableHtml));
-
-            string cleanedHtml = CleanTableHtml(tableHtml);
-            string rawResponse = await ollamaClient.GenerateAsync(Instructions.TableToJsonInstruction(), cleanedHtml);
-            string json = ExtractJsonArray(rawResponse);
-
-            if (IsValidJsonArray(json))
-            {
-                return json;
-            }
-
-            // The model added commentary or produced malformed JSON — retry once with a stricter nudge.
-            string retryPrompt =
-                "Convert this table to a JSON array. Respond with ONLY the JSON array, " +
-                "starting with [ and ending with ], no words before or after:\n\n" + cleanedHtml;
-            string retryResponse = await ollamaClient.GenerateAsync(Instructions.TableToJsonInstruction(), retryPrompt);
-            string retryJson = ExtractJsonArray(retryResponse);
-
-            return IsValidJsonArray(retryJson) ? retryJson : "[]";
-        }
-
         private static string ExtractJsonArray(string text)
         {
             if (string.IsNullOrWhiteSpace(text))
@@ -119,7 +125,6 @@ namespace TableExtraction
             }
 
             text = StripCodeFences(text);
-
             int start = text.IndexOf('[');
             if (start < 0)
             {
@@ -164,17 +169,24 @@ namespace TableExtraction
         private static string StripCodeFences(string text)
         {
             if (string.IsNullOrWhiteSpace(text))
+            {
                 return text;
+            }
 
             text = text.Trim();
             if (text.StartsWith("```"))
             {
                 int firstNewline = text.IndexOf('\n');
                 if (firstNewline >= 0)
+                {
                     text = text.Substring(firstNewline + 1);
+                }
+
                 int fenceEnd = text.LastIndexOf("```", StringComparison.Ordinal);
                 if (fenceEnd >= 0)
+                {
                     text = text.Substring(0, fenceEnd);
+                }
             }
 
             return text.Trim();
@@ -183,13 +195,13 @@ namespace TableExtraction
         private List<string> ExtractTablesFromHtml(string html)
         {
             var result = new List<string>();
-
             var doc = new HtmlDocument();
             doc.LoadHtml(html);
-
             var tableNodes = doc.DocumentNode.SelectNodes("//table");
             if (tableNodes == null)
+            {
                 return result; // no tables found
+            }
 
             foreach (var tableNode in tableNodes)
             {

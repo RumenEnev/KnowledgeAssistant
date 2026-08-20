@@ -4,7 +4,6 @@ using OllamaClients;
 using OllamaClients.Configuration;
 using System.Text.Json;
 using TableExtraction;
-using TablesExtractor.Models;
 
 internal class Program
 {
@@ -26,8 +25,8 @@ internal class Program
         for (int i = 0; i < tables.Count; i++)
         {
             Console.WriteLine($"--- Parsing table {i + 1} (length {tables[i].Length} chars) ---");
-            var result = await ollamaClient.GenerateAsync(Instructions.TableToJsonInstruction(), tables[i]);
-            Console.WriteLine(result);
+            var result = await extractor.TableHtmlToJsonAsync(ollamaClient, tables[i]);
+            File.WriteAllText($"{config.Output.Directory}\\{DateTime.Now:yyyyMMdd_HHmmss}_table_{i + 1}.json", result);
         }
     }
 
