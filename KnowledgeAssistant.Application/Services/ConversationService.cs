@@ -136,7 +136,6 @@ namespace KnowledgeAssistant.Application.Services
             }
 
             _logger.LogInformation("Generating assistant message for conversation {ConversationId} from {Source} client.", conversationId, source);
-
             var relevantContext = await _documentsHandlingService.GetRelevantContextAsync(model, conversation.Topic, message, cancellationToken);
             var userMessage = new ChatMessage
             {

@@ -1,4 +1,5 @@
 ﻿using KnowledgeAssistant.Contracts.Tools;
+using KnowledgeAssistant.Domain;
 using KnowledgeAssistant.Wpf.Messages.ToolsManagement;
 using MessageServices;
 using System.Collections.ObjectModel;
@@ -17,6 +18,8 @@ public partial class ToolsManagerWindow : Window, INotifyPropertyChanged, IMessa
     private string _description = string.Empty;
     private string _parametersJsonSchema = "{\n  \"type\": \"object\",\n  \"properties\": {}\n}";
     private bool _isEnabled = true;
+    private ToolScope _scope = ToolScope.Desktop;
+    private string? _path;
     private string? _endpointUrl;
     private string _httpMethod = "GET";
     private string? _authLoginUrl;
@@ -70,6 +73,20 @@ public partial class ToolsManagerWindow : Window, INotifyPropertyChanged, IMessa
     {
         get => _isEnabled;
         set => SetField(ref _isEnabled, value);
+    }
+
+    public ToolScope Scope
+    {
+        get => _scope;
+        set => SetField(ref _scope, value);
+    }
+
+    public IReadOnlyList<ToolScope> Scopes { get; } = Enum.GetValues<ToolScope>();
+
+    public string? Path
+    {
+        get => _path;
+        set => SetField(ref _path, value);
     }
 
     public string? EndpointUrl
@@ -180,11 +197,11 @@ public partial class ToolsManagerWindow : Window, INotifyPropertyChanged, IMessa
 
         if (SelectedTool == null)
         {
-            _messageService.Publish(new CreateToolRequest(name, description, schema, IsEnabled, endpointUrl, httpMethod, authLoginUrl, authUsername, authPassword));
+            _messageService.Publish(new CreateToolRequest(name, description, schema, IsEnabled, Scope, string.IsNullOrWhiteSpace(Path) ? null : Path.Trim(), endpointUrl, httpMethod, authLoginUrl, authUsername, authPassword));
         }
         else
         {
-            _messageService.Publish(new UpdateToolRequest(SelectedTool.Id, name, description, schema, IsEnabled, endpointUrl, httpMethod, authLoginUrl, authUsername, authPassword));
+            _messageService.Publish(new UpdateToolRequest(SelectedTool.Id, name, description, schema, IsEnabled, Scope, string.IsNullOrWhiteSpace(Path) ? null : Path.Trim(), endpointUrl, httpMethod, authLoginUrl, authUsername, authPassword));
         }
     }
 
@@ -206,6 +223,8 @@ public partial class ToolsManagerWindow : Window, INotifyPropertyChanged, IMessa
         Description = string.Empty;
         ParametersJsonSchema = "{\n  \"type\": \"object\",\n  \"properties\": {}\n}";
         IsEnabled = true;
+        Scope = ToolScope.Desktop;
+        Path = null;
         EndpointUrl = null;
         HttpMethod = "GET";
         AuthLoginUrl = null;
@@ -221,6 +240,8 @@ public partial class ToolsManagerWindow : Window, INotifyPropertyChanged, IMessa
         Description = tool?.Description ?? string.Empty;
         ParametersJsonSchema = tool?.ParametersJsonSchema ?? "{\n  \"type\": \"object\",\n  \"properties\": {}\n}";
         IsEnabled = tool?.IsEnabled ?? true;
+        Scope = tool?.Scope ?? ToolScope.Desktop;
+        Path = tool?.Path;
         FormHeaderText = tool == null ? "Add Tool" : "Edit Tool";
         ErrorMessage = null;
     }

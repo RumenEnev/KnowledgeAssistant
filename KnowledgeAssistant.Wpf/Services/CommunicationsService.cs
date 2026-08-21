@@ -23,11 +23,17 @@ using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace KnowledgeAssistant.Wpf.Services
 {
     public class CommunicationsService : IMessageServiceSubscriber
     {
+        private static readonly JsonSerializerOptions ToolsJsonOptions = new(JsonSerializerDefaults.Web)
+        {
+            Converters = { new JsonStringEnumConverter() }
+        };
+
         private readonly MessageService _messageService;
         private readonly CancellationToken _cancellationToken = new CancellationToken();
         private HttpClient _httpClient;
@@ -881,7 +887,7 @@ namespace KnowledgeAssistant.Wpf.Services
             {
                 try
                 {
-                    var tools = await _httpClient.GetFromJsonAsync<List<ToolDto>>($"api/tools?source={MessageSource.Desktop}", _cancellationToken);
+                    var tools = await _httpClient.GetFromJsonAsync<List<ToolDto>>($"api/tools?source={MessageSource.Desktop}", ToolsJsonOptions, _cancellationToken);
                     return new ToolsReceivedEvent(tools ?? Enumerable.Empty<ToolDto>());
                 }
                 catch (Exception ex)
@@ -899,8 +905,8 @@ namespace KnowledgeAssistant.Wpf.Services
             {
                 try
                 {
-                    var dto = new CreateToolDto(request.Name, request.Description, request.ParametersJsonSchema, request.IsEnabled);
-                    using var response = await _httpClient.PostAsJsonAsync("api/tools", dto, _cancellationToken);
+                    var dto = new CreateToolDto(request.Name, request.Description, request.ParametersJsonSchema, request.IsEnabled, request.Scope, request.Path);
+                    using var response = await _httpClient.PostAsJsonAsync("api/tools", dto, ToolsJsonOptions, _cancellationToken);
 
                     if (!response.IsSuccessStatusCode)
                     {
@@ -909,7 +915,7 @@ namespace KnowledgeAssistant.Wpf.Services
                         return;
                     }
 
-                    var created = await response.Content.ReadFromJsonAsync<ToolDto>(cancellationToken: _cancellationToken);
+                    var created = await response.Content.ReadFromJsonAsync<ToolDto>(ToolsJsonOptions, cancellationToken: _cancellationToken);
                     if (created != null)
                     {
                         _messageService.Publish(new ToolCreatedEvent(created));
@@ -928,9 +934,8 @@ namespace KnowledgeAssistant.Wpf.Services
             {
                 try
                 {
-                    var dto = new UpdateToolDto(request.Name, request.Description, request.ParametersJsonSchema, request.IsEnabled);
-                    using var response = await _httpClient.PutAsJsonAsync($"api/tools/{request.Id}", dto, _cancellationToken);
-
+                    var dto = new UpdateToolDto(request.Name, request.Description, request.ParametersJsonSchema, request.IsEnabled, request.Scope, request.Path);
+                    using var response = await _httpClient.PutAsJsonAsync($"api/tools/{request.Id}", dto, ToolsJsonOptions, _cancellationToken);
                     if (!response.IsSuccessStatusCode)
                     {
                         var error = await ReadErrorMessageAsync(response);

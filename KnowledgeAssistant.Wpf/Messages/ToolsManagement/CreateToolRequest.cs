@@ -1,15 +1,18 @@
-﻿using MessageServices;
+﻿using KnowledgeAssistant.Domain;
+using MessageServices;
 
 namespace KnowledgeAssistant.Wpf.Messages.ToolsManagement
 {
     public record CreateToolRequest : MessageBase
     {
-        public CreateToolRequest(string name, string description, string parametersJsonSchema, bool isEnabled, string? endpointUrl, string httpMethod, string? authLoginUrl, string? authUsername, string? authPassword)
+        public CreateToolRequest(string name, string description, string parametersJsonSchema, bool isEnabled, ToolScope scope, string? path, string? endpointUrl, string httpMethod, string? authLoginUrl, string? authUsername, string? authPassword)
         {
             Name = name;
             Description = description;
             ParametersJsonSchema = parametersJsonSchema;
             IsEnabled = isEnabled;
+            Scope = scope;
+            Path = path;
             EndpointUrl = endpointUrl;
             HttpMethod = httpMethod;
             AuthLoginUrl = authLoginUrl;
@@ -24,6 +27,10 @@ namespace KnowledgeAssistant.Wpf.Messages.ToolsManagement
         public string ParametersJsonSchema { get; }
 
         public bool IsEnabled { get; }
+
+        public ToolScope Scope { get; }
+
+        public string? Path { get; }
 
         public string? EndpointUrl { get; }
 

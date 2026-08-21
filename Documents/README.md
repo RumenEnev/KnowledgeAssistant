@@ -121,3 +121,4 @@ Starting in version 1.1, Knowledge Assistant supports **tools** that the AI assi
 
 ** Count document chunks
 ** Tool to extract tables from Web page
+** Tools management improvemets (UI)

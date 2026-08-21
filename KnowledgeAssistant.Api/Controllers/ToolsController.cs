@@ -35,7 +35,7 @@ public class ToolsController : ControllerBase
     {
         try
         {
-            var id = await _toolRepository.AddToolAsync(request.Name, request.Description, request.ParametersJsonSchema, request.IsEnabled, cancellationToken);
+            var id = await _toolRepository.AddToolAsync(request.Name, request.Description, request.ParametersJsonSchema, request.IsEnabled, request.Scope, request.Path, cancellationToken);
             var created = await _toolRepository.GetToolByIdAsync(id, cancellationToken);
             return CreatedAtAction(nameof(GetById), new { id }, ToDto(created!));
         }
@@ -54,7 +54,7 @@ public class ToolsController : ControllerBase
     public async Task<IActionResult> Update(Guid id, UpdateToolDto request, CancellationToken cancellationToken)
     {
         var updated = await _toolRepository.UpdateToolAsync(
-            id, request.Name, request.Description, request.ParametersJsonSchema, request.IsEnabled, cancellationToken);
+            id, request.Name, request.Description, request.ParametersJsonSchema, request.IsEnabled, request.Scope, request.Path, cancellationToken);
 
         return updated ? NoContent() : NotFound();
     }
@@ -67,5 +67,5 @@ public class ToolsController : ControllerBase
     }
 
     private ToolDto ToDto(Domain.ToolDefinitionEntity tool) =>
-        new(tool.Id, tool.Name, tool.Description, tool.ParametersJsonSchema, tool.IsEnabled, tool.CreatedAt, tool.UpdatedAt);
+        new(tool.Id, tool.Name, tool.Description, tool.ParametersJsonSchema, tool.IsEnabled, tool.CreatedAt, tool.UpdatedAt, tool.Scope, tool.Path);
 }

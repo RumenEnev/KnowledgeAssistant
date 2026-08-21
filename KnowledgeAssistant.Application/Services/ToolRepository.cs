@@ -17,7 +17,7 @@ public class ToolRepository : IToolRepository
             ?? throw new InvalidOperationException("Connection string is missing.");
     }
 
-    public async Task<Guid> AddToolAsync(string name, string description, string parametersJsonSchema, bool isEnabled, CancellationToken cancellationToken)
+    public async Task<Guid> AddToolAsync(string name, string description, string parametersJsonSchema, bool isEnabled, ToolScope scope, string? path, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -33,8 +33,8 @@ public class ToolRepository : IToolRepository
         var id = Guid.NewGuid();
         var now = DateTime.UtcNow;
         const string sql = """
-                            INSERT INTO ai_interactions.tools (id, name, description, parameters_json_schema, is_enabled, created_at, updated_at, scope)
-                            VALUES (@Id, @Name, @Description, @ParametersJsonSchema, @IsEnabled, @CreatedAt, @UpdatedAt, @Scope);
+                            INSERT INTO ai_interactions.tools (id, name, description, parameters_json_schema, is_enabled, created_at, updated_at, scope, path)
+                            VALUES (@Id, @Name, @Description, @ParametersJsonSchema, @IsEnabled, @CreatedAt, @UpdatedAt, @Scope, @Path);
                             """;
 
         await using var connection = new NpgsqlConnection(_connectionString);
@@ -48,7 +48,8 @@ public class ToolRepository : IToolRepository
             IsEnabled = isEnabled,
             CreatedAt = now,
             UpdatedAt = now,
-            Scope = ToolScope.Desktop.ToString()
+            Scope = scope.ToString(),
+            Path = path
         }, cancellationToken: cancellationToken);
 
         await connection.ExecuteAsync(command);
@@ -150,7 +151,7 @@ public class ToolRepository : IToolRepository
         }).ToList();
     }
 
-    public async Task<bool> UpdateToolAsync(Guid id, string? name, string? description, string? parametersJsonSchema, bool? isEnabled, CancellationToken cancellationToken)
+    public async Task<bool> UpdateToolAsync(Guid id, string? name, string? description, string? parametersJsonSchema, bool? isEnabled, ToolScope? scope, string? path, CancellationToken cancellationToken)
     {
         var existing = await GetToolByIdAsync(id, cancellationToken);
         if (existing == null) return false;
@@ -158,7 +159,7 @@ public class ToolRepository : IToolRepository
         const string sql = """
                             UPDATE ai_interactions.tools
                             SET name = @NewName, description = @NewDescription, parameters_json_schema = @NewParametersJsonSchema,
-                                is_enabled = @NewIsEnabled, updated_at = @UpdatedAt
+                                is_enabled = @NewIsEnabled, scope = @NewScope, path = @NewPath, updated_at = @UpdatedAt
                             WHERE id = @Id;
                             """;
 
@@ -170,6 +171,8 @@ public class ToolRepository : IToolRepository
             NewDescription = description ?? existing.Description,
             NewParametersJsonSchema = parametersJsonSchema ?? existing.ParametersJsonSchema,
             NewIsEnabled = isEnabled ?? existing.IsEnabled,
+            NewScope = (scope ?? existing.Scope).ToString(),
+            NewPath = path ?? existing.Path,
             UpdatedAt = DateTime.UtcNow,
             Id = id
         }, cancellationToken: cancellationToken);
