@@ -1,10 +1,11 @@
 ﻿using KnowledgeAssistant.Contracts.Dto;
 using KnowledgeAssistant.Wpf.Messages.Documentation;
+using KnowledgeAssistant.Wpf.Messages.ToolsExecution;
 using KnowledgeAssistant.Wpf.Messages.ToolsManagement;
-using KnowledgeAssistant.Wpf.Models;
 using MessageServices;
 using System.Diagnostics;
 using System.IO;
+using System.Text;
 using System.Text.Json;
 
 namespace KnowledgeAssistant.Wpf.Services;
@@ -34,22 +35,44 @@ public class ToolsExecutionService : IMessageServiceSubscriber
             };
 
             startInfo.ArgumentList.Add(request.ArgumentsJson);
-            using var process = new Process { StartInfo = startInfo };
+            using var process = new Process { StartInfo = startInfo, EnableRaisingEvents = true };
+            string lastLine = string.Empty;
+            process.OutputDataReceived += (_, e) =>
+            {
+                if (e.Data is null) return;
+                lastLine = e.Data.ToString();
+                _messageService.Publish(new ToolExecutionOutputIntermediateEvent(request.ToolId));
+            };
+
+            process.ErrorDataReceived += (_, e) =>
+            {
+                if (e.Data is null) return;
+                lastLine = e.Data.ToString();
+                _messageService.Publish(new ToolExecutionOutputIntermediateEvent(request.ToolId));
+            };
+
             try
             {
                 process.Start();
-                var stdOutTask = process.StandardOutput.ReadToEndAsync();
-                var stdErrTask = process.StandardError.ReadToEndAsync();
+                process.BeginOutputReadLine(); 
+                process.BeginErrorReadLine();
                 await process.WaitForExitAsync();
 
-                var toolResult = JsonSerializer.Deserialize<ToolResult>(await stdOutTask);
+                var toolResult = JsonSerializer.Deserialize<ToolResult>(lastLine);
                 _messageService.Publish(new ToolExecutionCompletedRequest(request.ToolId, toolResult));
-                _messageService.Publish(new DocumentationReadyEvent(toolResult.OutputPath, Path.GetFileName(request.Path)));
+                _messageService.Publish(new DocumentationReadyEvent(request.Path, Path.GetFileName(request.Path)));
             }
             catch (Exception ex)
             {
                 TryKill(process);
-                _messageService.Publish(new ToolExecutionCompletedRequest(request.ToolId, new ToolResult { Reason = "Operation failed", Message = ex.Message }));
+                var errorResult = new ToolResult
+                {
+                    Status = "error",
+                    Reason = "Execution failed",
+                    Message = ex.Message
+                };
+
+                _messageService.Publish(new ToolExecutionCompletedRequest(request.ToolId, errorResult));
             }
         }
     }

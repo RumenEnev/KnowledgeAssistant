@@ -113,4 +113,15 @@ public class ChatController : Controller
 
         return Accepted();
     }
+
+    [HttpPost("tool-calls/{toolCallId}/intermediate")]
+    public IActionResult SubmitToolCallIntermediate(string toolCallId, [FromServices] IPendingToolCallRegistry registry)
+    {
+        if (!registry.ResetTimer(toolCallId))
+        {
+            return NotFound($"No pending tool call found for '{toolCallId}' (already completed, timed out, or never issued).");
+        }
+
+        return Accepted();
+    }
 }

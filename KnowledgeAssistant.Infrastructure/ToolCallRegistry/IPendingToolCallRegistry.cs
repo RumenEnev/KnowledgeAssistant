@@ -7,4 +7,6 @@ public interface IPendingToolCallRegistry
     bool TryComplete(string toolCallId, string resultJson);
 
     bool TryFail(string toolCallId, string errorMessage);
+
+    bool ResetTimer(string toolCallId);
 }

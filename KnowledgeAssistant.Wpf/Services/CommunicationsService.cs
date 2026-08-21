@@ -2,6 +2,7 @@
 using KnowledgeAssistant.Contracts.Dto;
 using KnowledgeAssistant.Contracts.Enums;
 using KnowledgeAssistant.Contracts.Repositories;
+using KnowledgeAssistant.Contracts.Tools;
 using KnowledgeAssistant.Domain.Conversation;
 using KnowledgeAssistant.Domain.Documents;
 using KnowledgeAssistant.Wpf.Messages;
@@ -10,9 +11,9 @@ using KnowledgeAssistant.Wpf.Messages.Documentation;
 using KnowledgeAssistant.Wpf.Messages.Documents;
 using KnowledgeAssistant.Wpf.Messages.ModelContextWindows;
 using KnowledgeAssistant.Wpf.Messages.RepositoriesManagement;
+using KnowledgeAssistant.Wpf.Messages.ToolsExecution;
 using KnowledgeAssistant.Wpf.Messages.ToolsManagement;
 using KnowledgeAssistant.Wpf.Models;
-using KnowledgeAssistant.Contracts.Tools;
 using MessageServices;
 using MessageServices.Enums;
 using MessageServices.Messages;
@@ -84,8 +85,21 @@ namespace KnowledgeAssistant.Wpf.Services
             _messageService.Subscribe<SaveDocumentationRequest>(this, SaveDocumentationReceived);
             _messageService.Subscribe<SendPromptRequest>(this, SendPromptReceived);
             _messageService.Subscribe<ToolExecutionCompletedRequest>(this, ToolExecutionCompletedReceived);
+            _messageService.Subscribe<ToolExecutionOutputIntermediateEvent>(this, ToolExecutionOutputIntermediateEventReceived);
 
             _messageService.SubscribeAsync<GetRepositoriesRequest>(this, GetRepositoriesReceived);
+        }
+
+        private async void ToolExecutionOutputIntermediateEventReceived(MessageBase message)
+        {
+            if (message is ToolExecutionOutputIntermediateEvent request)
+            {
+                var response = await _httpClient.PostAsJsonAsync($"api/chat/tool-calls/{request.ToolId}/intermediate", new { });
+                if (!response.IsSuccessStatusCode)
+                {
+                    var body = await response.Content.ReadAsStringAsync();
+                }
+            }
         }
 
         private async void ToolExecutionCompletedReceived(MessageBase message)
@@ -127,8 +141,8 @@ namespace KnowledgeAssistant.Wpf.Services
         {
             try
             {
-                var documents = await _httpClient.GetFromJsonAsync<List<Document>>("api/documents", _cancellationToken);
-                _messageService.Publish(new DocumentsUpdatedEvent(documents ?? Enumerable.Empty<Document>()));
+                var documents = await _httpClient.GetFromJsonAsync<List<Domain.Documents.Document>>("api/documents", _cancellationToken);
+                _messageService.Publish(new DocumentsUpdatedEvent(documents ?? Enumerable.Empty<Domain.Documents.Document>()));
             }
             catch (Exception ex)
             {
@@ -717,16 +731,13 @@ namespace KnowledgeAssistant.Wpf.Services
                                     break;
                                 case SseEvents.ToolCall:
                                     var toolCallDto = JsonSerializer.Deserialize<ToolCallDto>(data, jsonOptions);
-                                    var repositories = await _httpClient.GetFromJsonAsync<List<RepositoryDto>>("api/repositories", _cancellationToken);
-                                    string? fileName = toolCallDto?.Arguments.TryGetProperty("fileName", out var fileNameProp) == true
-                                        ? fileNameProp.GetString()
-                                        : null;
+                                    switch (toolCallDto?.ToolName)
+                                    {
+                                        case "extract_tables_from_url": ExtractTablesFromUrl(toolCallDto); break;
+                                        case "document_source_file": await DocumentSourceFile(toolCallDto); break; 
+                                    }
 
-                                    var folders = repositories?.Select(repo => repo.RootPath);
-                                    var arguments = new List<string>() { fileName ?? string.Empty };
-                                    arguments.AddRange(folders ?? Enumerable.Empty<string>());
-
-                                    _messageService.Publish(new ExecuteToolRequest(toolCallDto.ToolCallId, toolCallDto.ToolPath, JsonSerializer.Serialize(arguments)));
+                                   
                                     break;
                                 case SseEvents.Progress:
                                     var progress = JsonSerializer.Deserialize<ProgressEventDto>(data, jsonOptions);
@@ -746,6 +757,26 @@ namespace KnowledgeAssistant.Wpf.Services
                     _messageService.Publish(new ChatCompletedEvent(0, 0));
                 }
             }
+        }
+
+        private void ExtractTablesFromUrl(ToolCallDto dto)
+        {
+            var arguments = new List<string>() { dto.Arguments.GetProperty("url").GetString() ?? string.Empty };
+            _messageService.Publish(new ExecuteToolRequest(dto.ToolCallId, dto.ToolPath, JsonSerializer.Serialize(arguments)));
+        }
+
+        private async Task DocumentSourceFile(ToolCallDto dto)
+        {
+            var repositories = await _httpClient.GetFromJsonAsync<List<RepositoryDto>>("api/repositories", _cancellationToken);
+            string? fileName = dto.Arguments.TryGetProperty("fileName", out var fileNameProp) == true
+                ? fileNameProp.GetString()
+                : null;
+
+            var folders = repositories?.Select(repo => repo.RootPath);
+            var arguments = new List<string>() { fileName ?? string.Empty };
+            arguments.AddRange(folders ?? Enumerable.Empty<string>());
+
+            _messageService.Publish(new ExecuteToolRequest(dto.ToolCallId, dto.ToolPath, JsonSerializer.Serialize(arguments)));
         }
 
         private async Task<MessageBase> GetRepositoriesReceived(MessageBase message)

@@ -18,16 +18,34 @@ internal class Program
         }
 
         LoadConfiguration();
-        string url = args[0];
+        string url = JsonSerializer.Deserialize<string[]>(args[0]).First();
         var ollamaClient = new OllamaClient(config.Ollama);
         var extractor = new TableExtractor();
         List<string> tables = await extractor.ExtractTablesAsync(url);
+
         for (int i = 0; i < tables.Count; i++)
         {
-            Console.WriteLine($"--- Parsing table {i + 1} (length {tables[i].Length} chars) ---");
             var result = await extractor.TableHtmlToJsonAsync(ollamaClient, tables[i]);
+            Console.WriteLine(JsonSerializer.Serialize(new ToolResult()
+            {
+                Status = "intermediate",
+                OutputPath = $"{config.Output.Directory}\\{DateTime.Now:yyyyMMdd_HHmmss}_table_{i + 1}.json",
+                Message = $"Table {i + 1} extracted successfully.",
+                Reason = null
+            }));
+
             File.WriteAllText($"{config.Output.Directory}\\{DateTime.Now:yyyyMMdd_HHmmss}_table_{i + 1}.json", result);
         }
+
+        var output = JsonSerializer.Serialize(new ToolResult()
+        {
+            Status = "success",
+            OutputPath = $"{config.Output.Directory}",
+            Message = $"Staring generation. {tables.Count} documents will be created in {config.Output.Directory} folder",
+            Reason = null
+        });
+
+        Console.WriteLine(output);
     }
 
     private static void LoadConfiguration()
