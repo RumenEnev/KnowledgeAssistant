@@ -731,13 +731,14 @@ namespace KnowledgeAssistant.Wpf.Services
                                     break;
                                 case SseEvents.ToolCall:
                                     var toolCallDto = JsonSerializer.Deserialize<ToolCallDto>(data, jsonOptions);
+                                    _messageService.Publish(new UserMessage("Info", $"Executing tool {toolCallDto?.ToolName}", MessageType.ShortInfo));
                                     switch (toolCallDto?.ToolName)
                                     {
                                         case "extract_tables_from_url": ExtractTablesFromUrl(toolCallDto); break;
-                                        case "document_source_file": await DocumentSourceFile(toolCallDto); break; 
+                                        case "document_source_file": await DocumentSourceFile(toolCallDto); break;
                                     }
 
-                                   
+
                                     break;
                                 case SseEvents.Progress:
                                     var progress = JsonSerializer.Deserialize<ProgressEventDto>(data, jsonOptions);
@@ -762,7 +763,7 @@ namespace KnowledgeAssistant.Wpf.Services
         private void ExtractTablesFromUrl(ToolCallDto dto)
         {
             var arguments = new List<string>() { dto.Arguments.GetProperty("url").GetString() ?? string.Empty };
-            _messageService.Publish(new ExecuteToolRequest(dto.ToolCallId, dto.ToolPath, JsonSerializer.Serialize(arguments)));
+            _messageService.Publish(new ExecuteToolRequest(dto.ToolCallId, dto.ToolName, dto.ToolPath, JsonSerializer.Serialize(arguments)));
         }
 
         private async Task DocumentSourceFile(ToolCallDto dto)
@@ -776,7 +777,7 @@ namespace KnowledgeAssistant.Wpf.Services
             var arguments = new List<string>() { fileName ?? string.Empty };
             arguments.AddRange(folders ?? Enumerable.Empty<string>());
 
-            _messageService.Publish(new ExecuteToolRequest(dto.ToolCallId, dto.ToolPath, JsonSerializer.Serialize(arguments)));
+            _messageService.Publish(new ExecuteToolRequest(dto.ToolCallId, dto.ToolName, dto.ToolPath, JsonSerializer.Serialize(arguments)));
         }
 
         private async Task<MessageBase> GetRepositoriesReceived(MessageBase message)

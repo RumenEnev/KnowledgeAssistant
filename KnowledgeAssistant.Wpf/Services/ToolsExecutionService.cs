@@ -54,13 +54,16 @@ public class ToolsExecutionService : IMessageServiceSubscriber
             try
             {
                 process.Start();
-                process.BeginOutputReadLine(); 
+                process.BeginOutputReadLine();
                 process.BeginErrorReadLine();
                 await process.WaitForExitAsync();
 
                 var toolResult = JsonSerializer.Deserialize<ToolResult>(lastLine);
                 _messageService.Publish(new ToolExecutionCompletedRequest(request.ToolId, toolResult));
-                _messageService.Publish(new DocumentationReadyEvent(request.Path, Path.GetFileName(request.Path)));
+                if (request.ToolName == "document_source_file")
+                {
+                    _messageService.Publish(new DocumentationReadyEvent(toolResult.OutputPath, Path.GetFileName(request.Path)));
+                }
             }
             catch (Exception ex)
             {
