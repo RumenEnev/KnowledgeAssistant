@@ -4,4 +4,5 @@ export interface ToolModel {
   description: string;
   parametersJsonSchema: string;
   isEnabled: boolean;
+  path?: string | null;
 }

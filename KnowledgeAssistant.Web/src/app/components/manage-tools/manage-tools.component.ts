@@ -24,6 +24,7 @@ export class ManageToolsComponent implements OnInit {
   description = signal('');
   parametersJsonSchema = signal('');
   isEnabled = signal(true);
+  path = signal('');
 
   errorMessage = signal('');
 
@@ -62,6 +63,7 @@ export class ManageToolsComponent implements OnInit {
     this.description.set(tool.description);
     this.parametersJsonSchema.set(tool.parametersJsonSchema);
     this.isEnabled.set(tool.isEnabled);
+    this.path.set(tool.path ?? '');
     this.errorMessage.set('');
   }
 
@@ -71,6 +73,7 @@ export class ManageToolsComponent implements OnInit {
     this.description.set('');
     this.parametersJsonSchema.set('');
     this.isEnabled.set(true);
+    this.path.set('');
     this.errorMessage.set('');
   }
 
@@ -96,7 +99,8 @@ export class ManageToolsComponent implements OnInit {
       name: this.toolName(),
       description: this.description(),
       parametersJsonSchema: this.parametersJsonSchema(),
-      isEnabled: this.isEnabled()
+      isEnabled: this.isEnabled(),
+      path: this.path().trim() ? this.path().trim() : null
     };
 
     try {

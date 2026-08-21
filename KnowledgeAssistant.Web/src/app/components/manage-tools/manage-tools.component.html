@@ -14,6 +14,7 @@
             <span class="col-name">Name</span>
             <span class="col-desc">Description</span>
             <span class="col-enabled">Enabled</span>
+            <span class="col-path">Path</span>
           </div>
           <div class="grid-body">
             @for (tool of tools(); track tool.id) {
@@ -26,6 +27,7 @@
                 <span class="col-enabled">
                   <input type="checkbox" [checked]="tool.isEnabled" disabled />
                 </span>
+                <span class="col-path">{{ tool.path }}</span>
               </div>
             }
             @if (tools().length === 0) {
@@ -64,6 +66,9 @@
             (ngModelChange)="isEnabled.set($event)" />
           Enabled
         </label>
+
+        <label>Path</label>
+        <input type="text" [ngModel]="path()" (ngModelChange)="path.set($event)" />
 
         @if (hasError) {
           <div class="error-message">{{ errorMessage() }}</div>

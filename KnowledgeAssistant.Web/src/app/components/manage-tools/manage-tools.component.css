@@ -75,7 +75,7 @@
 .grid-header,
 .grid-row {
   display: grid;
-  grid-template-columns: 150px 1fr 70px;
+  grid-template-columns: 130px 1fr 70px 120px;
   align-items: center;
   gap: 8px;
   padding: 6px 8px;
@@ -117,6 +117,13 @@
 
 .col-enabled {
   text-align: center;
+}
+
+.col-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 .empty-row {
