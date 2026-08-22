@@ -202,6 +202,27 @@
 			<Component Id="KnowledgeAssistant.deps.json" Guid="6B60F6AA-B80F-4396-8886-147DB3475839">
 				<File Id="KnowledgeAssistant.deps.json" Name="KnowledgeAssistant.deps.json" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)KnowledgeAssistant.Wpf.deps.json" />
 			</Component>
+			<Component Id="Pgvector.dll" Guid="96b4f2da-6672-4262-a504-64654904b3f0">
+			  <File Id="Pgvector.dll" Name="Pgvector.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Pgvector.dll" />
+			</Component>
+			<Component Id="HtmlAgilityPack.dll" Guid="dbd7a709-aedc-4d5c-8e35-044e6daa9f33">
+			  <File Id="HtmlAgilityPack.dll" Name="HtmlAgilityPack.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)HtmlAgilityPack.dll" />
+			</Component>
+			<Component Id="XamlMath.Shared.dll" Guid="a752187b-1a16-4e55-9aaa-2559ef9763d9">
+			  <File Id="XamlMath.Shared.dll" Name="XamlMath.Shared.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)XamlMath.Shared.dll" />
+			</Component>
+			<Component Id="WpfMath.dll" Guid="a4de3460-2710-42eb-814d-17ff8b2f5360">
+			  <File Id="WpfMath.dll" Name="WpfMath.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)WpfMath.dll" />
+			</Component>
+			<Component Id="Dapper.dll" Guid="50582a20-fff5-46b5-a9d6-01c41b3a0f02">
+			  <File Id="Dapper.dll" Name="Dapper.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Dapper.dll" />
+			</Component>
+			<Component Id="Npgsql.dll" Guid="fbf57e92-6d70-4a27-b54a-3b58a4aa19f3">
+			  <File Id="Npgsql.dll" Name="Npgsql.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)Npgsql.dll" />
+			</Component>
+			<Component Id="KnowledgeAssistant.Application.dll" Guid="7000db64-cb95-4c8d-8366-864acf69b9e6">
+			  <File Id="KnowledgeAssistant.Application.dll" Name="KnowledgeAssistant.Application.dll" Source="$(var.KnowledgeAssistant.Wpf_TargetDir)KnowledgeAssistant.Application.dll" />
+			</Component>
 		</ComponentGroup>
 	</Fragment>
 </Wix>
