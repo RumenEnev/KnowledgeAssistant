@@ -1,6 +1,7 @@
 ﻿using KnowledgeAssistant.Application.Abstraction;
 using KnowledgeAssistant.Contracts.Dto;
 using KnowledgeAssistant.Contracts.Enums;
+using KnowledgeAssistant.Domain;
 using KnowledgeAssistant.Domain.Conversation;
 using Microsoft.Extensions.Logging;
 using System.Runtime.CompilerServices;
@@ -19,6 +20,7 @@ namespace KnowledgeAssistant.Application.Services
         private readonly DocumentsHandlingService _documentsHandlingService;
         private readonly IToolRepository _toolRepository;
         private readonly IToolExecutor _toolExecutor;
+        private readonly IToolExecutionService _toolExecutionService;
         private readonly ILogger<ConversationService> _logger;
         private int _promptTokensCount;
         private int _responseTokensCount;
@@ -30,6 +32,7 @@ namespace KnowledgeAssistant.Application.Services
                                     DocumentsHandlingService documentsHandlingService,
                                     IToolRepository toolRepository,
                                     IToolExecutor toolExecutor,
+                                    IToolExecutionService toolExecutionService,
                                     ILogger<ConversationService> logger)
         {
             _modelGateway = modelGateway;
@@ -39,6 +42,7 @@ namespace KnowledgeAssistant.Application.Services
             _documentsHandlingService = documentsHandlingService;
             _toolRepository = toolRepository;
             _toolExecutor = toolExecutor;
+            _toolExecutionService = toolExecutionService;
             _logger = logger;
         }
 
@@ -264,7 +268,9 @@ namespace KnowledgeAssistant.Application.Services
 
                 try
                 {
-                    var toolResult = await _toolExecutor.ExecuteAsync(tool, call.ArgumentsJson, cancellationToken);
+                    var toolResult = tool.Scope == ToolScope.All
+                        ? await _toolExecutionService.ExecuteAsync(tool, call.ArgumentsJson, cancellationToken)
+                        : await _toolExecutor.ExecuteAsync(tool, call.ArgumentsJson, cancellationToken);
                     resultSections.Add($"Tool `{tool.Name}` returned:\n{toolResult}");
                 }
                 catch (OperationCanceledException)

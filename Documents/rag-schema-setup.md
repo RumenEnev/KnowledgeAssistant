@@ -185,33 +185,47 @@ CREATE TABLE IF NOT EXISTS ai_interactions.tools (
     description text NOT NULL,
     parameters_json_schema text NOT NULL,
     is_enabled boolean NOT NULL DEFAULT true,
-    endpoint_url text,
-    http_method character varying(10) NOT NULL DEFAULT 'GET',
-    auth_login_url text,
-    auth_username text,
-    auth_password text,
     created_at timestamp NOT NULL DEFAULT now(),
     updated_at timestamp NOT NULL DEFAULT now()
 );
 ```
 
-`name` must be unique since it's what the model uses to reference the tool in a tool call. `parameters_json_schema` holds the raw JSON Schema text describing the tool's parameters object. `is_enabled` lets a tool be disabled without deleting its row. `endpoint_url` / `http_method` tell the app how to actually execute the tool when the model calls it: the app makes an HTTP request to `endpoint_url` using `http_method` and feeds the response back to the model as context.
+### Built-in server-side tools (`generate_uuid`, `search_web`)
 
-`auth_login_url` / `auth_username` / `auth_password` are optional: when `auth_login_url` is set, the app first `POST`s `{"email": auth_username, "password": auth_password}` to it, reads the `token` field from the JSON response, and sends it as `Authorization: Bearer {token}` on the call to `endpoint_url`. A fresh login is performed on every tool call (no token caching yet). **Note:** `auth_password` is currently stored as plain text in the database, matching this app's existing practice of keeping credentials in plain configuration (e.g. the Postgres connection string in `appsettings.json`) rather than a secrets manager — restrict access to this table/database accordingly.
+Some tools don't need a client hand-off or an external HTTP endpoint of their own — they're executed directly on
+the server by `KnowledgeAssistant.Application.Services.ToolExecutionService` (see `IToolExecutionService`).
+`ConversationService.TryExecuteToolsAsync` checks `IToolExecutionService.CanExecute(tool.Name)` first and only
+falls back to the client hand-off (`IToolExecutor`/`LocalToolExecutor`) for tools it doesn't recognize.
 
-### Seeding the `get_tasks` tool
-
-Example row that lets the assistant answer prompts like "show me my tasks" by calling a task-list API:
+Seed rows (current schema, using the `scope`/`path` columns from `ToolRepository`):
 
 ```sql
-INSERT INTO ai_interactions.tools (id, name, description, parameters_json_schema, is_enabled, endpoint_url, http_method)
+-- Generates a random UUID (v4). No configuration/path needed.
+INSERT INTO ai_interactions.tools (id, name, description, parameters_json_schema, is_enabled, created_at, updated_at, scope, path)
 VALUES (
     gen_random_uuid(),
-    'get_tasks',
-    'Gets the current list of the user''s tasks/todos. Use this whenever the user asks to see, show, or list their tasks.',
+    'generate_uuid',
+    'Generates a new random UUID. Use this whenever the user asks for a new/random UUID or GUID.',
     '{"type":"object","properties":{}}',
     true,
-    'http://192.168.0.200:4401/tasks',
-    'GET'
+    now(),
+    now(),
+    'All',
+    NULL
+);
+
+-- Queries a local SearxNG search engine instance. 'path' holds the base search URI
+-- (e.g. http://192.168.2.200:4199/search); the app appends '?q=<query>&format=json'.
+INSERT INTO ai_interactions.tools (id, name, description, parameters_json_schema, is_enabled, created_at, updated_at, scope, path)
+VALUES (
+    gen_random_uuid(),
+    'search_web',
+    'Searches the web via a local SearxNG search engine. Use this when the user asks to search/look up something online.',
+    '{"type":"object","properties":{"query":{"type":"string","description":"The search text."}},"required":["query"]}',
+    true,
+    now(),
+    now(),
+    'All',
+    'http://192.168.2.200:4199/search'
 );
 ```

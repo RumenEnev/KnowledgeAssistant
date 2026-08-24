@@ -104,21 +104,20 @@ Starting in version 1.1, Knowledge Assistant supports **tools** that the AI assi
 
 ## Version 1.1.1.674
 
-### What's New
-
 - **Tool Management** — Added a new window for creating, updating, and deleting tools, available in both the Angular frontend and the WPF desktop client.
 - **Customer-created tools** — Users can now define and register their own custom tools, in addition to built-in ones.
 - **Documentation Creator tool** — Added as the first built-in tool, generating documentation content from within the assistant.
 
 ## Version 1.1.2.680
 
-### What's New
-
 ** The topis are presenter as tree
 
 
-## Version 1.1.3.xxx
+## Version 1.1.3.924
 
 ** Count document chunks
 ** Tool to extract tables from Web page
+** Tool to analyze projects files
 ** Tools management improvemets (UI)
+
+## Version 1.1.4.xxx

@@ -50,6 +50,7 @@ builder.Services.AddHttpClient<IModelCatalogGateway, OllamaModelCatalogGateway>(
 builder.Services.AddSingleton<IPendingToolCallRegistry, PendingToolCallRegistry>();  // must outlive any single request
 builder.Services.AddScoped<SseWriterAccessor>();                                     // one per request
 builder.Services.AddScoped<IToolExecutor, LocalToolExecutor>();                      // was: HttpToolExecutor
+builder.Services.AddHttpClient<IToolExecutionService, ToolExecutionService>();       // built-in server-side tools (uuid, web search, ...)
 
 var dataSourceBuilder = new NpgsqlDataSourceBuilder(builder.Configuration.GetConnectionString("KnowledgeAssistant"));
 dataSourceBuilder.UseVector();
