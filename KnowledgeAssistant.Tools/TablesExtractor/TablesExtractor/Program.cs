@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Configuration;
 using OllamaClients;
 using OllamaClients.Configuration;
+using System.Net.Http.Headers;
 using System.Text.Json;
 using TableExtraction;
 
@@ -11,6 +12,7 @@ internal class Program
 
     private async static Task Main(string[] args)
     {
+        args = new string[] { JsonSerializer.Serialize(new string[] { "https://en.wikipedia.org/wiki/Norway" }) };
         if (args.Length == 0)
         {
             Console.WriteLine("At least one argument is required: the URL to extract tables from.");
@@ -25,7 +27,7 @@ internal class Program
 
         for (int i = 0; i < tables.Count; i++)
         {
-            var result = await extractor.TableHtmlToJsonAsync(ollamaClient, tables[i]);
+            var result = await extractor.TableHtmlToJsonAsync(tables[i]);
             Console.WriteLine(JsonSerializer.Serialize(new ToolResult()
             {
                 Status = "intermediate",
