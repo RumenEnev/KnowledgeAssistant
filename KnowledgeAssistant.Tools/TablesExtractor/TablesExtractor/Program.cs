@@ -12,7 +12,6 @@ internal class Program
 
     private async static Task Main(string[] args)
     {
-        args = new string[] { JsonSerializer.Serialize(new string[] { "https://en.wikipedia.org/wiki/Norway" }) };
         if (args.Length == 0)
         {
             Console.WriteLine("At least one argument is required: the URL to extract tables from.");
