@@ -9,8 +9,18 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Dapper" Version="2.1.79" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.11" />
+    <PackageReference Include="Npgsql" Version="10.0.3" />
+    <PackageReference Include="Pgvector" Version="0.3.2" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\KnowledgeAssistant.Application\KnowledgeAssistant.Application.csproj" />
     <ProjectReference Include="..\..\KnowledgeAssistant.Domain\KnowledgeAssistant.Domain.csproj" />
+    <ProjectReference Include="..\..\KnowledgeAssistant.Infrastructure\KnowledgeAssistant.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
