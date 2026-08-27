@@ -1,5 +1,6 @@
 ﻿using KnowledgeAssistant.Application.Abstraction;
 using KnowledgeAssistant.Contracts.Enums;
+using KnowledgeAssistant.Domain.Documents;
 using System.Collections.Concurrent;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -22,9 +23,9 @@ public class DocumentsHandlingService
     private const double MaxInjectionFraction = 0.50;
     private const int CharsPerTokenApprox = 4;
 
-    public DocumentsHandlingService(IModelGateway modelGateway, 
+    public DocumentsHandlingService(IModelGateway modelGateway,
         IDocumentRepository documentRepository,
-        IModelRepository modelRepository, 
+        IModelRepository modelRepository,
         IConfigurationRepository configurationRepository,
         ModelCatalogService modelCatalogService)
     {
@@ -306,6 +307,24 @@ public class DocumentsHandlingService
 
     public async Task<string?> GetRelevantContextAsync(string model, string? classifiedTopic, string userMessage, CancellationToken cancellationToken)
     {
+        var selection = await SelectRelevantChunksAsync(model, classifiedTopic, userMessage, cancellationToken);
+        if (selection is null)
+        {
+            return null;
+        }
+
+        var includedTexts = selection.Chunks
+            .Where(c => c.IncludedInBudget)
+            .Select(c => c.ChunkText)
+            .ToList();
+
+        return includedTexts.Count > 0
+            ? string.Join("\n\n---\n\n", includedTexts)
+            : null;
+    }
+
+    public async Task<SelectedContextChunks?> SelectRelevantChunksAsync(string model, string? classifiedTopic, string userMessage, CancellationToken cancellationToken)
+    {
         if (string.IsNullOrWhiteSpace(classifiedTopic))
         {
             return null;
@@ -334,27 +353,45 @@ public class DocumentsHandlingService
         int contextWindowTokens = await GetContextWindowTokensAsync(model, cancellationToken);
         int targetTokenBudget = (int)(contextWindowTokens * TargetInjectionFraction);
         int maxTokenBudget = (int)(contextWindowTokens * MaxInjectionFraction);
-        var selectedChunks = new List<string>();
+
+        var selectedChunks = new List<SelectedChunk>();
         int runningTokens = 0;
+        bool budgetExhausted = false;
+        int rank = 1;
+
         foreach (var chunk in candidateList)
         {
             int chunkTokens = Math.Max(1, chunk.ChunkText.Length / CharsPerTokenApprox);
-            if (runningTokens + chunkTokens > maxTokenBudget)
+            bool included = false;
+
+            if (!budgetExhausted)
             {
-                break;
+                if (runningTokens + chunkTokens > maxTokenBudget)
+                {
+                    budgetExhausted = true;
+                }
+                else
+                {
+                    included = true;
+                    runningTokens += chunkTokens;
+                    if (runningTokens >= targetTokenBudget)
+                    {
+                        budgetExhausted = true;
+                    }
+                }
             }
 
-            selectedChunks.Add(chunk.ChunkText);
-            runningTokens += chunkTokens;
-            if (runningTokens >= targetTokenBudget)
+            selectedChunks.Add(new SelectedChunk
             {
-                break;
-            }
+                ChunkId = chunk.Id,
+                Rank = rank++,
+                ChunkText = chunk.ChunkText,
+                ApproxTokens = chunkTokens,
+                IncludedInBudget = included
+            });
         }
 
-        return selectedChunks.Count > 0
-            ? string.Join("\n\n---\n\n", selectedChunks)
-            : null;
+        return new SelectedContextChunks { Chunks = selectedChunks };
     }
 
     private async Task<int> GetContextWindowTokensAsync(string model, CancellationToken cancellationToken)
