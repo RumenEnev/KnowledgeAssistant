@@ -214,4 +214,29 @@ public class DocumentRepository : IDocumentRepository
         await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
         await connection.ExecuteAsync("DELETE FROM rag.chunks WHERE document_id = @DocumentId", new { DocumentId = documentId });
     }
+
+    public async Task<IEnumerable<DocumentChunk>> GetChunksByDocumentIdAsync(int documentId, CancellationToken cancellationToken)
+    {
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        var query = """
+            SELECT id, document_id AS DocumentId, chunk_index AS ChunkIndex, chunk_text AS ChunkText
+            FROM rag.chunks
+            WHERE document_id = @DocumentId
+            ORDER BY chunk_index;
+            """;
+
+        return await connection.QueryAsync<DocumentChunk>(query, new { DocumentId = documentId });
+    }
+
+    public async Task<IEnumerable<DocumentChunk>> GetChunksByIdsAsync(IEnumerable<int> chunkIds, CancellationToken cancellationToken)
+    {
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        var query = """
+            SELECT id, document_id AS DocumentId, chunk_index AS ChunkIndex, chunk_text AS ChunkText
+            FROM rag.chunks
+            WHERE id = ANY(@ChunkIds);
+            """;
+
+        return await connection.QueryAsync<DocumentChunk>(query, new { ChunkIds = chunkIds.ToArray() });
+    }
 }

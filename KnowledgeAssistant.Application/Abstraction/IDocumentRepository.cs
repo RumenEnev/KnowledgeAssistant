@@ -20,8 +20,6 @@ public interface IDocumentRepository
 
     Task AddChunkAsync(int documentId, int chunkIndex, string chunkText, float[] embedding, CancellationToken cancellationToken);
 
-    Task<IEnumerable<DocumentChunk>> SearchChunksByTopicAsync(int topicId, float[] queryEmbedding, int maxResults, CancellationToken cancellationToken);
-
     Task<IEnumerable<Document>> GetAllDocumentsAsync(CancellationToken cancellationToken);
 
     Task DeleteDocumentAsync(int documentId, CancellationToken cancellationToken);
@@ -30,5 +28,11 @@ public interface IDocumentRepository
 
     Task ReplaceDocumentTopicsAsync(int documentId, IEnumerable<int> topicIds, CancellationToken cancellationToken);
 
+    Task<IEnumerable<DocumentChunk>> SearchChunksByTopicAsync(int topicId, float[] queryEmbedding, int maxResults, CancellationToken cancellationToken);
+
     Task DeleteChunksByDocumentAsync(int documentId, CancellationToken cancellationToken);
+
+    Task<IEnumerable<DocumentChunk>> GetChunksByDocumentIdAsync(int documentId, CancellationToken cancellationToken);
+
+    Task<IEnumerable<DocumentChunk>> GetChunksByIdsAsync(IEnumerable<int> chunkIds, CancellationToken cancellationToken);
 }
