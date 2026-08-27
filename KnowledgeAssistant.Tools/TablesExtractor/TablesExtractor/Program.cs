@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Configuration;
 using OllamaClients;
 using OllamaClients.Configuration;
+using System.Net.Http.Headers;
 using System.Text.Json;
 using TableExtraction;
 
@@ -25,7 +26,7 @@ internal class Program
 
         for (int i = 0; i < tables.Count; i++)
         {
-            var result = await extractor.TableHtmlToJsonAsync(ollamaClient, tables[i]);
+            var result = await extractor.TableHtmlToJsonAsync(tables[i]);
             Console.WriteLine(JsonSerializer.Serialize(new ToolResult()
             {
                 Status = "intermediate",

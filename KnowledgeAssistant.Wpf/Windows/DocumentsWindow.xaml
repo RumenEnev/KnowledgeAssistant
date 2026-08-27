@@ -87,12 +87,12 @@
                         ToolTip="Documents are grouped and searched by topic." />
 
                     <Popup
+                        Width="{Binding ActualWidth, ElementName=topicsDropdownToggle}"
                         AllowsTransparency="True"
                         IsOpen="{Binding IsChecked, ElementName=topicsDropdownToggle}"
                         Placement="Bottom"
                         PlacementTarget="{Binding ElementName=topicsDropdownToggle}"
-                        StaysOpen="False"
-                        Width="{Binding ActualWidth, ElementName=topicsDropdownToggle}">
+                        StaysOpen="False">
                         <Border
                             Background="White"
                             BorderBrush="Gray"

@@ -1,6 +1,5 @@
-﻿using HtmlAgilityPack;
-using OllamaClients;
-using TablesExtractor.Models;
+﻿using System.Text.Json;
+using HtmlAgilityPack;
 
 namespace TableExtraction
 {
@@ -45,34 +44,164 @@ namespace TableExtraction
             return ExtractTablesFromHtml(html);
         }
 
-        public async Task<string> TableHtmlToJsonAsync(OllamaClient ollamaClient, string tableHtml)
+        public string TableHtmlToJson(string tableHtml)
         {
-            if (ollamaClient == null)
-            {
-                throw new ArgumentNullException(nameof(ollamaClient));
-            }
-
             if (string.IsNullOrWhiteSpace(tableHtml))
             {
                 throw new ArgumentException("Table HTML must not be null or empty.", nameof(tableHtml));
             }
 
             string cleanedHtml = CleanTableHtml(tableHtml);
-            string rawResponse = await ollamaClient.GenerateAsync(Instructions.TableToJsonInstruction(), cleanedHtml);
-            string json = ExtractJsonArray(rawResponse);
-            if (IsValidJsonArray(json))
+
+            var doc = new HtmlDocument();
+            doc.LoadHtml(cleanedHtml);
+
+            var table = doc.DocumentNode.SelectSingleNode("//table");
+            if (table == null)
             {
-                return json;
+                return "[]";
             }
 
-            // The model added commentary or produced malformed JSON — retry once with a stricter nudge.
-            string retryPrompt =
-                "Convert this table to a JSON array. Respond with ONLY the JSON array, " +
-                "starting with [ and ending with ], no words before or after:\n\n" + cleanedHtml;
-            string retryResponse = await ollamaClient.GenerateAsync(Instructions.TableToJsonInstruction(), retryPrompt);
-            string retryJson = ExtractJsonArray(retryResponse);
+            var grid = BuildGrid(table);
+            if (grid.Count == 0)
+            {
+                return "[]";
+            }
 
-            return IsValidJsonArray(retryJson) ? retryJson : "[]";
+            bool hasHeaderRow = table.SelectSingleNode(".//thead") != null || grid[0].RowIsHeader;
+
+            List<object> result;
+
+            if (hasHeaderRow && grid.Count > 1)
+            {
+                var headers = grid[0].Cells
+                    .Select((c, i) => string.IsNullOrWhiteSpace(c) ? $"column_{i + 1}" : c)
+                    .ToList();
+                headers = Deduplicate(headers);
+
+                result = grid.Skip(1)
+                    .Select(row =>
+                    {
+                        var obj = new Dictionary<string, string>();
+                        for (int i = 0; i < headers.Count; i++)
+                        {
+                            obj[headers[i]] = i < row.Cells.Count ? row.Cells[i] : "";
+                        }
+                        return (object)obj;
+                    })
+                    .ToList();
+            }
+            else
+            {
+                result = grid.Select(row => (object)row.Cells).ToList();
+            }
+
+            return JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true });
+        }
+
+        public Task<string> TableHtmlToJsonAsync(string tableHtml)
+        {
+            return Task.FromResult(TableHtmlToJson(tableHtml));
+        }
+
+        private static List<GridRow> BuildGrid(HtmlNode table)
+        {
+            var rows = table.SelectNodes(".//tr");
+            if (rows == null)
+            {
+                return new List<GridRow>();
+            }
+
+            var grid = new List<GridRow>();
+            var pendingRowSpans = new Dictionary<int, (int remaining, string value)>();
+
+            foreach (var tr in rows)
+            {
+                var cells = new List<string>();
+                bool rowIsHeader = tr.SelectNodes("./th") != null && tr.SelectNodes("./td") == null;
+
+                var cellNodes = tr.SelectNodes("./th|./td");
+                int colIndex = 0;
+                int cellNodeIdx = 0;
+
+                while (cellNodeIdx < (cellNodes?.Count ?? 0) || pendingRowSpans.ContainsKey(colIndex))
+                {
+                    if (pendingRowSpans.TryGetValue(colIndex, out var pending))
+                    {
+                        cells.Add(pending.value);
+                        if (pending.remaining - 1 > 0)
+                        {
+                            pendingRowSpans[colIndex] = (pending.remaining - 1, pending.value);
+                        }
+                        else
+                        {
+                            pendingRowSpans.Remove(colIndex);
+                        }
+                        colIndex++;
+                        continue;
+                    }
+
+                    if (cellNodeIdx >= (cellNodes?.Count ?? 0))
+                    {
+                        break;
+                    }
+
+                    var node = cellNodes[cellNodeIdx++];
+                    string text = CleanText(node.InnerText);
+                    int colSpan = ParseSpan(node.GetAttributeValue("colspan", "1"));
+                    int rowSpan = ParseSpan(node.GetAttributeValue("rowspan", "1"));
+
+                    for (int i = 0; i < colSpan; i++)
+                    {
+                        cells.Add(text);
+                        if (rowSpan > 1)
+                        {
+                            pendingRowSpans[colIndex] = (rowSpan - 1, text);
+                        }
+                        colIndex++;
+                    }
+                }
+
+                grid.Add(new GridRow { Cells = cells, RowIsHeader = rowIsHeader });
+            }
+
+            return grid;
+        }
+
+        private static int ParseSpan(string value) =>
+            int.TryParse(value, out int n) && n > 0 ? n : 1;
+
+        private static string CleanText(string raw) =>
+            System.Net.WebUtility.HtmlDecode(raw)
+                .Replace('\u00A0', ' ')
+                .Trim()
+                .Replace("\r\n", " ")
+                .Replace("\n", " ");
+
+        private static List<string> Deduplicate(List<string> headers)
+        {
+            var seen = new Dictionary<string, int>();
+            var result = new List<string>();
+            foreach (var h in headers)
+            {
+                if (!seen.TryGetValue(h, out int count))
+                {
+                    seen[h] = 1;
+                    result.Add(h);
+                }
+                else
+                {
+                    seen[h] = count + 1;
+                    result.Add($"{h}_{count + 1}");
+                }
+            }
+            return result;
+        }
+
+        private class GridRow
+        {
+            public List<string> Cells { get; set; } = new();
+            public bool RowIsHeader { get; set; }
         }
 
         private async Task<string> DownloadHtmlAsync(string url)
@@ -92,7 +221,9 @@ namespace TableExtraction
             if (supNodes != null)
             {
                 foreach (var sup in supNodes)
+                {
                     sup.Remove();
+                }
             }
 
             var keepAttributes = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "colspan", "rowspan" };
@@ -117,81 +248,6 @@ namespace TableExtraction
             return tableNode.OuterHtml;
         }
 
-        private static string ExtractJsonArray(string text)
-        {
-            if (string.IsNullOrWhiteSpace(text))
-            {
-                return "[]";
-            }
-
-            text = StripCodeFences(text);
-            int start = text.IndexOf('[');
-            if (start < 0)
-            {
-                return "[]";
-            }
-
-            int depth = 0;
-            for (int i = start; i < text.Length; i++)
-            {
-                if (text[i] == '[') depth++;
-                else if (text[i] == ']')
-                {
-                    depth--;
-                    if (depth == 0)
-                    {
-                        return text.Substring(start, i - start + 1);
-                    }
-                }
-            }
-
-            return "[]"; // no matching closing bracket found
-        }
-
-        private static bool IsValidJsonArray(string json)
-        {
-            if (string.IsNullOrWhiteSpace(json))
-            {
-                return false;
-            }
-
-            try
-            {
-                using var doc = System.Text.Json.JsonDocument.Parse(json);
-                return doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Array;
-            }
-            catch (System.Text.Json.JsonException)
-            {
-                return false;
-            }
-        }
-
-        private static string StripCodeFences(string text)
-        {
-            if (string.IsNullOrWhiteSpace(text))
-            {
-                return text;
-            }
-
-            text = text.Trim();
-            if (text.StartsWith("```"))
-            {
-                int firstNewline = text.IndexOf('\n');
-                if (firstNewline >= 0)
-                {
-                    text = text.Substring(firstNewline + 1);
-                }
-
-                int fenceEnd = text.LastIndexOf("```", StringComparison.Ordinal);
-                if (fenceEnd >= 0)
-                {
-                    text = text.Substring(0, fenceEnd);
-                }
-            }
-
-            return text.Trim();
-        }
-
         private List<string> ExtractTablesFromHtml(string html)
         {
             var result = new List<string>();
@@ -200,7 +256,7 @@ namespace TableExtraction
             var tableNodes = doc.DocumentNode.SelectNodes("//table");
             if (tableNodes == null)
             {
-                return result; // no tables found
+                return result;
             }
 
             foreach (var tableNode in tableNodes)
