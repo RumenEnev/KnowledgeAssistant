@@ -34,7 +34,6 @@ public static class Program
 
         var command = args[0].ToLowerInvariant();
         var ct = CancellationToken.None;
-
         try
         {
             switch (command)
@@ -55,12 +54,13 @@ public static class Program
                         var chatModel = GetStringArg(args, "--chat-model") ?? config["Llm:ChatModel"]!;
                         var embeddingModel = GetStringArg(args, "--embedding-model") ?? config["Llm:EmbeddingModel"]!;
                         var judgeModel = GetStringArg(args, "--judge-model") ?? config["Llm:JudgeModel"]!;
-
                         var evalService = provider.GetRequiredService<EvaluationService>();
                         var progress = new Progress<(int done, int total)>(p =>
                         {
                             if (p.done % 10 == 0 || p.done == p.total)
+                            {
                                 Console.WriteLine($"  {p.done}/{p.total} queries evaluated");
+                            }
                         });
 
                         Console.WriteLine($"Running eval '{runName}' (chat={chatModel}, judge={judgeModel})...");
