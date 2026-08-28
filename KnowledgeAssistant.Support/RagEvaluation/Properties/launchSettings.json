@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "RagEvaluation": {
+      "commandName": "Project",
+      "commandLineArgs": "generate-testset"
+    }
+  }
+}

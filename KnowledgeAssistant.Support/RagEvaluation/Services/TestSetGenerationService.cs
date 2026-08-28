@@ -13,10 +13,7 @@ public sealed class TestSetGenerationService
     private readonly IModelGateway _modelGateway;
     private readonly IExperimentRepository _experimentRepository;
 
-    public TestSetGenerationService(
-        IDocumentRepository documentRepository,
-        IModelGateway modelGateway,
-        IExperimentRepository experimentRepository)
+    public TestSetGenerationService(IDocumentRepository documentRepository, IModelGateway modelGateway, IExperimentRepository experimentRepository)
     {
         _documentRepository = documentRepository;
         _modelGateway = modelGateway;
@@ -30,7 +27,8 @@ public sealed class TestSetGenerationService
 
         var documents = await _documentRepository.GetAllDocumentsAsync(ct);
         var newQueries = new List<NewTestQuery>();
-
+        int chunksCounter = 0;
+        int documentCounter = 0;
         foreach (var document in documents)
         {
             var documentTopicIds = document.Topics
@@ -44,12 +42,13 @@ public sealed class TestSetGenerationService
                 continue;
             }
 
+            documentCounter++;
             var chunks = await _documentRepository.GetChunksByDocumentIdAsync(document.Id, ct);
-
             foreach (var chunk in chunks)
             {
+                chunksCounter++;
+                Console.WriteLine($"Generating questions for chunk #: {chunksCounter}; Document #: {documentCounter} of {documents.Count()}");
                 var questions = await GenerateQuestionsAsync(generatorModel, chunk.ChunkText, questionsPerChunk, ct);
-
                 foreach (var question in questions)
                 {
                     foreach (var topicId in documentTopicIds)
@@ -83,6 +82,7 @@ public sealed class TestSetGenerationService
                 Respond with ONLY a JSON array of strings, no markdown fences, no other text.
                 """
         };
+
         var userMessage = new ChatMessage
         {
             Role = "user",
@@ -90,7 +90,6 @@ public sealed class TestSetGenerationService
         };
 
         var raw = await _modelGateway.GenerateAsync(model, userMessage, systemMessage, ct);
-
         try
         {
             var jsonStart = raw.IndexOf('[');
