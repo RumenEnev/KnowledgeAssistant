@@ -257,4 +257,48 @@ public class DocumentRepository : IDocumentRepository
 
         return await connection.QueryAsync<DocumentChunk>(query, new { ChunkIds = chunkIds.ToArray() });
     }
+
+    public async Task<(IEnumerable<ChunkListItem> Chunks, int TotalCount)> GetAllChunksAsync(int page, int pageSize, string? searchText, CancellationToken cancellationToken)
+    {
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+
+        var hasSearch = !string.IsNullOrWhiteSpace(searchText);
+        var whereClause = hasSearch ? "WHERE c.chunk_text ILIKE @Search" : "";
+
+        var countQuery = $"SELECT COUNT(*) FROM rag.chunks c {whereClause};";
+        var totalCount = await connection.ExecuteScalarAsync<int>(countQuery, new { Search = $"%{searchText}%" });
+
+        var query = $"""
+            SELECT c.id, c.document_id AS DocumentId, d.title AS DocumentTitle,
+                   c.chunk_index AS ChunkIndex, c.chunk_text AS ChunkText
+            FROM rag.chunks c
+            JOIN rag.documents d ON d.id = c.document_id
+            {whereClause}
+            ORDER BY c.document_id, c.chunk_index
+            LIMIT @PageSize OFFSET @Offset;
+            """;
+
+        var chunks = await connection.QueryAsync<ChunkListItem>(query, new
+        {
+            Search = $"%{searchText}%",
+            PageSize = pageSize,
+            Offset = (page - 1) * pageSize
+        });
+
+        return (chunks, totalCount);
+    }
+
+    public async Task UpdateChunkTextAsync(int chunkId, string chunkText, CancellationToken cancellationToken)
+    {
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        var query = "UPDATE rag.chunks SET chunk_text = @ChunkText WHERE id = @ChunkId";
+        await connection.ExecuteAsync(query, new { ChunkId = chunkId, ChunkText = chunkText });
+    }
+
+    public async Task DeleteChunkAsync(int chunkId, CancellationToken cancellationToken)
+    {
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        var query = "DELETE FROM rag.chunks WHERE id = @ChunkId";
+        await connection.ExecuteAsync(query, new { ChunkId = chunkId });
+    }
 }

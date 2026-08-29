@@ -184,4 +184,14 @@ public sealed class EvaluationService
 
     public Task<List<QueryMetricsRow>> GetQueryMetricsAsync(int runId, CancellationToken ct = default)
         => _experimentRepository.GetQueryMetricsAsync(runId, ct);
+
+    public Task<(IEnumerable<KnowledgeAssistant.Domain.Documents.ChunkListItem> Chunks, int TotalCount)> GetAllChunksAsync(
+        int page, int pageSize, string? searchText, CancellationToken ct = default)
+        => _documentRepository.GetAllChunksAsync(page, pageSize, searchText, ct);
+
+    public Task UpdateChunkTextAsync(int chunkId, string chunkText, CancellationToken ct = default)
+        => _documentRepository.UpdateChunkTextAsync(chunkId, chunkText, ct);
+
+    public Task DeleteChunkAsync(int chunkId, CancellationToken ct = default)
+        => _documentRepository.DeleteChunkAsync(chunkId, ct);
 }

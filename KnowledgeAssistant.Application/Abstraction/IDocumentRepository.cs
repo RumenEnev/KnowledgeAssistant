@@ -35,4 +35,10 @@ public interface IDocumentRepository
     Task<IEnumerable<DocumentChunk>> GetChunksByDocumentIdAsync(int documentId, CancellationToken cancellationToken);
 
     Task<IEnumerable<DocumentChunk>> GetChunksByIdsAsync(IEnumerable<int> chunkIds, CancellationToken cancellationToken);
+
+    Task<(IEnumerable<ChunkListItem> Chunks, int TotalCount)> GetAllChunksAsync(int page, int pageSize, string? searchText, CancellationToken cancellationToken);
+
+    Task UpdateChunkTextAsync(int chunkId, string chunkText, CancellationToken cancellationToken);
+
+    Task DeleteChunkAsync(int chunkId, CancellationToken cancellationToken);
 }

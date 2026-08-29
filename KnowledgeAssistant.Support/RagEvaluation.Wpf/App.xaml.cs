@@ -62,6 +62,7 @@ public partial class App : Application
         services.AddTransient<Pages.RunEvalPage>();
         services.AddTransient<Pages.RunsPage>();
         services.AddTransient<Pages.MetricsPage>();
+        services.AddTransient<Pages.ChunksPage>();
 
         _serviceProvider = services.BuildServiceProvider();
 

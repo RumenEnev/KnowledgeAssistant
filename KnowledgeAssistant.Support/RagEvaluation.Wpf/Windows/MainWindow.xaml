@@ -62,6 +62,15 @@
                         <ui:SymbolIcon Symbol="DataHistogram24" />
                     </ui:NavigationViewItem.Icon>
                 </ui:NavigationViewItem>
+                <ui:NavigationViewItem
+                    xmlns:local="clr-namespace:RagEvaluation.Desktop.Pages"
+                    Content="Chunks"
+                    Tag="chunks"
+                    TargetPageType="{x:Type local:ChunksPage}">
+                    <ui:NavigationViewItem.Icon>
+                        <ui:SymbolIcon Symbol="DocumentBulletList24" />
+                    </ui:NavigationViewItem.Icon>
+                </ui:NavigationViewItem>
             </ui:NavigationView.MenuItems>
             <ui:NavigationView.ContentOverlay>
                 <Grid>
