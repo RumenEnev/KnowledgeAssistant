@@ -47,7 +47,7 @@ public static class Program
                     {
                         var perChunk = GetIntArg(args, "--per-chunk", int.Parse(config["Eval:QuestionsPerChunk"] ?? "1"));
                         var generator = sp.GetRequiredService<TestSetGenerationService>();
-                        var count = await generator.GenerateAsync(config["Llm:ChatModel"]!, perChunk, ct);
+                        var count = await generator.GenerateAsync(config["Llm:ChatModel"]!, perChunk, null, ct);
                         Console.WriteLine($"Saved {count} synthetic test queries (one row per chunk x topic).");
                         Console.WriteLine("Hand-review a sample and mix in real user queries before trusting retrieval scores from this set alone.");
                         return 0;
@@ -61,10 +61,10 @@ public static class Program
                         var judgeModel = GetStringArg(args, "--judge-model") ?? config["Llm:JudgeModel"]!;
 
                         var evalService = sp.GetRequiredService<EvaluationService>();
-                        var progress = new Progress<(int done, int total)>(p =>
+                        var progress = new Progress<EvalProgress>(p =>
                         {
-                            if (p.done % 10 == 0 || p.done == p.total)
-                                Console.WriteLine($"  {p.done}/{p.total} queries evaluated");
+                            if (p.Done % 10 == 0 || p.Done == p.Total)
+                                Console.WriteLine($"  [{p.Phase}] {p.Done}/{p.Total} queries evaluated");
                         });
 
                         Console.WriteLine($"Running eval '{runName}' (chat={chatModel}, judge={judgeModel})...");
@@ -110,7 +110,7 @@ public static class Program
         }
     }
 
-    private static void ConfigureServices(IServiceCollection services, IConfiguration config)
+    public static void ConfigureServices(IServiceCollection services, IConfiguration config)
     {
         // Some repositories (e.g. ModelRepository) apparently take IConfiguration directly
         // rather than just NpgsqlDataSource - register it so DI can resolve that dependency.

@@ -20,16 +20,29 @@ public sealed class TestSetGenerationService
         _experimentRepository = experimentRepository;
     }
 
-    public async Task<int> GenerateAsync(string generatorModel, int questionsPerChunk, CancellationToken ct = default)
+    public async Task<int> GenerateAsync(string generatorModel, int questionsPerChunk, IProgress<(int done, int total)>? progress = null, CancellationToken ct = default)
     {
         var allTopics = await _documentRepository.GetAllTopicsAsync(ct);
         var topicIdByName = allTopics.ToDictionary(t => t.Name, t => t.Id);
 
         var documents = await _documentRepository.GetAllDocumentsAsync(ct);
+        var eligibleDocuments = documents
+            .Where(d => d.Topics.Any(topicIdByName.ContainsKey))
+            .ToList();
+
+        var totalChunks = 0;
+        var chunksByDocument = new Dictionary<int, List<KnowledgeAssistant.Domain.Documents.DocumentChunk>>();
+        foreach (var document in eligibleDocuments)
+        {
+            var chunks = (await _documentRepository.GetChunksByDocumentIdAsync(document.Id, ct)).ToList();
+            chunksByDocument[document.Id] = chunks;
+            totalChunks += chunks.Count;
+        }
+
         var newQueries = new List<NewTestQuery>();
         int chunksCounter = 0;
         int documentCounter = 0;
-        foreach (var document in documents)
+        foreach (var document in eligibleDocuments)
         {
             var documentTopicIds = document.Topics
                 .Where(topicIdByName.ContainsKey)
@@ -37,17 +50,12 @@ public sealed class TestSetGenerationService
                 .Distinct()
                 .ToList();
 
-            if (documentTopicIds.Count == 0)
-            {
-                continue;
-            }
-
             documentCounter++;
-            var chunks = await _documentRepository.GetChunksByDocumentIdAsync(document.Id, ct);
-            foreach (var chunk in chunks)
+            foreach (var chunk in chunksByDocument[document.Id])
             {
                 chunksCounter++;
-                Console.WriteLine($"Generating questions for chunk #: {chunksCounter}; Document #: {documentCounter} of {documents.Count()}");
+                Console.WriteLine($"Generating questions for chunk #: {chunksCounter}; Document #: {documentCounter} of {eligibleDocuments.Count}");
+                progress?.Report((chunksCounter, totalChunks));
                 var questions = await GenerateQuestionsAsync(generatorModel, chunk.ChunkText, questionsPerChunk, ct);
                 foreach (var question in questions)
                 {

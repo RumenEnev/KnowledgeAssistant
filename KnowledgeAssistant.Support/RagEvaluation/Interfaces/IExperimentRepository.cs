@@ -17,4 +17,5 @@ public interface IExperimentRepository
 
     Task<RunSummary> GetRunSummaryAsync(int runId, CancellationToken ct = default);
     Task<List<ExperimentRun>> ListRunsAsync(CancellationToken ct = default);
+    Task CleanDatabaseAsync(CancellationToken ct = default);
 }

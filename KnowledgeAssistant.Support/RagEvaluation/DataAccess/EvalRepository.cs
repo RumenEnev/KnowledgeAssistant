@@ -275,4 +275,23 @@ public sealed class EvalRepository : IExperimentRepository
         var rows = await connection.QueryAsync<ExperimentRun>(sql);
         return rows.ToList();
     }
+
+    public async Task CleanDatabaseAsync(CancellationToken ct = default)
+    {
+        await using var connection = await _dataSource.OpenConnectionAsync(ct);
+
+        const string sql = """
+            TRUNCATE TABLE
+                rag.eval_generation_metrics,
+                rag.eval_generation_results,
+                rag.eval_retrieval_metrics,
+                rag.eval_retrieval_results,
+                rag.eval_runs,
+                rag.eval_query_expected_chunks,
+                rag.eval_queries
+            RESTART IDENTITY CASCADE;
+            """;
+
+        await connection.ExecuteAsync(new CommandDefinition(sql, cancellationToken: ct));
+    }
 }

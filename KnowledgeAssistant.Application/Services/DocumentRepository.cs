@@ -2,11 +2,20 @@
 using KnowledgeAssistant.Application.Abstraction;
 using KnowledgeAssistant.Domain.Documents;
 using Npgsql;
+using Pgvector.Dapper;
 
 namespace KnowledgeAssistant.Application.Services;
 
 public class DocumentRepository : IDocumentRepository
 {
+    private static readonly bool _typeHandlerRegistered = RegisterTypeHandler();
+
+    private static bool RegisterTypeHandler()
+    {
+        SqlMapper.AddTypeHandler(new VectorTypeHandler());
+        return true;
+    }
+
     private readonly NpgsqlDataSource _dataSource;
 
     public DocumentRepository(NpgsqlDataSource dataSource)
@@ -138,13 +147,14 @@ public class DocumentRepository : IDocumentRepository
         });
     }
 
-    public async Task<IEnumerable<DocumentChunk>> SearchChunksByTopicAsync(
-        int topicId, float[] queryEmbedding, int maxResults, CancellationToken cancellationToken)
+    public async Task<IEnumerable<DocumentChunk>> SearchChunksByTopicAsync(int topicId, float[] queryEmbedding, int maxResults, CancellationToken cancellationToken)
     {
-        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        try
+        {
+            await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
 
-        // Cosine distance operator <=> is provided by pgvector; lower = more similar.
-        var query = """
+            // Cosine distance operator <=> is provided by pgvector; lower = more similar.
+            var query = """
             SELECT c.id, c.document_id AS DocumentId, c.chunk_index AS ChunkIndex, c.chunk_text AS ChunkText
             FROM rag.chunks c
             INNER JOIN rag.document_topics dt ON dt.document_id = c.document_id
@@ -153,12 +163,20 @@ public class DocumentRepository : IDocumentRepository
             LIMIT @MaxResults;
             """;
 
-        return await connection.QueryAsync<DocumentChunk>(query, new
+            var result = await connection.QueryAsync<DocumentChunk>(query, new
+            {
+                TopicId = topicId,
+                QueryEmbedding = new Pgvector.Vector(queryEmbedding),
+                MaxResults = maxResults
+            });
+
+            return result;
+        }
+        catch (Exception ex)
         {
-            TopicId = topicId,
-            QueryEmbedding = new Pgvector.Vector(queryEmbedding),
-            MaxResults = maxResults
-        });
+        }
+
+        return null;
     }
 
     public async Task<IEnumerable<Document>> GetAllDocumentsAsync(CancellationToken cancellationToken)
