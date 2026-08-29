@@ -53,6 +53,15 @@
                         <ui:SymbolIcon Symbol="List24" />
                     </ui:NavigationViewItem.Icon>
                 </ui:NavigationViewItem>
+                <ui:NavigationViewItem
+                    xmlns:local="clr-namespace:RagEvaluation.Desktop.Pages"
+                    Content="Metrics"
+                    Tag="metrics"
+                    TargetPageType="{x:Type local:MetricsPage}">
+                    <ui:NavigationViewItem.Icon>
+                        <ui:SymbolIcon Symbol="DataHistogram24" />
+                    </ui:NavigationViewItem.Icon>
+                </ui:NavigationViewItem>
             </ui:NavigationView.MenuItems>
             <ui:NavigationView.ContentOverlay>
                 <Grid>

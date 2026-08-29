@@ -1,0 +1,156 @@
+<Page
+    x:Class="RagEvaluation.Desktop.Pages.MetricsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    Title="Metrics"
+    d:DesignHeight="800"
+    d:DesignWidth="1100"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TextBlock
+            Grid.Row="0"
+            Margin="0,0,0,16"
+            FontSize="24"
+            FontWeight="SemiBold"
+            Text="Retrieval &amp; Generation Metrics" />
+
+        <StackPanel
+            Grid.Row="1"
+            Margin="0,0,0,16"
+            HorizontalAlignment="Left"
+            Orientation="Horizontal">
+            <TextBlock
+                Margin="0,0,8,0"
+                VerticalAlignment="Center"
+                Text="Run:" />
+            <ComboBox
+                x:Name="RunSelector"
+                Width="320"
+                DisplayMemberPath="RunName"
+                SelectionChanged="RunSelector_SelectionChanged" />
+            <ui:Button
+                x:Name="RefreshButton"
+                Margin="8,0,0,0"
+                Padding="12,6"
+                Click="RefreshButton_Click"
+                Content="Refresh"
+                Icon="{ui:SymbolIcon ArrowSync24}" />
+            <ui:Button
+                x:Name="ExportButton"
+                Margin="8,0,0,0"
+                Padding="12,6"
+                Click="ExportButton_Click"
+                Content="Export CSV"
+                Icon="{ui:SymbolIcon ArrowExport24}" />
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <ui:Card Margin="0,0,0,16" Padding="16">
+                    <StackPanel>
+                        <TextBlock
+                            Margin="0,0,0,8"
+                            FontWeight="SemiBold"
+                            Text="Mean Scores for Selected Run" />
+                        <DataGrid
+                            x:Name="SummaryGrid"
+                            AutoGenerateColumns="False"
+                            CanUserAddRows="False"
+                            CanUserDeleteRows="False"
+                            CanUserSortColumns="False"
+                            GridLinesVisibility="Horizontal"
+                            HeadersVisibility="Column"
+                            IsReadOnly="True">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn
+                                    Width="*"
+                                    Binding="{Binding Metric}"
+                                    Header="Metric" />
+                                <DataGridTextColumn
+                                    Width="150"
+                                    Binding="{Binding Value}"
+                                    Header="Mean Value" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </StackPanel>
+                </ui:Card>
+
+                <ui:Card Margin="0,0,0,16" Padding="16">
+                    <StackPanel>
+                        <TextBlock
+                            Margin="0,0,0,8"
+                            FontWeight="SemiBold"
+                            Text="Per-Query Metrics (Retrieval + Generation)" />
+                        <DataGrid
+                            x:Name="QueryMetricsGrid"
+                            AutoGenerateColumns="False"
+                            CanUserAddRows="False"
+                            CanUserDeleteRows="False"
+                            CanUserSortColumns="True"
+                            GridLinesVisibility="Horizontal"
+                            HeadersVisibility="Column"
+                            IsReadOnly="True">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn
+                                    Width="3*"
+                                    Binding="{Binding QueryText}"
+                                    Header="Query">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="TextWrapping" Value="Wrap" />
+                                            <Setter Property="ToolTip" Value="{Binding QueryText}" />
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn
+                                    Width="*"
+                                    Binding="{Binding PrecisionAtK, StringFormat={}{0:F3}}"
+                                    Header="Precision" />
+                                <DataGridTextColumn
+                                    Width="*"
+                                    Binding="{Binding RecallAtK, StringFormat={}{0:F3}}"
+                                    Header="Recall" />
+                                <DataGridTextColumn
+                                    Width="*"
+                                    Binding="{Binding ReciprocalRank, StringFormat={}{0:F3}}"
+                                    Header="MRR" />
+                                <DataGridTextColumn
+                                    Width="*"
+                                    Binding="{Binding NdcgAtK, StringFormat={}{0:F3}}"
+                                    Header="NDCG" />
+                                <DataGridTextColumn
+                                    Width="*"
+                                    Binding="{Binding FaithfulnessScore, StringFormat={}{0:F2}}"
+                                    Header="Faithfulness" />
+                                <DataGridTextColumn
+                                    Width="*"
+                                    Binding="{Binding RelevanceScore, StringFormat={}{0:F2}}"
+                                    Header="Relevance" />
+                                <DataGridTextColumn
+                                    Width="*"
+                                    Binding="{Binding CompletenessScore, StringFormat={}{0:F2}}"
+                                    Header="Completeness" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </StackPanel>
+                </ui:Card>
+
+                <TextBlock
+                    x:Name="StatusText"
+                    Margin="0,0,0,16"
+                    Foreground="Gray"
+                    TextWrapping="Wrap" />
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Page>

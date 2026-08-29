@@ -294,4 +294,31 @@ public sealed class EvalRepository : IExperimentRepository
 
         await connection.ExecuteAsync(new CommandDefinition(sql, cancellationToken: ct));
     }
+
+    public async Task<List<QueryMetricsRow>> GetQueryMetricsAsync(int runId, CancellationToken ct = default)
+    {
+        await using var connection = await _dataSource.OpenConnectionAsync(ct);
+
+        const string sql = """
+            SELECT
+                q.id AS QueryId,
+                q.query_text AS QueryText,
+                rm.precision_at_k AS PrecisionAtK,
+                rm.recall_at_k AS RecallAtK,
+                rm.reciprocal_rank AS ReciprocalRank,
+                rm.ndcg_at_k AS NdcgAtK,
+                gm.faithfulness_score AS FaithfulnessScore,
+                gm.relevance_score AS RelevanceScore,
+                gm.completeness_score AS CompletenessScore
+            FROM rag.eval_queries q
+            LEFT JOIN rag.eval_retrieval_metrics rm ON rm.query_id = q.id AND rm.run_id = @RunId
+            LEFT JOIN rag.eval_generation_results gr ON gr.query_id = q.id AND gr.run_id = @RunId
+            LEFT JOIN rag.eval_generation_metrics gm ON gm.generation_result_id = gr.id
+            WHERE rm.run_id = @RunId OR gr.run_id = @RunId
+            ORDER BY q.id;
+            """;
+
+        var rows = await connection.QueryAsync<QueryMetricsRow>(sql, new { RunId = runId });
+        return rows.ToList();
+    }
 }

@@ -7,7 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <RootNamespace>RagEvaluation.Desktop</RootNamespace>
-    <Version>1.0.4.4</Version>
+    <Version>1.0.5.5</Version>
   </PropertyGroup>
 
   <ItemGroup>
