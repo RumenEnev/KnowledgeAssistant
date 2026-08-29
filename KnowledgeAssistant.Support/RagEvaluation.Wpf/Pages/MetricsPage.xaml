@@ -14,7 +14,10 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <TextBlock
@@ -26,7 +29,7 @@
 
         <StackPanel
             Grid.Row="1"
-            Margin="0,0,0,16"
+            Margin="0,0,0,8"
             HorizontalAlignment="Left"
             Orientation="Horizontal">
             <TextBlock
@@ -54,103 +57,130 @@
                 Icon="{ui:SymbolIcon ArrowExport24}" />
         </StackPanel>
 
-        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
-            <StackPanel>
-                <ui:Card Margin="0,0,0,16" Padding="16">
-                    <StackPanel>
-                        <TextBlock
-                            Margin="0,0,0,8"
-                            FontWeight="SemiBold"
-                            Text="Mean Scores for Selected Run" />
-                        <DataGrid
-                            x:Name="SummaryGrid"
-                            AutoGenerateColumns="False"
-                            CanUserAddRows="False"
-                            CanUserDeleteRows="False"
-                            CanUserSortColumns="False"
-                            GridLinesVisibility="Horizontal"
-                            HeadersVisibility="Column"
-                            IsReadOnly="True">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn
-                                    Width="*"
-                                    Binding="{Binding Metric}"
-                                    Header="Metric" />
-                                <DataGridTextColumn
-                                    Width="150"
-                                    Binding="{Binding Value}"
-                                    Header="Mean Value" />
-                            </DataGrid.Columns>
-                        </DataGrid>
-                    </StackPanel>
-                </ui:Card>
+        <!-- Indeterminate progress bar shown only while a run's data is loading. -->
+        <ProgressBar
+            x:Name="LoadingIndicator"
+            Grid.Row="2"
+            Height="3"
+            Margin="0,0,0,16"
+            IsIndeterminate="True"
+            Visibility="Collapsed" />
 
-                <ui:Card Margin="0,0,0,16" Padding="16">
-                    <StackPanel>
-                        <TextBlock
-                            Margin="0,0,0,8"
-                            FontWeight="SemiBold"
-                            Text="Per-Query Metrics (Retrieval + Generation)" />
-                        <DataGrid
-                            x:Name="QueryMetricsGrid"
-                            AutoGenerateColumns="False"
-                            CanUserAddRows="False"
-                            CanUserDeleteRows="False"
-                            CanUserSortColumns="True"
-                            GridLinesVisibility="Horizontal"
-                            HeadersVisibility="Column"
-                            IsReadOnly="True">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn
-                                    Width="3*"
-                                    Binding="{Binding QueryText}"
-                                    Header="Query">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="TextWrapping" Value="Wrap" />
-                                            <Setter Property="ToolTip" Value="{Binding QueryText}" />
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-                                <DataGridTextColumn
-                                    Width="*"
-                                    Binding="{Binding PrecisionAtK, StringFormat={}{0:F3}}"
-                                    Header="Precision" />
-                                <DataGridTextColumn
-                                    Width="*"
-                                    Binding="{Binding RecallAtK, StringFormat={}{0:F3}}"
-                                    Header="Recall" />
-                                <DataGridTextColumn
-                                    Width="*"
-                                    Binding="{Binding ReciprocalRank, StringFormat={}{0:F3}}"
-                                    Header="MRR" />
-                                <DataGridTextColumn
-                                    Width="*"
-                                    Binding="{Binding NdcgAtK, StringFormat={}{0:F3}}"
-                                    Header="NDCG" />
-                                <DataGridTextColumn
-                                    Width="*"
-                                    Binding="{Binding FaithfulnessScore, StringFormat={}{0:F2}}"
-                                    Header="Faithfulness" />
-                                <DataGridTextColumn
-                                    Width="*"
-                                    Binding="{Binding RelevanceScore, StringFormat={}{0:F2}}"
-                                    Header="Relevance" />
-                                <DataGridTextColumn
-                                    Width="*"
-                                    Binding="{Binding CompletenessScore, StringFormat={}{0:F2}}"
-                                    Header="Completeness" />
-                            </DataGrid.Columns>
-                        </DataGrid>
-                    </StackPanel>
-                </ui:Card>
+        <!-- Summary card: small, fixed number of rows (7 metrics), fine to auto-size -
+             no internal scrolling needed here, so a plain StackPanel is fine. -->
+        <ui:Card Grid.Row="3" Margin="0,0,0,16" Padding="16">
+            <StackPanel>
+                <TextBlock
+                    Margin="0,0,0,8"
+                    FontWeight="SemiBold"
+                    Text="Mean Scores for Selected Run" />
+                <DataGrid
+                    x:Name="SummaryGrid"
+                    AutoGenerateColumns="False"
+                    CanUserAddRows="False"
+                    CanUserDeleteRows="False"
+                    CanUserSortColumns="False"
+                    GridLinesVisibility="Horizontal"
+                    HeadersVisibility="Column"
+                    IsReadOnly="True">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn
+                            Width="*"
+                            Binding="{Binding Metric}"
+                            Header="Metric" />
+                        <DataGridTextColumn
+                            Width="150"
+                            Binding="{Binding Value}"
+                            Header="Mean Value" />
+                    </DataGrid.Columns>
+                </DataGrid>
+            </StackPanel>
+        </ui:Card>
+
+        <!-- Per-query card: this is the one that can have hundreds of rows, so it needs
+             genuine height bounding (Grid row="*" + inner Grid with a "*" row for the grid
+             itself) rather than a StackPanel, so the DataGrid's OWN internal scrolling and
+             mouse wheel handling work natively - same pattern ChunksPage already uses
+             successfully with ChunksGrid in a Grid.Row="*" cell. No outer ScrollViewer,
+             no PreviewMouseWheel workaround needed. -->
+        <ui:Card Grid.Row="4" Margin="0,0,0,16" Padding="16">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
 
                 <TextBlock
-                    x:Name="StatusText"
-                    Margin="0,0,0,16"
-                    Foreground="Gray"
-                    TextWrapping="Wrap" />
-            </StackPanel>
-        </ScrollViewer>
+                    Grid.Row="0"
+                    Margin="0,0,0,8"
+                    FontWeight="SemiBold"
+                    Text="Per-Query Metrics (Retrieval + Generation)" />
+
+                <DataGrid
+                    x:Name="QueryMetricsGrid"
+                    Grid.Row="1"
+                    AutoGenerateColumns="False"
+                    CanUserAddRows="False"
+                    CanUserDeleteRows="False"
+                    CanUserSortColumns="True"
+                    EnableColumnVirtualization="True"
+                    EnableRowVirtualization="True"
+                    GridLinesVisibility="Horizontal"
+                    HeadersVisibility="Column"
+                    IsReadOnly="True"
+                    VirtualizingPanel.IsVirtualizing="True"
+                    VirtualizingPanel.ScrollUnit="Pixel"
+                    VirtualizingPanel.VirtualizationMode="Recycling">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn
+                            Width="3*"
+                            Binding="{Binding QueryText}"
+                            Header="Query">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="TextWrapping" Value="Wrap" />
+                                    <Setter Property="ToolTip" Value="{Binding QueryText}" />
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn
+                            Width="*"
+                            Binding="{Binding PrecisionAtK, StringFormat={}{0:F3}}"
+                            Header="Precision" />
+                        <DataGridTextColumn
+                            Width="*"
+                            Binding="{Binding RecallAtK, StringFormat={}{0:F3}}"
+                            Header="Recall" />
+                        <DataGridTextColumn
+                            Width="*"
+                            Binding="{Binding ReciprocalRank, StringFormat={}{0:F3}}"
+                            Header="MRR" />
+                        <DataGridTextColumn
+                            Width="*"
+                            Binding="{Binding NdcgAtK, StringFormat={}{0:F3}}"
+                            Header="NDCG" />
+                        <DataGridTextColumn
+                            Width="*"
+                            Binding="{Binding FaithfulnessScore, StringFormat={}{0:F2}}"
+                            Header="Faithfulness" />
+                        <DataGridTextColumn
+                            Width="*"
+                            Binding="{Binding RelevanceScore, StringFormat={}{0:F2}}"
+                            Header="Relevance" />
+                        <DataGridTextColumn
+                            Width="*"
+                            Binding="{Binding CompletenessScore, StringFormat={}{0:F2}}"
+                            Header="Completeness" />
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+        </ui:Card>
+
+        <TextBlock
+            x:Name="StatusText"
+            Grid.Row="5"
+            Margin="0,0,0,0"
+            Foreground="Gray"
+            TextWrapping="Wrap" />
     </Grid>
 </Page>

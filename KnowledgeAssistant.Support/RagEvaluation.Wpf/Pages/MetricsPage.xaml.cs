@@ -18,6 +18,11 @@ public partial class MetricsPage : Page
     private RunSummary? _currentSummary;
     private List<QueryMetricsRow> _currentQueryMetrics = new();
 
+    // Cancels a previous in-flight load if the user switches runs (or clicks Refresh)
+    // again before it finishes, so two overlapping loads can't race and leave the
+    // grids showing a mix of two different runs' data.
+    private CancellationTokenSource? _loadCts;
+
     public MetricsPage(EvaluationService evaluationService, ILogger<MetricsPage> logger)
     {
         _evaluationService = evaluationService;
@@ -43,11 +48,14 @@ public partial class MetricsPage : Page
 
     private async Task LoadRunsAsync()
     {
-        RefreshButton.IsEnabled = false;
+        var ct = BeginLoad();
+        SetBusy(true);
         try
         {
             var previouslySelectedId = (RunSelector.SelectedItem as ExperimentRun)?.Id;
-            var runs = await _evaluationService.ListRunsAsync(CancellationToken.None);
+            var runs = await _evaluationService.ListRunsAsync(ct);
+            ct.ThrowIfCancellationRequested();
+
             RunSelector.ItemsSource = runs;
 
             if (runs.Count == 0)
@@ -62,6 +70,10 @@ public partial class MetricsPage : Page
 
             RunSelector.SelectedItem = toSelect;
         }
+        catch (OperationCanceledException)
+        {
+            // A newer load superseded this one - nothing to do.
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to load evaluation runs for metrics page");
@@ -69,17 +81,21 @@ public partial class MetricsPage : Page
         }
         finally
         {
-            RefreshButton.IsEnabled = true;
+            SetBusy(false);
         }
     }
 
     private async Task LoadMetricsForRunAsync(int runId)
     {
+        var ct = BeginLoad();
+        SetBusy(true);
         StatusText.Text = "Loading metrics...";
         try
         {
-            var summary = await _evaluationService.GetRunSummaryAsync(runId, CancellationToken.None);
-            var queryMetrics = await _evaluationService.GetQueryMetricsAsync(runId, CancellationToken.None);
+            var summary = await _evaluationService.GetRunSummaryAsync(runId, ct);
+            ct.ThrowIfCancellationRequested();
+            var queryMetrics = await _evaluationService.GetQueryMetricsAsync(runId, ct);
+            ct.ThrowIfCancellationRequested();
 
             _currentSummary = summary;
             _currentQueryMetrics = queryMetrics;
@@ -91,11 +107,34 @@ public partial class MetricsPage : Page
                 ? "No per-query metrics recorded for this run."
                 : $"{queryMetrics.Count} queries scored.";
         }
+        catch (OperationCanceledException)
+        {
+            // A newer load superseded this one - nothing to do.
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to load metrics for run {RunId}", runId);
             StatusText.Text = $"Error loading metrics: {ex.Message}";
         }
+        finally
+        {
+            SetBusy(false);
+        }
+    }
+
+    private CancellationToken BeginLoad()
+    {
+        _loadCts?.Cancel();
+        _loadCts = new CancellationTokenSource();
+        return _loadCts.Token;
+    }
+
+    private void SetBusy(bool isBusy)
+    {
+        LoadingIndicator.Visibility = isBusy ? Visibility.Visible : Visibility.Collapsed;
+        RunSelector.IsEnabled = !isBusy;
+        RefreshButton.IsEnabled = !isBusy;
+        ExportButton.IsEnabled = !isBusy;
     }
 
     private void ExportButton_Click(object sender, RoutedEventArgs e)
@@ -131,6 +170,12 @@ public partial class MetricsPage : Page
         }
     }
 
+    /// <summary>
+    /// Single CSV with two sections: run-level mean scores, then a blank line, then one
+    /// row per query with both retrieval and generation metrics side by side. All numbers
+    /// use InvariantCulture (period decimals) since commas are the field separator - a
+    /// comma-decimal locale would otherwise corrupt the file structure.
+    /// </summary>
     private static string BuildCsv(RunSummary summary, List<QueryMetricsRow> rows)
     {
         var sb = new StringBuilder();
@@ -173,6 +218,7 @@ public partial class MetricsPage : Page
     private static string FormatNullable(double? value, string format)
         => value.HasValue ? value.Value.ToString(format, CultureInfo.InvariantCulture) : "";
 
+    /// <summary>Quotes a CSV field if it contains a comma, quote, or newline; doubles any embedded quotes.</summary>
     private static string CsvEscape(string? value)
     {
         if (string.IsNullOrEmpty(value))
@@ -192,15 +238,16 @@ public partial class MetricsPage : Page
     {
         SummaryGrid.ItemsSource = new List<SummaryMetricRow>
         {
-            new("Precision", summary.MeanPrecisionAtK.ToString("F3")),
-            new("Recall", summary.MeanRecallAtK.ToString("F3")),
-            new("MRR", summary.MeanReciprocalRank.ToString("F3")),
-            new("NDCG", summary.MeanNdcgAtK.ToString("F3")),
-            new("Faithfulness (1-5)", summary.MeanFaithfulness.ToString("F2")),
-            new("Relevance (1-5)", summary.MeanRelevance.ToString("F2")),
-            new("Completeness (1-5)", summary.MeanCompleteness.ToString("F2"))
+            new("Precision", summary.MeanPrecisionAtK.ToString("F3", CultureInfo.InvariantCulture)),
+            new("Recall", summary.MeanRecallAtK.ToString("F3", CultureInfo.InvariantCulture)),
+            new("MRR", summary.MeanReciprocalRank.ToString("F3", CultureInfo.InvariantCulture)),
+            new("NDCG", summary.MeanNdcgAtK.ToString("F3", CultureInfo.InvariantCulture)),
+            new("Faithfulness (1-5)", summary.MeanFaithfulness.ToString("F2", CultureInfo.InvariantCulture)),
+            new("Relevance (1-5)", summary.MeanRelevance.ToString("F2", CultureInfo.InvariantCulture)),
+            new("Completeness (1-5)", summary.MeanCompleteness.ToString("F2", CultureInfo.InvariantCulture))
         };
     }
 
+    /// <summary>Simple metric/value pair for the summary DataGrid - not a domain model, just a display row.</summary>
     private sealed record SummaryMetricRow(string Metric, string Value);
 }

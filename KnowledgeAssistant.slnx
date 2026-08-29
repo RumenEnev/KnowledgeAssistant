@@ -3,12 +3,12 @@
     <Platform Name="Any CPU" />
     <Platform Name="x86" />
   </Configurations>
-  <Folder Name="/RagEvaluations/" Id="95da9a4d-c661-5744-8068-7a4efb7c2bd4">
-    <Project Path="KnowledgeAssistant.Support/RagEvaluation/RagEvaluation.csproj" Id="48789e82-11fd-4ca2-a4ce-405f40810ca8" />
-    <Project Path="KnowledgeAssistant.Support/RagEvaluation.Wpf/RagEvaluation.Wpf.csproj" />
-  </Folder>
   <Folder Name="/Shared/">
     <Project Path="KnowledgeAssistant.Shared/OllamaClient/OllamaClient.csproj" Id="49327a0f-3a32-41bb-a459-07a2a96b59b8" />
+  </Folder>
+  <Folder Name="/Support/">
+    <Project Path="KnowledgeAssistant.Support/RagEvaluation.Wpf/RagEvaluation.Wpf.csproj" />
+    <Project Path="KnowledgeAssistant.Support/RagEvaluation/RagEvaluation.csproj" Id="48789e82-11fd-4ca2-a4ce-405f40810ca8" />
   </Folder>
   <Folder Name="/Tools/">
     <Project Path="KnowledgeAssistant.Tools/DocumentCreator/DocumentCreator.csproj" />
