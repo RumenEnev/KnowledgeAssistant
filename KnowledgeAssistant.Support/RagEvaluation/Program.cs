@@ -1,4 +1,5 @@
-﻿using KnowledgeAssistant.Application.Abstraction;
+﻿using Dapper;
+using KnowledgeAssistant.Application.Abstraction;
 using KnowledgeAssistant.Application.Services;
 using KnowledgeAssistant.Eval.Core.Judging;
 using KnowledgeAssistant.Eval.Infrastructure;
@@ -7,7 +8,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using RagEvaluation.Interfaces;
-using RagEvaluation.Models;
 using RagEvaluation.Services;
 using System.Net.Http.Headers;
 
@@ -23,6 +23,8 @@ public static class Program
             return 1;
         }
 
+        SqlMapper.AddTypeHandler(new VectorTypeHandler());
+
         var config = new ConfigurationBuilder()
             .SetBasePath(AppContext.BaseDirectory)
             .AddJsonFile("appsettings.json", optional: false)
@@ -32,8 +34,11 @@ public static class Program
         ConfigureServices(services, config);
         await using var provider = services.BuildServiceProvider();
 
+        using var scope = provider.CreateScope();
+        var sp = scope.ServiceProvider;
         var command = args[0].ToLowerInvariant();
         var ct = CancellationToken.None;
+
         try
         {
             switch (command)
@@ -41,7 +46,7 @@ public static class Program
                 case "generate-testset":
                     {
                         var perChunk = GetIntArg(args, "--per-chunk", int.Parse(config["Eval:QuestionsPerChunk"] ?? "1"));
-                        var generator = provider.GetRequiredService<TestSetGenerationService>();
+                        var generator = sp.GetRequiredService<TestSetGenerationService>();
                         var count = await generator.GenerateAsync(config["Llm:ChatModel"]!, perChunk, ct);
                         Console.WriteLine($"Saved {count} synthetic test queries (one row per chunk x topic).");
                         Console.WriteLine("Hand-review a sample and mix in real user queries before trusting retrieval scores from this set alone.");
@@ -54,13 +59,12 @@ public static class Program
                         var chatModel = GetStringArg(args, "--chat-model") ?? config["Llm:ChatModel"]!;
                         var embeddingModel = GetStringArg(args, "--embedding-model") ?? config["Llm:EmbeddingModel"]!;
                         var judgeModel = GetStringArg(args, "--judge-model") ?? config["Llm:JudgeModel"]!;
-                        var evalService = provider.GetRequiredService<EvaluationService>();
+
+                        var evalService = sp.GetRequiredService<EvaluationService>();
                         var progress = new Progress<(int done, int total)>(p =>
                         {
                             if (p.done % 10 == 0 || p.done == p.total)
-                            {
                                 Console.WriteLine($"  {p.done}/{p.total} queries evaluated");
-                            }
                         });
 
                         Console.WriteLine($"Running eval '{runName}' (chat={chatModel}, judge={judgeModel})...");
@@ -69,14 +73,13 @@ public static class Program
                         {
                             Console.WriteLine($"  ({outcome.SkippedQueries} queries skipped - no candidates or empty budget selection)");
                         }
-
                         PrintSummary(outcome.Summary);
                         return 0;
                     }
 
                 case "list-runs":
                     {
-                        var evalService = provider.GetRequiredService<EvaluationService>();
+                        var evalService = sp.GetRequiredService<EvaluationService>();
                         var runs = await evalService.ListRunsAsync(ct);
                         Console.WriteLine($"{"Id",-6}{"Run Name",-30}{"Chat Model",-20}{"Judge Model",-20}Created");
                         foreach (var run in runs)
@@ -89,7 +92,7 @@ public static class Program
                 case "show-run":
                     {
                         var runId = int.Parse(GetStringArg(args, "--id") ?? throw new ArgumentException("--id is required"));
-                        var evalService = provider.GetRequiredService<EvaluationService>();
+                        var evalService = sp.GetRequiredService<EvaluationService>();
                         var summary = await evalService.GetRunSummaryAsync(runId, ct);
                         PrintSummary(summary);
                         return 0;
@@ -109,46 +112,53 @@ public static class Program
 
     private static void ConfigureServices(IServiceCollection services, IConfiguration config)
     {
+        // Some repositories (e.g. ModelRepository) apparently take IConfiguration directly
+        // rather than just NpgsqlDataSource - register it so DI can resolve that dependency.
+        services.AddSingleton(config);
+
         // --- Shared with the main app: same connection string, same NpgsqlDataSource pattern ---
-        var connString = config.GetConnectionString("Postgres")
-            ?? throw new InvalidOperationException("Missing ConnectionStrings:Postgres");
+        var connString = config.GetConnectionString("KnowledgeAssistant")
+            ?? throw new InvalidOperationException("Missing ConnectionStrings:KnowledgeAssistant");
 
         var dataSourceBuilder = new NpgsqlDataSourceBuilder(connString);
         dataSourceBuilder.UseVector();
         var dataSource = dataSourceBuilder.Build();
         services.AddSingleton(dataSource);
 
-        services.AddSingleton<IDocumentRepository, DocumentRepository>();
+        services.AddScoped<IDocumentRepository, DocumentRepository>();
 
-        // --- Ollama gateway, same as the main app ---
+        // --- Ollama gateways, matching the main app's registrations exactly ---
+        var ollamaBaseUrl = config["Llm:OllamaBaseUrl"]!;
+
         services.AddHttpClient<IModelGateway, OllamaModelGateway>(client =>
         {
-            client.BaseAddress = new Uri(config["Llm:OllamaBaseUrl"]!);
+            client.BaseAddress = new Uri(ollamaBaseUrl);
             client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             client.Timeout = TimeSpan.FromMinutes(5);
         });
 
-        // --- TODO: plug in your app's REAL implementations here ---
-        // DocumentsHandlingService needs IModelRepository and ModelCatalogService to size the
-        // token budget correctly (GetContextWindowTokensAsync) - these must be the same
-        // concrete types your main app registers, not stubs, or the budget won't match
-        // production. IConfigurationRepository is only touched by ingestion methods eval
-        // never calls, so a throwing stub is safe there if you don't want to wire the real one.
-        //
-        // services.AddSingleton<IModelRepository, YourModelRepository>();
-        // services.AddSingleton<IConfigurationRepository, YourConfigurationRepository>();
-        // services.AddSingleton<ModelCatalogService>();
-        //
-        // services.AddSingleton<DocumentsHandlingService>();
+        services.AddHttpClient<IModelCatalogGateway, OllamaModelCatalogGateway>(client =>
+        {
+            client.BaseAddress = new Uri(ollamaBaseUrl);
+        });
+
+        // --- DocumentsHandlingService's other dependencies - now wired to match the main
+        // app's Program.cs registrations exactly. NOTE: assumes ConfigurationRepository and
+        // ModelRepository take a single NpgsqlDataSource constructor param, same as
+        // DocumentRepository - adjust here if their real constructors differ. ---
+        services.AddScoped<IConfigurationRepository, ConfigurationRepository>();
+        services.AddScoped<IModelRepository, ModelRepository>();
+        services.AddScoped<ModelCatalogService>();
+        services.AddScoped<DocumentsHandlingService>();
 
         // --- Eval-specific, all new ---
-        services.AddSingleton<IExperimentRepository, EvalRepository>();
-        services.AddSingleton<ILlmJudge>(sp => new LlmJudge(sp.GetRequiredService<IModelGateway>()));
-        services.AddSingleton<TestSetGenerationService>();
-        services.AddSingleton<EvaluationService>();
+        services.AddScoped<IExperimentRepository, EvalRepository>();
+        services.AddScoped<ILlmJudge>(sp => new LlmJudge(sp.GetRequiredService<IModelGateway>()));
+        services.AddScoped<TestSetGenerationService>();
+        services.AddScoped<EvaluationService>();
     }
 
-    private static void PrintSummary(RunSummary summary)
+    private static void PrintSummary(RagEvaluation.Models.RunSummary summary)
     {
         Console.WriteLine();
         Console.WriteLine($"=== Run: {summary.Run.RunName} (chat: {summary.Run.ChatModel}, judge: {summary.Run.JudgeModel}) ===");
@@ -181,8 +191,7 @@ public static class Program
               ka-eval show-run --id RUN_ID
 
             Before first run: apply eval_schema_migration.sql and eval_schema_migration_phase5.sql,
-            fill in appsettings.json, and wire IModelRepository/IConfigurationRepository/
-            ModelCatalogService in Program.cs (see TODO comment in ConfigureServices).
+            and fill in appsettings.json (Postgres connection string + Ollama model names).
             """);
     }
 }
