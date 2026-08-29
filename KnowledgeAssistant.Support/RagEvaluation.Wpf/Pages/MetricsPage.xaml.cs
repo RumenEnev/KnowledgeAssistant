@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
 using RagEvaluation.Models;
 using RagEvaluation.Services;
+using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Windows;
@@ -141,13 +142,13 @@ public partial class MetricsPage : Page
         sb.AppendLine();
 
         sb.AppendLine("Metric,Mean Value");
-        sb.AppendLine($"Precision,{summary.MeanPrecisionAtK:F3}");
-        sb.AppendLine($"Recall,{summary.MeanRecallAtK:F3}");
-        sb.AppendLine($"MRR,{summary.MeanReciprocalRank:F3}");
-        sb.AppendLine($"NDCG,{summary.MeanNdcgAtK:F3}");
-        sb.AppendLine($"Faithfulness (1-5),{summary.MeanFaithfulness:F2}");
-        sb.AppendLine($"Relevance (1-5),{summary.MeanRelevance:F2}");
-        sb.AppendLine($"Completeness (1-5),{summary.MeanCompleteness:F2}");
+        sb.AppendLine($"Precision,{summary.MeanPrecisionAtK.ToString("F3", CultureInfo.InvariantCulture)}");
+        sb.AppendLine($"Recall,{summary.MeanRecallAtK.ToString("F3", CultureInfo.InvariantCulture)}");
+        sb.AppendLine($"MRR,{summary.MeanReciprocalRank.ToString("F3", CultureInfo.InvariantCulture)}");
+        sb.AppendLine($"NDCG,{summary.MeanNdcgAtK.ToString("F3", CultureInfo.InvariantCulture)}");
+        sb.AppendLine($"Faithfulness (1-5),{summary.MeanFaithfulness.ToString("F2", CultureInfo.InvariantCulture)}");
+        sb.AppendLine($"Relevance (1-5),{summary.MeanRelevance.ToString("F2", CultureInfo.InvariantCulture)}");
+        sb.AppendLine($"Completeness (1-5),{summary.MeanCompleteness.ToString("F2", CultureInfo.InvariantCulture)}");
         sb.AppendLine();
 
         sb.AppendLine("Query,Precision,Recall,MRR,NDCG,Faithfulness,Relevance,Completeness");
@@ -170,7 +171,7 @@ public partial class MetricsPage : Page
     }
 
     private static string FormatNullable(double? value, string format)
-        => value.HasValue ? value.Value.ToString(format) : "";
+        => value.HasValue ? value.Value.ToString(format, CultureInfo.InvariantCulture) : "";
 
     private static string CsvEscape(string? value)
     {
