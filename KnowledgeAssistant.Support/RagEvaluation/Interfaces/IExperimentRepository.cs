@@ -1,4 +1,5 @@
 ﻿using KnowledgeAssistant.Domain.Documents;
+using KnowledgeAssistant.Eval.Core.Models;
 using RagEvaluation.Models;
 
 namespace RagEvaluation.Interfaces;
@@ -16,7 +17,12 @@ public interface IExperimentRepository
     Task SaveGenerationResultAsync(GenerationResult result, GenerationMetrics metrics, string judgePromptVersion, string judgeModel, CancellationToken ct = default);
 
     Task<RunSummary> GetRunSummaryAsync(int runId, CancellationToken ct = default);
+
     Task<List<ExperimentRun>> ListRunsAsync(CancellationToken ct = default);
+
     Task CleanDatabaseAsync(CancellationToken ct = default);
+
     Task<List<QueryMetricsRow>> GetQueryMetricsAsync(int runId, CancellationToken ct = default);
+
+    Task<GenerationResultRecord?> GetGenerationResultAsync(int runId, int queryId, CancellationToken ct = default);
 }

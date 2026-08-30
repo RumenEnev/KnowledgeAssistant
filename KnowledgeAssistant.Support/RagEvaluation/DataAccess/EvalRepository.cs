@@ -1,5 +1,6 @@
 ﻿using Dapper;
 using KnowledgeAssistant.Domain.Documents;
+using KnowledgeAssistant.Eval.Core.Models;
 using Npgsql;
 using NpgsqlTypes;
 using RagEvaluation.Enums;
@@ -7,7 +8,7 @@ using RagEvaluation.Interfaces;
 using RagEvaluation.Models;
 using System.Text.Json;
 
-namespace KnowledgeAssistant.Eval.Infrastructure;
+    namespace KnowledgeAssistant.Eval.Infrastructure;
 
 public sealed class EvalRepository : IExperimentRepository
 {
@@ -320,5 +321,46 @@ public sealed class EvalRepository : IExperimentRepository
 
         var rows = await connection.QueryAsync<QueryMetricsRow>(sql, new { RunId = runId });
         return rows.ToList();
+    }
+
+    public async Task<GenerationResultRecord?> GetGenerationResultAsync(int runId, int queryId, CancellationToken ct = default)
+    {
+        await using var connection = await _dataSource.OpenConnectionAsync(ct);
+
+        const string sql = """
+        SELECT
+            gr.generated_answer AS GeneratedAnswer,
+            gr.context_chunk_ids::text AS ContextChunkIdsJson,
+            gm.faithfulness_score AS FaithfulnessScore,
+            gm.relevance_score AS RelevanceScore,
+            gm.completeness_score AS CompletenessScore,
+            gm.judge_rationale AS JudgeRationale,
+            gm.judge_model AS JudgeModel
+        FROM rag.eval_generation_results gr
+        LEFT JOIN rag.eval_generation_metrics gm ON gm.generation_result_id = gr.id
+        WHERE gr.run_id = @RunId AND gr.query_id = @QueryId;
+        """;
+
+        var row = await connection.QuerySingleOrDefaultAsync<GenerationResultRow>(
+            sql, new { RunId = runId, QueryId = queryId });
+
+        if (row is null)
+        {
+            return null;
+        }
+
+        var contextChunkIds = System.Text.Json.JsonSerializer.Deserialize<List<int>>(row.ContextChunkIdsJson)
+            ?? new List<int>();
+
+        return new GenerationResultRecord
+        {
+            GeneratedAnswer = row.GeneratedAnswer,
+            ContextChunkIds = contextChunkIds,
+            FaithfulnessScore = row.FaithfulnessScore,
+            RelevanceScore = row.RelevanceScore,
+            CompletenessScore = row.CompletenessScore,
+            JudgeRationale = row.JudgeRationale,
+            JudgeModel = row.JudgeModel
+        };
     }
 }

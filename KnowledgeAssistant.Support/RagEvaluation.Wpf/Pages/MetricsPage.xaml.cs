@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
+using RagEvaluation.Desktop.Windows;
 using RagEvaluation.Models;
 using RagEvaluation.Services;
 using System.Globalization;
@@ -14,8 +15,13 @@ public partial class MetricsPage : Page
 {
     private readonly EvaluationService _evaluationService;
     private readonly ILogger<MetricsPage> _logger;
+
     private RunSummary? _currentSummary;
     private List<QueryMetricsRow> _currentQueryMetrics = new();
+
+    // Cancels a previous in-flight load if the user switches runs (or clicks Refresh)
+    // again before it finishes, so two overlapping loads can't race and leave the
+    // grids showing a mix of two different runs' data.
     private CancellationTokenSource? _loadCts;
 
     public MetricsPage(EvaluationService evaluationService, ILogger<MetricsPage> logger)
@@ -131,6 +137,32 @@ public partial class MetricsPage : Page
         RefreshButton.IsEnabled = !isBusy;
         ExportButton.IsEnabled = !isBusy;
         ExportSummaryButton.IsEnabled = !isBusy;
+    }
+
+    private async void QueryMetricsGrid_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (_currentSummary is null || QueryMetricsGrid.SelectedItem is not QueryMetricsRow row)
+        {
+            return;
+        }
+
+        try
+        {
+            var detail = await _evaluationService.GetQueryGenerationDetailAsync(_currentSummary.Run.Id, row.QueryId, CancellationToken.None);
+            if (detail is null)
+            {
+                StatusText.Text = "No generation result recorded for this query (it may have been skipped during the run).";
+                return;
+            }
+
+            var window = new GenerationDetailWindow(detail) { Owner = Window.GetWindow(this) };
+            window.ShowDialog();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load generation detail for query {QueryId}", row.QueryId);
+            StatusText.Text = $"Error loading detail: {ex.Message}";
+        }
     }
 
     private void ExportButton_Click(object sender, RoutedEventArgs e)

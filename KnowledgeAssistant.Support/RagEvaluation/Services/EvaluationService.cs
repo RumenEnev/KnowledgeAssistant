@@ -173,6 +173,23 @@ public sealed class EvaluationService
         return new EvalRunOutcome(summary, skipped);
     }
 
+    public async Task<QueryGenerationDetail> GetQueryGenerationDetailAsync(int runId, int queryId, CancellationToken ct = default)
+    {
+        var record = await _experimentRepository.GetGenerationResultAsync(runId, queryId, ct);
+        return new QueryGenerationDetail
+        {
+            QueryId = queryId,
+            QueryText = "Query text",
+            GeneratedAnswer = record.GeneratedAnswer,
+            FaithfulnessScore = record.FaithfulnessScore,
+            RelevanceScore = record.RelevanceScore,
+            CompletenessScore = record.CompletenessScore,
+            JudgeRationale = record.JudgeRationale,
+            JudgeModel = record.JudgeModel,
+            ContextChunks = new List<ContextChunkDetail>()
+        };
+    }
+
     public Task<RunSummary> GetRunSummaryAsync(int runId, CancellationToken ct = default)
         => _experimentRepository.GetRunSummaryAsync(runId, ct);
 
