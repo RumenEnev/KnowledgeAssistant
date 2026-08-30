@@ -14,13 +14,8 @@ public partial class MetricsPage : Page
 {
     private readonly EvaluationService _evaluationService;
     private readonly ILogger<MetricsPage> _logger;
-
     private RunSummary? _currentSummary;
     private List<QueryMetricsRow> _currentQueryMetrics = new();
-
-    // Cancels a previous in-flight load if the user switches runs (or clicks Refresh)
-    // again before it finishes, so two overlapping loads can't race and leave the
-    // grids showing a mix of two different runs' data.
     private CancellationTokenSource? _loadCts;
 
     public MetricsPage(EvaluationService evaluationService, ILogger<MetricsPage> logger)
@@ -135,6 +130,7 @@ public partial class MetricsPage : Page
         RunSelector.IsEnabled = !isBusy;
         RefreshButton.IsEnabled = !isBusy;
         ExportButton.IsEnabled = !isBusy;
+        ExportSummaryButton.IsEnabled = !isBusy;
     }
 
     private void ExportButton_Click(object sender, RoutedEventArgs e)
@@ -168,6 +164,62 @@ public partial class MetricsPage : Page
             _logger.LogError(ex, "Failed to export metrics CSV");
             StatusText.Text = $"Export failed: {ex.Message}";
         }
+    }
+
+    private void ExportSummaryButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_currentSummary is null)
+        {
+            StatusText.Text = "Nothing to export yet - select a run first.";
+            return;
+        }
+
+        var runName = _currentSummary.Run.RunName;
+        var dialog = new SaveFileDialog
+        {
+            Filter = "CSV files (*.csv)|*.csv",
+            FileName = $"eval-summary-{runName}-{DateTime.Now:yyyyMMdd-HHmmss}.csv"
+        };
+
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        try
+        {
+            var csv = BuildSummaryCsv(_currentSummary);
+            File.WriteAllText(dialog.FileName, csv, Encoding.UTF8);
+            StatusText.Text = $"Exported summary to {dialog.FileName}";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to export summary CSV");
+            StatusText.Text = $"Export failed: {ex.Message}";
+        }
+    }
+
+    /// <summary>Just the run info + mean scores, no per-query rows. Same InvariantCulture rule as BuildCsv.</summary>
+    private static string BuildSummaryCsv(RunSummary summary)
+    {
+        var sb = new StringBuilder();
+
+        sb.AppendLine($"Run,{CsvEscape(summary.Run.RunName)}");
+        sb.AppendLine($"Chat Model,{CsvEscape(summary.Run.ChatModel)}");
+        sb.AppendLine($"Judge Model,{CsvEscape(summary.Run.JudgeModel)}");
+        sb.AppendLine($"Created,{summary.Run.CreatedAt:yyyy-MM-dd HH:mm}");
+        sb.AppendLine();
+
+        sb.AppendLine("Metric,Mean Value");
+        sb.AppendLine($"Precision,{summary.MeanPrecisionAtK.ToString("F3", CultureInfo.InvariantCulture)}");
+        sb.AppendLine($"Recall,{summary.MeanRecallAtK.ToString("F3", CultureInfo.InvariantCulture)}");
+        sb.AppendLine($"MRR,{summary.MeanReciprocalRank.ToString("F3", CultureInfo.InvariantCulture)}");
+        sb.AppendLine($"NDCG,{summary.MeanNdcgAtK.ToString("F3", CultureInfo.InvariantCulture)}");
+        sb.AppendLine($"Faithfulness (1-5),{summary.MeanFaithfulness.ToString("F2", CultureInfo.InvariantCulture)}");
+        sb.AppendLine($"Relevance (1-5),{summary.MeanRelevance.ToString("F2", CultureInfo.InvariantCulture)}");
+        sb.AppendLine($"Completeness (1-5),{summary.MeanCompleteness.ToString("F2", CultureInfo.InvariantCulture)}");
+
+        return sb.ToString();
     }
 
     /// <summary>

@@ -2,12 +2,13 @@
     x:Class="RagEvaluation.Desktop.Pages.MetricsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
     Title="Metrics"
     d:DesignHeight="800"
     d:DesignWidth="1100"
-    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    ScrollViewer.CanContentScroll="False"
     mc:Ignorable="d">
 
     <Grid Margin="24">
@@ -55,9 +56,15 @@
                 Click="ExportButton_Click"
                 Content="Export CSV"
                 Icon="{ui:SymbolIcon ArrowExport24}" />
+            <ui:Button
+                x:Name="ExportSummaryButton"
+                Margin="8,0,0,0"
+                Padding="12,6"
+                Click="ExportSummaryButton_Click"
+                Content="Export Summary"
+                Icon="{ui:SymbolIcon ArrowExport24}" />
         </StackPanel>
 
-        <!-- Indeterminate progress bar shown only while a run's data is loading. -->
         <ProgressBar
             x:Name="LoadingIndicator"
             Grid.Row="2"
@@ -66,9 +73,10 @@
             IsIndeterminate="True"
             Visibility="Collapsed" />
 
-        <!-- Summary card: small, fixed number of rows (7 metrics), fine to auto-size -
-             no internal scrolling needed here, so a plain StackPanel is fine. -->
-        <ui:Card Grid.Row="3" Margin="0,0,0,16" Padding="16">
+        <ui:Card
+            Grid.Row="3"
+            Margin="0,0,0,16"
+            Padding="16">
             <StackPanel>
                 <TextBlock
                     Margin="0,0,0,8"
@@ -97,13 +105,10 @@
             </StackPanel>
         </ui:Card>
 
-        <!-- Per-query card: this is the one that can have hundreds of rows, so it needs
-             genuine height bounding (Grid row="*" + inner Grid with a "*" row for the grid
-             itself) rather than a StackPanel, so the DataGrid's OWN internal scrolling and
-             mouse wheel handling work natively - same pattern ChunksPage already uses
-             successfully with ChunksGrid in a Grid.Row="*" cell. No outer ScrollViewer,
-             no PreviewMouseWheel workaround needed. -->
-        <ui:Card Grid.Row="4" Margin="0,0,0,16" Padding="16">
+        <ui:Card
+            Grid.Row="4"
+            Margin="0,0,0,16"
+            Padding="16">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
