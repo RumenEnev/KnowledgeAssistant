@@ -103,7 +103,6 @@ public sealed class EvaluationService
 
                 var retrievalMetrics = _metricsCalculator.Compute(query, selection.Chunks);
                 await _experimentRepository.SaveRetrievalResultAsync(run.Id, query.Id, selection.Chunks, retrievalMetrics, ct);
-
                 var includedIds = selection.Chunks
                     .Where(c => c.IncludedInBudget)
                     .OrderBy(c => c.Rank)
@@ -123,7 +122,6 @@ public sealed class EvaluationService
                     .ToList();
 
                 var contextText = string.Join("\n\n---\n\n", contextChunks.Select(c => c.ChunkText));
-
                 var systemMessage = new ChatMessage
                 {
                     Role = "system",
@@ -136,9 +134,7 @@ public sealed class EvaluationService
                 };
 
                 progress?.Report(new EvalProgress(i, testQueries.Count, EvalPhase.Generation, query.QueryText));
-
                 var answer = await _modelGateway.GenerateAsync(chatModel, userMessage, systemMessage, ct);
-
                 var generationResult = new GenerationResult
                 {
                     QueryId = query.Id,
@@ -148,7 +144,6 @@ public sealed class EvaluationService
                 };
 
                 progress?.Report(new EvalProgress(i, testQueries.Count, EvalPhase.Judging, query.QueryText));
-
                 var generationMetrics = await _judge.ScoreAsync(judgeModel, query, generationResult, contextChunks, ct);
                 await _experimentRepository.SaveGenerationResultAsync(
                     generationResult, generationMetrics, KnowledgeAssistant.Eval.Core.Judging.LlmJudge.JudgePromptVersion, judgeModel, ct);
@@ -161,8 +156,6 @@ public sealed class EvaluationService
             }
             catch (Exception ex)
             {
-                // any per-query failure (retrieval, generation, or judging - e.g. malformed judge JSON, model
-                // timeout) shouldn't abort the whole run; skip this query and keep going so partial results are saved.
                 _logger?.LogError(ex, "Query {QueryId} failed - skipping. Query text: {QueryText}", query.Id, query.QueryText);
                 skipped++;
                 progress?.Report(new EvalProgress(i, testQueries.Count, EvalPhase.Failed, query.QueryText));
@@ -173,20 +166,35 @@ public sealed class EvaluationService
         return new EvalRunOutcome(summary, skipped);
     }
 
-    public async Task<QueryGenerationDetail> GetQueryGenerationDetailAsync(int runId, int queryId, CancellationToken ct = default)
+    public async Task<QueryGenerationDetail?> GetQueryGenerationDetailAsync(int runId, int queryId, CancellationToken ct = default)
     {
         var record = await _experimentRepository.GetGenerationResultAsync(runId, queryId, ct);
+        if (record is null)
+        {
+            return null; // query was skipped during this run - nothing to show
+        }
+
+        var chunks = (await _documentRepository.GetChunksByIdsAsync(record.ContextChunkIds, ct)).ToList();
+        var orderedChunks = record.ContextChunkIds
+            .Select(id => chunks.FirstOrDefault(c => c.Id == id))
+            .Where(c => c is not null)
+            .Select(c => new ContextChunkDetail { ChunkId = c!.Id, ChunkText = c.ChunkText })
+            .ToList();
+
+        var queryText = (await _experimentRepository.LoadTestQueriesAsync(ct))
+            .FirstOrDefault(q => q.Id == queryId)?.QueryText ?? "(query text unavailable)";
+
         return new QueryGenerationDetail
         {
             QueryId = queryId,
-            QueryText = "Query text",
+            QueryText = queryText,
             GeneratedAnswer = record.GeneratedAnswer,
+            ContextChunks = orderedChunks,
             FaithfulnessScore = record.FaithfulnessScore,
             RelevanceScore = record.RelevanceScore,
             CompletenessScore = record.CompletenessScore,
             JudgeRationale = record.JudgeRationale,
-            JudgeModel = record.JudgeModel,
-            ContextChunks = new List<ContextChunkDetail>()
+            JudgeModel = record.JudgeModel
         };
     }
 
