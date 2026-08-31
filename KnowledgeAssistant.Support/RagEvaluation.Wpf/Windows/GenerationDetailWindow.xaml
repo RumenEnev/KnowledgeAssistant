@@ -77,12 +77,21 @@
             </TabItem>
         </TabControl>
 
-        <ui:Button
+        <StackPanel
             Grid.Row="3"
             Margin="0,16,0,0"
             HorizontalAlignment="Right"
-            Padding="16,6"
-            Click="CloseButton_Click"
-            Content="Close" />
+            Orientation="Horizontal">
+            <ui:Button
+                x:Name="CopyToClipboardButton"
+                Margin="0,0,8,0"
+                Padding="16,6"
+                Click="CopyToClipboardButton_Click"
+                Content="Copy to Clipboard" />
+            <ui:Button
+                Padding="16,6"
+                Click="CloseButton_Click"
+                Content="Close" />
+        </StackPanel>
     </Grid>
 </Window>

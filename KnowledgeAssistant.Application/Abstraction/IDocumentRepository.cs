@@ -28,7 +28,7 @@ public interface IDocumentRepository
 
     Task ReplaceDocumentTopicsAsync(int documentId, IEnumerable<int> topicIds, CancellationToken cancellationToken);
 
-    Task<IEnumerable<DocumentChunk>> SearchChunksByTopicAsync(int topicId, float[] queryEmbedding, int maxResults, CancellationToken cancellationToken);
+    Task<IEnumerable<DocumentChunk>> SearchChunksByTopicAsync(int topicId, float[] queryEmbedding, string queryText, int maxResults, CancellationToken cancellationToken);
 
     Task DeleteChunksByDocumentAsync(int documentId, CancellationToken cancellationToken);
 

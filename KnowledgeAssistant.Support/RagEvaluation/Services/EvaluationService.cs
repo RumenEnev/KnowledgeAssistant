@@ -125,7 +125,10 @@ public sealed class EvaluationService
                 var systemMessage = new ChatMessage
                 {
                     Role = "system",
-                    Content = "Answer the user's question using ONLY the provided context. If the context doesn't contain the answer, say so explicitly."
+                    Content = "Content = Answer the user's question using ONLY the provided context. Be thorough: " +
+                    "include all relevant facts, factors, or perspectives mentioned in the context that address the question, " +
+                    "not just the first one you find. If the context presents multiple sides, causes, or examples relevant to the question, " +
+                    "mention all of them. If the context doesn't contain the answer, say so explicitly."
                 };
                 var userMessage = new ChatMessage
                 {

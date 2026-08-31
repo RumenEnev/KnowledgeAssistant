@@ -11,5 +11,7 @@
         public string ChunkText { get; set; } = string.Empty;
 
         public double Distance { get; set; }
+
+        public double? FusedScore { get; set; }
     }
 }

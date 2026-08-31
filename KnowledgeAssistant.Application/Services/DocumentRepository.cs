@@ -148,27 +148,58 @@ public class DocumentRepository : IDocumentRepository
         });
     }
 
-    public async Task<IEnumerable<DocumentChunk>> SearchChunksByTopicAsync(int topicId, float[] queryEmbedding, int maxResults, CancellationToken cancellationToken)
+    public async Task<IEnumerable<DocumentChunk>> SearchChunksByTopicAsync(int topicId, float[] queryEmbedding, string queryText, int maxResults, CancellationToken cancellationToken)
     {
         try
         {
             await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
 
-            // Cosine distance operator <=> is provided by pgvector; lower = more similar.
+            // RRF combines two independently-ranked candidate lists (vector similarity and keyword/FTS match)
+            // into a single fused ranking, without needing to normalize distance scores against ts_rank scores.
             var query = """
-                        SELECT c.id, c.document_id AS DocumentId, c.chunk_index AS ChunkIndex, c.chunk_text AS ChunkText,
-                               c.embedding <=> @QueryEmbedding AS Distance
-                        FROM rag.chunks c
-                        INNER JOIN rag.document_topics dt ON dt.document_id = c.document_id
-                        WHERE dt.topic_id = @TopicId
-                        ORDER BY c.embedding <=> @QueryEmbedding
-                        LIMIT @MaxResults;
-                        """;
+        WITH vector_ranked AS (
+            SELECT c.id,
+                   c.embedding <=> @QueryEmbedding AS distance,
+                   ROW_NUMBER() OVER (ORDER BY c.embedding <=> @QueryEmbedding) AS vec_rank
+            FROM rag.chunks c
+            INNER JOIN rag.document_topics dt ON dt.document_id = c.document_id
+            WHERE dt.topic_id = @TopicId
+            ORDER BY c.embedding <=> @QueryEmbedding
+            LIMIT @CandidateFanout
+        ),
+        fts_ranked AS (
+            SELECT c.id,
+                   ROW_NUMBER() OVER (ORDER BY ts_rank_cd(c.chunk_text_tsv, plainto_tsquery('english', @QueryText)) DESC) AS fts_rank
+            FROM rag.chunks c
+            INNER JOIN rag.document_topics dt ON dt.document_id = c.document_id
+            WHERE dt.topic_id = @TopicId
+              AND c.chunk_text_tsv @@ plainto_tsquery('english', @QueryText)
+            ORDER BY ts_rank_cd(c.chunk_text_tsv, plainto_tsquery('english', @QueryText)) DESC
+            LIMIT @CandidateFanout
+        ),
+        fused AS (
+            SELECT
+                COALESCE(v.id, f.id) AS id,
+                COALESCE(1.0 / (@RrfK + v.vec_rank), 0) + COALESCE(1.0 / (@RrfK + f.fts_rank), 0) AS fused_score,
+                v.distance
+            FROM vector_ranked v
+            FULL OUTER JOIN fts_ranked f ON v.id = f.id
+        )
+        SELECT c.id, c.document_id AS DocumentId, c.chunk_index AS ChunkIndex, c.chunk_text AS ChunkText,
+               fused.distance AS Distance, fused.fused_score AS FusedScore
+        FROM fused
+        INNER JOIN rag.chunks c ON c.id = fused.id
+        ORDER BY fused.fused_score DESC
+        LIMIT @MaxResults;
+        """;
 
             var result = await connection.QueryAsync<DocumentChunk>(query, new
             {
                 TopicId = topicId,
                 QueryEmbedding = new Pgvector.Vector(queryEmbedding),
+                QueryText = queryText,
+                CandidateFanout = Math.Max(maxResults * 4, 20), // wider net feeding into fusion than final result count
+                RrfK = 60, // standard RRF constant
                 MaxResults = maxResults
             });
 
