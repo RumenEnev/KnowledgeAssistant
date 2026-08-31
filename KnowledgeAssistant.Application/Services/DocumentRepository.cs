@@ -341,4 +341,189 @@ public class DocumentRepository : IDocumentRepository
         var query = "DELETE FROM rag.chunks WHERE id = @ChunkId";
         await connection.ExecuteAsync(query, new { ChunkId = chunkId });
     }
+
+    public async Task<Dictionary<int, DocumentRetrievalConfig>> GetRetrievalConfigsAsync(IReadOnlyCollection<int> documentIds, CancellationToken cancellationToken)
+    {
+        if (documentIds.Count == 0)
+        {
+            return new Dictionary<int, DocumentRetrievalConfig>();
+        }
+
+        try
+        {
+            await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+            var query = """
+                    SELECT document_id AS DocumentId, chunk_size AS ChunkSize, chunk_overlap AS ChunkOverlap,
+                           candidate_pool_size AS CandidatePoolSize, candidate_fanout AS CandidateFanout,
+                           max_distance_threshold AS MaxDistanceThreshold, rrf_k AS RrfK,
+                           target_injection_fraction AS TargetInjectionFraction, max_injection_fraction AS MaxInjectionFraction
+                    FROM rag.document_retrieval_config
+                    WHERE document_id = ANY(@DocumentIds);
+                    """;
+
+            var rows = await connection.QueryAsync<DocumentRetrievalConfig>(query, new { DocumentIds = documentIds.ToArray() });
+            return rows.ToDictionary(r => r.DocumentId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading retrieval configs for {Count} documents", documentIds.Count);
+            throw;
+        }
+    }
+
+    public async Task SaveRetrievalConfigAsync(DocumentRetrievalConfig config, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+
+            var query = """
+                    INSERT INTO rag.document_retrieval_config
+                        (document_id, chunk_size, chunk_overlap, candidate_pool_size, candidate_fanout,
+                         max_distance_threshold, rrf_k, target_injection_fraction, max_injection_fraction, updated_at)
+                    VALUES
+                        (@DocumentId, @ChunkSize, @ChunkOverlap, @CandidatePoolSize, @CandidateFanout,
+                         @MaxDistanceThreshold, @RrfK, @TargetInjectionFraction, @MaxInjectionFraction, now())
+                    ON CONFLICT (document_id) DO UPDATE SET
+                        chunk_size = EXCLUDED.chunk_size,
+                        chunk_overlap = EXCLUDED.chunk_overlap,
+                        candidate_pool_size = EXCLUDED.candidate_pool_size,
+                        candidate_fanout = EXCLUDED.candidate_fanout,
+                        max_distance_threshold = EXCLUDED.max_distance_threshold,
+                        rrf_k = EXCLUDED.rrf_k,
+                        target_injection_fraction = EXCLUDED.target_injection_fraction,
+                        max_injection_fraction = EXCLUDED.max_injection_fraction,
+                        updated_at = now();
+                    """;
+
+            await connection.ExecuteAsync(query, config);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error saving retrieval config for document {DocumentId}", config.DocumentId);
+            throw;
+        }
+    }
+
+    public async Task<List<int>> GetDocumentIdsByTopicAsync(int topicId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+
+            var query = """
+                    SELECT document_id
+                    FROM rag.document_topics
+                    WHERE topic_id = @TopicId;
+                    """;
+
+            var result = await connection.QueryAsync<int>(query, new { TopicId = topicId });
+            return result.ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading document IDs for topic {TopicId}", topicId);
+            throw;
+        }
+    }
+
+    public async Task<IEnumerable<DocumentChunk>> SearchChunksByDocumentAsync(
+    int documentId, float[] queryEmbedding, string queryText,
+    int candidatePoolSize, int candidateFanout, int rrfK, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+
+            var query = """
+                        WITH vector_ranked AS (
+                            SELECT c.id,
+                                   c.embedding <=> @QueryEmbedding AS distance,
+                                   ROW_NUMBER() OVER (ORDER BY c.embedding <=> @QueryEmbedding) AS vec_rank
+                            FROM rag.chunks c
+                            WHERE c.document_id = @DocumentId
+                            ORDER BY c.embedding <=> @QueryEmbedding
+                            LIMIT @CandidateFanout
+                        ),
+                        fts_ranked AS (
+                            SELECT c.id,
+                                   ROW_NUMBER() OVER (ORDER BY ts_rank_cd(c.chunk_text_tsv, plainto_tsquery('english', @QueryText)) DESC) AS fts_rank
+                            FROM rag.chunks c
+                            WHERE c.document_id = @DocumentId
+                              AND c.chunk_text_tsv @@ plainto_tsquery('english', @QueryText)
+                            ORDER BY ts_rank_cd(c.chunk_text_tsv, plainto_tsquery('english', @QueryText)) DESC
+                            LIMIT @CandidateFanout
+                        ),
+                        fused AS (
+                            SELECT
+                                COALESCE(v.id, f.id) AS id,
+                                COALESCE(1.0 / (@RrfK + v.vec_rank), 0) + COALESCE(1.0 / (@RrfK + f.fts_rank), 0) AS fused_score,
+                                v.distance
+                            FROM vector_ranked v
+                            FULL OUTER JOIN fts_ranked f ON v.id = f.id
+                        )
+                        SELECT c.id, c.document_id AS DocumentId, c.chunk_index AS ChunkIndex, c.chunk_text AS ChunkText,
+                               fused.distance AS Distance, fused.fused_score AS FusedScore
+                        FROM fused
+                        INNER JOIN rag.chunks c ON c.id = fused.id
+                        ORDER BY fused.fused_score DESC
+                        LIMIT @CandidatePoolSize;
+                     """;
+
+            return await connection.QueryAsync<DocumentChunk>(query, new
+            {
+                DocumentId = documentId,
+                QueryEmbedding = new Pgvector.Vector(queryEmbedding),
+                QueryText = queryText,
+                CandidateFanout = candidateFanout,
+                RrfK = rrfK,
+                CandidatePoolSize = candidatePoolSize
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error searching chunks by document ID {DocumentId}", documentId);
+            throw;
+        }
+    }
+
+    public async Task<DocumentRetrievalConfig?> GetRetrievalConfigAsync(int documentId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+
+            var query = """
+                        SELECT document_id AS DocumentId, chunk_size AS ChunkSize, chunk_overlap AS ChunkOverlap,
+                               candidate_pool_size AS CandidatePoolSize, candidate_fanout AS CandidateFanout,
+                               max_distance_threshold AS MaxDistanceThreshold, rrf_k AS RrfK,
+                               target_injection_fraction AS TargetInjectionFraction, max_injection_fraction AS MaxInjectionFraction
+                        FROM rag.document_retrieval_config
+                        WHERE document_id = @DocumentId;
+                        """;
+
+            return await connection.QuerySingleOrDefaultAsync<DocumentRetrievalConfig>(query, new { DocumentId = documentId });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading retrieval config for document {DocumentId}", documentId);
+            throw;
+        }
+    }
+
+    public async Task DeleteRetrievalConfigAsync(int documentId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+            await connection.ExecuteAsync(
+                "DELETE FROM rag.document_retrieval_config WHERE document_id = @DocumentId;",
+                new { DocumentId = documentId });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting retrieval config for document {DocumentId}", documentId);
+            throw;
+        }
+    }
 }

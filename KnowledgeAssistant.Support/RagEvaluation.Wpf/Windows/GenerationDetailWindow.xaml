@@ -2,12 +2,12 @@
     x:Class="RagEvaluation.Desktop.Windows.GenerationDetailWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
     Title="Query Detail"
     Width="800"
     Height="650"
-    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     ScrollViewer.CanContentScroll="False"
     WindowStartupLocation="CenterOwner"
     mc:Ignorable="d">
@@ -37,9 +37,7 @@
         <TabControl Grid.Row="2">
             <TabItem Header="Generated Answer">
                 <ScrollViewer Margin="8" VerticalScrollBarVisibility="Auto">
-                    <TextBlock
-                        x:Name="AnswerTextBlock"
-                        TextWrapping="Wrap" />
+                    <TextBlock x:Name="AnswerTextBlock" TextWrapping="Wrap" />
                 </ScrollViewer>
             </TabItem>
 
@@ -70,9 +68,7 @@
 
             <TabItem Header="Judge Rationale">
                 <ScrollViewer Margin="8" VerticalScrollBarVisibility="Auto">
-                    <TextBlock
-                        x:Name="RationaleTextBlock"
-                        TextWrapping="Wrap" />
+                    <TextBlock x:Name="RationaleTextBlock" TextWrapping="Wrap" />
                 </ScrollViewer>
             </TabItem>
         </TabControl>

@@ -41,4 +41,16 @@ public interface IDocumentRepository
     Task UpdateChunkTextAsync(int chunkId, string chunkText, CancellationToken cancellationToken);
 
     Task DeleteChunkAsync(int chunkId, CancellationToken cancellationToken);
+
+    Task<Dictionary<int, DocumentRetrievalConfig>> GetRetrievalConfigsAsync(IReadOnlyCollection<int> documentIds, CancellationToken cancellationToken);
+
+    Task SaveRetrievalConfigAsync(DocumentRetrievalConfig config, CancellationToken cancellationToken);
+
+    Task<List<int>> GetDocumentIdsByTopicAsync(int topicId, CancellationToken cancellationToken);
+
+    Task<IEnumerable<DocumentChunk>> SearchChunksByDocumentAsync(int documentId, float[] queryEmbedding, string queryText, int candidatePoolSize, int candidateFanout, int rrfK, CancellationToken cancellationToken);
+
+    Task<DocumentRetrievalConfig?> GetRetrievalConfigAsync(int documentId, CancellationToken cancellationToken);
+
+    Task DeleteRetrievalConfigAsync(int documentId, CancellationToken cancellationToken);
 }

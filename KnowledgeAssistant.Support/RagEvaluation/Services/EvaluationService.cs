@@ -91,9 +91,7 @@ public sealed class EvaluationService
             try
             {
                 progress?.Report(new EvalProgress(i, testQueries.Count, EvalPhase.Retrieval, query.QueryText));
-                var selection = await _documentsHandlingService.SelectRelevantChunksAsync(
-                    chatModel, topicName, query.QueryText, ct);
-
+                var selection = await _documentsHandlingService.SelectRelevantChunksAsync(chatModel, topicName, query.QueryText, ct);
                 if (selection is null || selection.Chunks.Count == 0)
                 {
                     skipped++; // no candidates at all under this topic - nothing to score

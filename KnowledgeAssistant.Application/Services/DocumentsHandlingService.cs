@@ -342,8 +342,28 @@ public class DocumentsHandlingService
             return null;
         }
 
-        var candidates = await _documentRepository.SearchChunksByTopicAsync(topicId.Value, queryEmbedding, userMessage, CandidatePoolSize, cancellationToken);
-        var candidateList = candidates.ToList();
+        var documentIds = await _documentRepository.GetDocumentIdsByTopicAsync(topicId.Value, cancellationToken);
+        if (documentIds.Count == 0)
+        {
+            return null;
+        }
+
+        var savedConfigs = await _documentRepository.GetRetrievalConfigsAsync(documentIds, cancellationToken);
+        var configByDocument = new Dictionary<int, DocumentRetrievalConfig>();
+        var allCandidates = new List<DocumentChunk>();
+
+        foreach (var docId in documentIds)
+        {
+            var config = savedConfigs.TryGetValue(docId, out var saved) ? saved : DocumentRetrievalConfig.Default(docId);
+            configByDocument[docId] = config;
+
+            var docCandidates = await _documentRepository.SearchChunksByDocumentAsync(
+                docId, queryEmbedding, userMessage,
+                config.CandidatePoolSize, config.CandidateFanout, config.RrfK, cancellationToken);
+            allCandidates.AddRange(docCandidates);
+        }
+
+        var candidateList = allCandidates.OrderBy(c => c.Distance).ToList();
         if (candidateList.Count == 0)
         {
             return null;
@@ -361,8 +381,9 @@ public class DocumentsHandlingService
         {
             int chunkTokens = Math.Max(1, chunk.ChunkText.Length / CharsPerTokenApprox);
             bool included = false;
+            var chunkConfig = configByDocument[chunk.DocumentId];
 
-            if (!budgetExhausted && chunk.Distance <= MaxDistanceThreshold)
+            if (!budgetExhausted && chunk.Distance <= chunkConfig.MaxDistanceThreshold)
             {
                 if (runningTokens + chunkTokens > maxTokenBudget)
                 {
@@ -406,4 +427,16 @@ public class DocumentsHandlingService
 
         return resolved;
     }
+
+    public async Task<DocumentRetrievalConfig> GetDocumentRetrievalConfigAsync(int documentId, CancellationToken cancellationToken)
+    {
+        var saved = await _documentRepository.GetRetrievalConfigAsync(documentId, cancellationToken);
+        return saved ?? DocumentRetrievalConfig.Default(documentId);
+    }
+
+    public Task SaveDocumentRetrievalConfigAsync(DocumentRetrievalConfig config, CancellationToken cancellationToken)
+        => _documentRepository.SaveRetrievalConfigAsync(config, cancellationToken);
+
+    public Task ResetDocumentRetrievalConfigAsync(int documentId, CancellationToken cancellationToken)
+        => _documentRepository.DeleteRetrievalConfigAsync(documentId, cancellationToken);
 }
