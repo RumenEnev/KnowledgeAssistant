@@ -1,26 +1,27 @@
 ﻿using Dapper;
 using KnowledgeAssistant.Application.Abstraction;
 using KnowledgeAssistant.Domain.Documents;
+using Microsoft.Extensions.Logging;
 using Npgsql;
-using Pgvector.Dapper;
 
 namespace KnowledgeAssistant.Application.Services;
 
 public class DocumentRepository : IDocumentRepository
 {
     private static readonly bool _typeHandlerRegistered = RegisterTypeHandler();
+    private readonly NpgsqlDataSource _dataSource;
+    private readonly ILogger<DocumentRepository> _logger;
+
+    public DocumentRepository(NpgsqlDataSource dataSource, ILogger<DocumentRepository> logger)
+    {
+        _dataSource = dataSource;
+        _logger = logger;
+    }
 
     private static bool RegisterTypeHandler()
     {
         SqlMapper.AddTypeHandler(new VectorTypeHandler());
         return true;
-    }
-
-    private readonly NpgsqlDataSource _dataSource;
-
-    public DocumentRepository(NpgsqlDataSource dataSource)
-    {
-        _dataSource = dataSource;
     }
 
     public async Task<IEnumerable<Topic>> GetAllTopicsAsync(CancellationToken cancellationToken)
@@ -197,10 +198,17 @@ public class DocumentRepository : IDocumentRepository
 
     public async Task DeleteDocumentAsync(int documentId, CancellationToken cancellationToken)
     {
-        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
-        // rag.chunks and rag.document_topics both cascade via FK ON DELETE CASCADE
-        var query = "DELETE FROM rag.documents WHERE id = @DocumentId";
-        await connection.ExecuteAsync(query, new { DocumentId = documentId });
+        try
+        {
+            await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+            // rag.chunks and rag.document_topics both cascade via FK ON DELETE CASCADE
+            var query = "DELETE FROM rag.documents WHERE id = @DocumentId";
+            await connection.ExecuteAsync(query, new { DocumentId = documentId });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting document with ID {DocumentId}", documentId);
+        }
     }
 
     public async Task UpdateDocumentAsync(int documentId, string title, string originalText, CancellationToken cancellationToken)
