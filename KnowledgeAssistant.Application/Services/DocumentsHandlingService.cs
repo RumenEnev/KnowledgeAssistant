@@ -18,10 +18,11 @@ public class DocumentsHandlingService
     private readonly ModelCatalogService _modelCatalogService;
 
     private const string EmbeddingModel = "nomic-embed-text";
-    private const int CandidatePoolSize = 10;
+    private const int CandidatePoolSize = 5;
     private const double TargetInjectionFraction = 0.30;
     private const double MaxInjectionFraction = 0.50;
     private const int CharsPerTokenApprox = 4;
+    private const double MaxDistanceThreshold = 0.4;
 
     public DocumentsHandlingService(IModelGateway modelGateway,
         IDocumentRepository documentRepository,
@@ -95,7 +96,6 @@ public class DocumentsHandlingService
     private async Task<int> ReplaceChunksAsync(int documentId, string originalText, DocumentType documentType, CancellationToken cancellationToken)
     {
         await _documentRepository.DeleteChunksByDocumentAsync(documentId, cancellationToken);
-
         var (targetChunkSizeChars, overlapChars) = await _configurationRepository.GetChunkingSettingsAsync(cancellationToken);
         var chunks = documentType == DocumentType.Markdown
             ? ChunkMarkdownByHeaders(originalText, targetChunkSizeChars, overlapChars)
@@ -212,7 +212,6 @@ public class DocumentsHandlingService
         var lines = text.Split('\n');
         var buffer = new StringBuilder();
         bool inFence = false;
-
         foreach (var line in lines)
         {
             if (line.TrimStart().StartsWith("```"))
@@ -358,13 +357,12 @@ public class DocumentsHandlingService
         int runningTokens = 0;
         bool budgetExhausted = false;
         int rank = 1;
-
         foreach (var chunk in candidateList)
         {
             int chunkTokens = Math.Max(1, chunk.ChunkText.Length / CharsPerTokenApprox);
             bool included = false;
 
-            if (!budgetExhausted)
+            if (!budgetExhausted && chunk.Distance <= MaxDistanceThreshold)
             {
                 if (runningTokens + chunkTokens > maxTokenBudget)
                 {

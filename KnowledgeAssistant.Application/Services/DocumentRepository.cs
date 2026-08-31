@@ -156,13 +156,14 @@ public class DocumentRepository : IDocumentRepository
 
             // Cosine distance operator <=> is provided by pgvector; lower = more similar.
             var query = """
-            SELECT c.id, c.document_id AS DocumentId, c.chunk_index AS ChunkIndex, c.chunk_text AS ChunkText
-            FROM rag.chunks c
-            INNER JOIN rag.document_topics dt ON dt.document_id = c.document_id
-            WHERE dt.topic_id = @TopicId
-            ORDER BY c.embedding <=> @QueryEmbedding
-            LIMIT @MaxResults;
-            """;
+                        SELECT c.id, c.document_id AS DocumentId, c.chunk_index AS ChunkIndex, c.chunk_text AS ChunkText,
+                               c.embedding <=> @QueryEmbedding AS Distance
+                        FROM rag.chunks c
+                        INNER JOIN rag.document_topics dt ON dt.document_id = c.document_id
+                        WHERE dt.topic_id = @TopicId
+                        ORDER BY c.embedding <=> @QueryEmbedding
+                        LIMIT @MaxResults;
+                        """;
 
             var result = await connection.QueryAsync<DocumentChunk>(query, new
             {
@@ -175,9 +176,9 @@ public class DocumentRepository : IDocumentRepository
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Error searching chunks by topic ID {TopicId}", topicId);
+            throw;
         }
-
-        return null;
     }
 
     public async Task<IEnumerable<Document>> GetAllDocumentsAsync(CancellationToken cancellationToken)

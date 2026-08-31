@@ -9,5 +9,7 @@
         public int ChunkIndex { get; set; }
 
         public string ChunkText { get; set; } = string.Empty;
+
+        public double Distance { get; set; }
     }
 }
