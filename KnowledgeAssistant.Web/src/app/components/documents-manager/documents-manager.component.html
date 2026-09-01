@@ -91,35 +91,101 @@
         </div>
       </section>
 
-      <section class="chunking-settings-section">
-        <h4>Chunking Settings</h4>
+      <section class="chunking-settings-section" [class.disabled-section]="!isRetrievalPanelVisible()">
+        <h4>Retrieval Settings</h4>
         <p class="chunking-settings-hint">
-          Controls how document text is split before embedding. Chunk overlap must be smaller than chunk size.
-          Changes apply the next time a document is added or updated.
+          Per-document tuning for chunking and retrieval. Select a document above, or load one from a file, to edit.
+          Chunk size/overlap apply on next re-ingest; the rest apply immediately to future queries.
         </p>
-        <div class="chunking-settings-fields">
-          <div class="chunking-settings-field">
-            <label class="field-label" for="chunk-size">Chunk size (characters)</label>
-            <input
-              id="chunk-size"
-              type="number"
-              min="1"
-              [ngModel]="chunkTargetSizeChars()"
-              (ngModelChange)="chunkTargetSizeChars.set($event)" />
+
+        @if (retrievalConfig(); as config) {
+          <div class="chunking-settings-fields">
+            <div class="chunking-settings-field">
+              <label class="field-label" for="rc-chunk-size">Chunk size (characters)</label>
+              <input
+                id="rc-chunk-size"
+                type="number"
+                min="1"
+                [ngModel]="config.chunkSize"
+                (ngModelChange)="updateRetrievalField('chunkSize', $event)" />
+            </div>
+            <div class="chunking-settings-field">
+              <label class="field-label" for="rc-chunk-overlap">Chunk overlap (characters)</label>
+              <input
+                id="rc-chunk-overlap"
+                type="number"
+                min="0"
+                [ngModel]="config.chunkOverlap"
+                (ngModelChange)="updateRetrievalField('chunkOverlap', $event)" />
+            </div>
+            <div class="chunking-settings-field">
+              <label class="field-label" for="rc-pool-size">Candidate pool size</label>
+              <input
+                id="rc-pool-size"
+                type="number"
+                min="1"
+                [ngModel]="config.candidatePoolSize"
+                (ngModelChange)="updateRetrievalField('candidatePoolSize', $event)" />
+            </div>
+            <div class="chunking-settings-field">
+              <label class="field-label" for="rc-fanout">Candidate fanout</label>
+              <input
+                id="rc-fanout"
+                type="number"
+                min="1"
+                [ngModel]="config.candidateFanout"
+                (ngModelChange)="updateRetrievalField('candidateFanout', $event)" />
+            </div>
+            <div class="chunking-settings-field">
+              <label class="field-label" for="rc-distance">Max distance threshold</label>
+              <input
+                id="rc-distance"
+                type="number"
+                step="0.01"
+                min="0"
+                max="2"
+                [ngModel]="config.maxDistanceThreshold"
+                (ngModelChange)="updateRetrievalField('maxDistanceThreshold', $event)" />
+            </div>
+            <div class="chunking-settings-field">
+              <label class="field-label" for="rc-rrfk">RRF k</label>
+              <input
+                id="rc-rrfk"
+                type="number"
+                min="1"
+                [ngModel]="config.rrfK"
+                (ngModelChange)="updateRetrievalField('rrfK', $event)" />
+            </div>
+            <div class="chunking-settings-field">
+              <label class="field-label" for="rc-target-frac">Target injection fraction</label>
+              <input
+                id="rc-target-frac"
+                type="number"
+                step="0.01"
+                min="0"
+                max="1"
+                [ngModel]="config.targetInjectionFraction"
+                (ngModelChange)="updateRetrievalField('targetInjectionFraction', $event)" />
+            </div>
+            <div class="chunking-settings-field">
+              <label class="field-label" for="rc-max-frac">Max injection fraction</label>
+              <input
+                id="rc-max-frac"
+                type="number"
+                step="0.01"
+                min="0"
+                max="1"
+                [ngModel]="config.maxInjectionFraction"
+                (ngModelChange)="updateRetrievalField('maxInjectionFraction', $event)" />
+            </div>
+            <button type="button" [disabled]="!canSaveRetrievalConfig()" (click)="saveRetrievalConfig()">
+              {{ isSavingRetrievalConfig() ? 'Saving...' : 'Save Settings' }}
+            </button>
+            <button type="button" [disabled]="editingDocumentId() === null" (click)="resetRetrievalConfig()">
+              Reset to Default
+            </button>
           </div>
-          <div class="chunking-settings-field">
-            <label class="field-label" for="chunk-overlap">Chunk overlap (characters)</label>
-            <input
-              id="chunk-overlap"
-              type="number"
-              min="0"
-              [ngModel]="chunkOverlapChars()"
-              (ngModelChange)="chunkOverlapChars.set($event)" />
-          </div>
-          <button type="button" [disabled]="isSavingChunkingSettings()" (click)="saveChunkingSettings()">
-            {{ isSavingChunkingSettings() ? 'Saving...' : 'Save Settings' }}
-          </button>
-        </div>
+        }
       </section>
     </div>
   </div>

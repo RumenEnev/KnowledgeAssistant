@@ -76,7 +76,6 @@ namespace KnowledgeAssistant.Wpf.Services
             _messageService.Subscribe<AddDocumentRequest>(this, AddDocumentReceived);
             _messageService.Subscribe<UpdateDocumentRequest>(this, UpdateDocumentReceived);
             _messageService.Subscribe<DeleteDocumentRequest>(this, DeleteDocumentReceived);
-            _messageService.Subscribe<GetChunkingSettingsRequest>(this, GetChunkingSettingsReceived);
             _messageService.Subscribe<UpdateChunkingSettingsRequest>(this, UpdateChunkingSettingsReceived);
             _messageService.Subscribe<GetModelContextWindowsRequest>(this, GetModelContextWindowsReceived);
             _messageService.Subscribe<UpdateModelContextWindowRequest>(this, UpdateModelContextWindowReceived);
@@ -336,22 +335,6 @@ namespace KnowledgeAssistant.Wpf.Services
             }
         }
 
-        private async void GetChunkingSettingsReceived(MessageBase message)
-        {
-            if (message is GetChunkingSettingsRequest)
-            {
-                try
-                {
-                    var dto = await _httpClient.GetFromJsonAsync<ChunkingSettingsDto>("api/configuration/chunking-settings", _cancellationToken);
-                    _messageService.Publish(new ChunkingSettingsUpdatedEvent(dto?.ChunkTargetSizeChars ?? 1000, dto?.ChunkOverlapChars ?? 150));
-                }
-                catch (Exception ex)
-                {
-                    _messageService.Publish(new UserMessage("Error", $"Error fetching chunking settings: {ex.Message}", MessageType.Error));
-                }
-            }
-        }
-
         private async void UpdateChunkingSettingsReceived(MessageBase message)
         {
             if (message is UpdateChunkingSettingsRequest request)
@@ -375,8 +358,6 @@ namespace KnowledgeAssistant.Wpf.Services
                         _messageService.Publish(new UserMessage("Save Chunking Settings Failed", error, MessageType.Error));
                         return;
                     }
-
-                    _messageService.Publish(new ChunkingSettingsUpdatedEvent(request.ChunkTargetSizeChars, request.ChunkOverlapChars));
                 }
                 catch (Exception ex)
                 {

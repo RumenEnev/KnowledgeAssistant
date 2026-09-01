@@ -161,33 +161,62 @@
         <GroupBox
             Grid.Row="2"
             Margin="0,0,0,8"
-            Header="Chunking Settings">
+            Header="Retrieval Settings"
+            IsEnabled="{Binding IsRetrievalPanelVisible}">
             <StackPanel Margin="4">
                 <TextBlock
                     Margin="0,0,0,6"
-                    Text="Controls how document text is split before embedding. Chunk overlap must be smaller than chunk size. Changes apply the next time a document is added or updated."
+                    Text="Per-document tuning for chunking and retrieval. Select a document above to edit. Chunk size/overlap apply on next re-ingest; the rest apply immediately to future queries."
                     TextWrapping="Wrap" />
-                <StackPanel Orientation="Horizontal">
-                    <StackPanel Margin="0,0,16,0">
-                        <TextBlock FontWeight="Bold" Text="Chunk size (characters)" />
-                        <TextBox
-                            Width="140"
-                            Text="{Binding ChunkTargetSizeChars, UpdateSourceTrigger=PropertyChanged}"
-                            ToolTip="Target size, in characters, for each chunk before embedding." />
+                <UniformGrid Columns="3" Rows="3">
+                    <StackPanel Margin="0,0,16,8">
+                        <TextBlock FontWeight="Bold" Text="Chunk size (chars)" />
+                        <TextBox Text="{Binding ChunkSize, UpdateSourceTrigger=PropertyChanged}" />
                     </StackPanel>
-                    <StackPanel Margin="0,0,16,0">
-                        <TextBlock FontWeight="Bold" Text="Chunk overlap (characters)" />
-                        <TextBox
-                            Width="140"
-                            Text="{Binding ChunkOverlapChars, UpdateSourceTrigger=PropertyChanged}"
-                            ToolTip="Number of trailing characters carried over into the next chunk for context continuity." />
+                    <StackPanel Margin="0,0,16,8">
+                        <TextBlock FontWeight="Bold" Text="Chunk overlap (chars)" />
+                        <TextBox Text="{Binding ChunkOverlap, UpdateSourceTrigger=PropertyChanged}" />
                     </StackPanel>
+                    <StackPanel Margin="0,0,16,8">
+                        <TextBlock FontWeight="Bold" Text="Candidate pool size" />
+                        <TextBox Text="{Binding CandidatePoolSize, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
+                    <StackPanel Margin="0,0,16,8">
+                        <TextBlock FontWeight="Bold" Text="Candidate fanout" />
+                        <TextBox Text="{Binding CandidateFanout, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
+                    <StackPanel Margin="0,0,16,8">
+                        <TextBlock FontWeight="Bold" Text="Max distance threshold" />
+                        <TextBox Text="{Binding MaxDistanceThreshold, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
+                    <StackPanel Margin="0,0,16,8">
+                        <TextBlock FontWeight="Bold" Text="RRF k" />
+                        <TextBox Text="{Binding RrfK, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
+                    <StackPanel Margin="0,0,16,8">
+                        <TextBlock FontWeight="Bold" Text="Target injection fraction" />
+                        <TextBox Text="{Binding TargetInjectionFraction, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
+                    <StackPanel Margin="0,0,16,8">
+                        <TextBlock FontWeight="Bold" Text="Max injection fraction" />
+                        <TextBox Text="{Binding MaxInjectionFraction, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
+                </UniformGrid>
+                <StackPanel
+                    Margin="0,4,0,0"
+                    HorizontalAlignment="Right"
+                    Orientation="Horizontal">
                     <Button
                         Padding="10,4"
-                        VerticalAlignment="Bottom"
-                        Click="SaveChunkingSettings_Click"
-                        Content="{Binding SaveChunkingSettingsButtonText}"
-                        IsEnabled="{Binding CanSaveChunkingSettings}" />
+                        Click="ResetRetrievalConfig_Click"
+                        Content="Reset to Default"
+                        ToolTip="Removes the saved override; this document falls back to the app default." />
+                    <Button
+                        Margin="8,0,0,0"
+                        Padding="10,4"
+                        Click="SaveRetrievalConfig_Click"
+                        Content="{Binding SaveRetrievalConfigButtonText}"
+                        IsEnabled="{Binding CanSaveRetrievalConfig}" />
                 </StackPanel>
             </StackPanel>
         </GroupBox>

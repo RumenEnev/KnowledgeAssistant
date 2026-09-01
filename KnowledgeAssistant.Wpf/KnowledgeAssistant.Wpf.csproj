@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
-    <Version>1.1.19.549</Version>
+    <Version>1.1.20.550</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -34,10 +34,6 @@
     <ProjectReference Include="..\KnowledgeAssistant.Application\KnowledgeAssistant.Application.csproj" />
     <ProjectReference Include="..\KnowledgeAssistant.Contracts\KnowledgeAssistant.Contracts.csproj" />
     <ProjectReference Include="..\KnowledgeAssistant.Domain\KnowledgeAssistant.Domain.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Messages\Files\" />
   </ItemGroup>
 
 </Project>

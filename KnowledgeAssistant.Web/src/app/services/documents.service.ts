@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { DocumentItem, Topic } from '../models/document';
+import { DocumentRetrievalConfig } from '../models/document';
 
 @Injectable({
   providedIn: 'root'
@@ -90,6 +91,28 @@ export class DocumentsService {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title, text, topics })
+    });
+    await this.assertOk(response);
+  }
+
+  async getRetrievalConfig(documentId: number): Promise<DocumentRetrievalConfig> {
+    const response = await fetch(`${this.baseUrl}/api/documents/${documentId}/retrieval-config`);
+    await this.assertOk(response);
+    return response.json();
+  }
+
+  async saveRetrievalConfig(config: DocumentRetrievalConfig): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/api/documents/${config.documentId}/retrieval-config`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config)
+    });
+    await this.assertOk(response);
+  }
+
+  async resetRetrievalConfig(documentId: number): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/api/documents/${documentId}/retrieval-config`, {
+      method: 'DELETE'
     });
     await this.assertOk(response);
   }

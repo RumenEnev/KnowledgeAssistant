@@ -121,6 +121,11 @@
   padding-top: 12px;
 }
 
+.chunking-settings-section.disabled-section {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
 .chunking-settings-section h4 {
   margin: 0;
 }
