@@ -363,4 +363,61 @@ public sealed class EvalRepository : IExperimentRepository
             JudgeModel = row.JudgeModel
         };
     }
+
+    public async Task<List<TestQuery>> LoadTestQueriesAsync(int? documentId, CancellationToken ct)
+    {
+        await using var connection = await _dataSource.OpenConnectionAsync(ct);
+
+        const string query = """
+                            SELECT q.id, q.query_text AS QueryText, q.query_type AS Type, q.topic_id AS TopicId,
+                                   q.source_document_id AS SourceDocumentId, q.expected_answer AS ExpectedAnswer,
+                                   COALESCE(array_agg(ec.chunk_id) FILTER (WHERE ec.chunk_id IS NOT NULL), ARRAY[]::int[]) AS ExpectedChunkIds
+                            FROM rag.eval_queries q
+                            LEFT JOIN rag.eval_query_expected_chunks ec ON ec.query_id = q.id
+                            WHERE (@DocumentId::int IS NULL OR q.source_document_id = @DocumentId)
+                            GROUP BY q.id
+                            ORDER BY q.id;
+                            """;
+
+        var rows = await connection.QueryAsync<TestQueryRow>(query, new { DocumentId = documentId });
+        return rows.Select(r => new TestQuery
+        {
+            Id = r.Id,
+            QueryText = r.QueryText,
+            Type = r.Type,
+            TopicId = r.TopicId,
+            SourceDocumentId = r.SourceDocumentId,
+            ExpectedAnswer = r.ExpectedAnswer,
+            ExpectedChunkIds = r.ExpectedChunkIds.ToList()
+        }).ToList();
+    }
+
+    public async Task DeleteTestQueriesByDocumentIdsAsync(IEnumerable<int> documentIds, CancellationToken ct = default)
+    {
+        var ids = documentIds.ToArray();
+        if (ids.Length == 0)
+        {
+            return;
+        }
+
+        await using var connection = await _dataSource.OpenConnectionAsync(ct);
+        await using var tx = await connection.BeginTransactionAsync(ct);
+
+        const string deleteExpected = """
+                                        DELETE FROM rag.eval_query_expected_chunks
+                                        WHERE query_id IN (
+                                            SELECT id FROM rag.eval_queries WHERE source_document_id = ANY(@DocumentIds)
+                                        );
+                                        """;
+
+        const string deleteQueries = """
+                                    DELETE FROM rag.eval_queries
+                                    WHERE source_document_id = ANY(@DocumentIds);
+                                    """;
+
+        await connection.ExecuteAsync(deleteExpected, new { DocumentIds = ids }, tx);
+        await connection.ExecuteAsync(deleteQueries, new { DocumentIds = ids }, tx);
+
+        await tx.CommitAsync(ct);
+    }
 }

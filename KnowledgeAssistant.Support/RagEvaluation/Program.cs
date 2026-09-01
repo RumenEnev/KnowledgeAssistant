@@ -46,9 +46,12 @@ public static class Program
                 case "generate-testset":
                     {
                         var perChunk = GetIntArg(args, "--per-chunk", int.Parse(config["Eval:QuestionsPerChunk"] ?? "1"));
+                        var documentIdArg = GetStringArg(args, "--document-id");
+                        int? documentId = documentIdArg is not null ? int.Parse(documentIdArg) : null;
+
                         var generator = sp.GetRequiredService<TestSetGenerationService>();
-                        var count = await generator.GenerateAsync(config["Llm:ChatModel"]!, perChunk, null, ct);
-                        Console.WriteLine($"Saved {count} synthetic test queries (one row per chunk x topic).");
+                        var count = await generator.GenerateAsync(config["Llm:ChatModel"]!, perChunk, documentId, ct: ct);
+                        Console.WriteLine($"Saved {count} synthetic test queries (one row per chunk x topic){(documentId is not null ? $" for document {documentId}" : "")}.");
                         Console.WriteLine("Hand-review a sample and mix in real user queries before trusting retrieval scores from this set alone.");
                         return 0;
                     }
@@ -59,6 +62,8 @@ public static class Program
                         var chatModel = GetStringArg(args, "--chat-model") ?? config["Llm:ChatModel"]!;
                         var embeddingModel = GetStringArg(args, "--embedding-model") ?? config["Llm:EmbeddingModel"]!;
                         var judgeModel = GetStringArg(args, "--judge-model") ?? config["Llm:JudgeModel"]!;
+                        var documentIdArg = GetStringArg(args, "--document-id");
+                        int? documentId = documentIdArg is not null ? int.Parse(documentIdArg) : null;
 
                         var evalService = sp.GetRequiredService<EvaluationService>();
                         var progress = new Progress<EvalProgress>(p =>
@@ -67,8 +72,8 @@ public static class Program
                                 Console.WriteLine($"  [{p.Phase}] {p.Done}/{p.Total} queries evaluated");
                         });
 
-                        Console.WriteLine($"Running eval '{runName}' (chat={chatModel}, judge={judgeModel})...");
-                        var outcome = await evalService.RunEvalAsync(runName, chatModel, embeddingModel, judgeModel, progress, ct);
+                        Console.WriteLine($"Running eval '{runName}' (chat={chatModel}, judge={judgeModel}{(documentId is not null ? $", document={documentId}" : "")})...");
+                        var outcome = await evalService.RunEvalAsync(runName, chatModel, embeddingModel, judgeModel, documentId, progress, ct);
                         if (outcome.SkippedQueries > 0)
                         {
                             Console.WriteLine($"  ({outcome.SkippedQueries} queries skipped - no candidates or empty budget selection)");

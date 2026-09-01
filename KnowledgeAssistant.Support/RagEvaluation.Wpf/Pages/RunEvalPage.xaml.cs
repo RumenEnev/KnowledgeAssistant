@@ -1,6 +1,7 @@
+using KnowledgeAssistant.Application.Abstraction;
+using KnowledgeAssistant.Domain.Documents;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using RagEvaluation.Models;
 using RagEvaluation.Services;
 using System.Windows;
 using System.Windows.Controls;
@@ -10,12 +11,14 @@ namespace RagEvaluation.Desktop.Pages;
 public partial class RunEvalPage : Page
 {
     private readonly EvaluationService _evaluationService;
+    private readonly IDocumentRepository _documentRepository;
     private readonly IConfiguration _configuration;
     private readonly ILogger<RunEvalPage> _logger;
 
-    public RunEvalPage(EvaluationService evaluationService, IConfiguration configuration, ILogger<RunEvalPage> logger)
+    public RunEvalPage(EvaluationService evaluationService, IDocumentRepository documentRepository, IConfiguration configuration, ILogger<RunEvalPage> logger)
     {
         _evaluationService = evaluationService;
+        _documentRepository = documentRepository;
         _configuration = configuration;
         _logger = logger;
 
@@ -24,7 +27,27 @@ public partial class RunEvalPage : Page
         ChatModelBox.Text = _configuration["Llm:ChatModel"] ?? string.Empty;
         EmbeddingModelBox.Text = _configuration["Llm:EmbeddingModel"] ?? string.Empty;
         JudgeModelBox.Text = _configuration["Llm:JudgeModel"] ?? string.Empty;
+        Loaded += async (_, _) => await LoadDocumentsAsync();
     }
+
+    private async Task LoadDocumentsAsync()
+    {
+        try
+        {
+            var documents = await _documentRepository.GetAllDocumentsAsync(CancellationToken.None);
+            var items = new List<Document> { AllDocumentsOption };
+            items.AddRange(documents);
+            DocumentSelector.ItemsSource = items;
+            DocumentSelector.SelectedItem = AllDocumentsOption;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load documents for RunEvalPage");
+            ResultText.Text = $"Error loading documents: {ex.Message}";
+        }
+    }
+
+    private static readonly Document AllDocumentsOption = new() { Id = 0, Title = "All Documents", OriginalText = "", Topics = [] };
 
     private async void RunButton_Click(object sender, RoutedEventArgs e)
     {
@@ -40,6 +63,9 @@ public partial class RunEvalPage : Page
         var chatModel = ChatModelBox.Text.Trim();
         var embeddingModel = EmbeddingModelBox.Text.Trim();
         var judgeModel = JudgeModelBox.Text.Trim();
+
+        var selectedDocument = DocumentSelector.SelectedItem as Document;
+        int? documentId = selectedDocument is null || selectedDocument.Id == 0 ? null : selectedDocument.Id;
 
         try
         {
@@ -60,8 +86,7 @@ public partial class RunEvalPage : Page
                 ProgressText.Text = $"{p.Done}/{p.Total} queries - {phaseLabel}: {p.QueryText}";
             });
 
-            var outcome = await _evaluationService.RunEvalAsync(runName, chatModel, embeddingModel, judgeModel, progress, CancellationToken.None);
-
+            var outcome = await _evaluationService.RunEvalAsync(runName, chatModel, embeddingModel, judgeModel, documentId, progress, CancellationToken.None);
             ResultText.Text = FormatSummary(outcome);
         }
         catch (Exception ex)

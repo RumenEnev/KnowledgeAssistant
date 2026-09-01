@@ -20,7 +20,7 @@ public sealed class TestSetGenerationService
         _experimentRepository = experimentRepository;
     }
 
-    public async Task<int> GenerateAsync(string generatorModel, int questionsPerChunk, IProgress<(int done, int total)>? progress = null, CancellationToken ct = default)
+    public async Task<int> GenerateAsync(string generatorModel, int questionsPerChunk, int? documentId = null, IProgress<(int done, int total)>? progress = null, CancellationToken ct = default)
     {
         var allTopics = await _documentRepository.GetAllTopicsAsync(ct);
         var topicIdByName = allTopics.ToDictionary(t => t.Name, t => t.Id);
@@ -28,7 +28,17 @@ public sealed class TestSetGenerationService
         var documents = await _documentRepository.GetAllDocumentsAsync(ct);
         var eligibleDocuments = documents
             .Where(d => d.Topics.Any(topicIdByName.ContainsKey))
+            .Where(d => documentId is null || d.Id == documentId.Value)
             .ToList();
+
+        if (eligibleDocuments.Count == 0)
+        {
+            return 0;
+        }
+
+        // Remove this document's (or all eligible documents') existing test queries first,
+        // so regenerating doesn't pile up duplicates alongside the new set.
+        await _experimentRepository.DeleteTestQueriesByDocumentIdsAsync(eligibleDocuments.Select(d => d.Id), ct);
 
         var totalChunks = 0;
         var chunksByDocument = new Dictionary<int, List<KnowledgeAssistant.Domain.Documents.DocumentChunk>>();

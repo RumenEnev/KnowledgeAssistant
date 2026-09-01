@@ -25,4 +25,8 @@ public interface IExperimentRepository
     Task<List<QueryMetricsRow>> GetQueryMetricsAsync(int runId, CancellationToken ct = default);
 
     Task<GenerationResultRecord?> GetGenerationResultAsync(int runId, int queryId, CancellationToken ct = default);
+
+    Task<List<TestQuery>> LoadTestQueriesAsync(int? documentId, CancellationToken ct);
+
+    Task DeleteTestQueriesByDocumentIdsAsync(IEnumerable<int> documentIds, CancellationToken ct = default);
 }

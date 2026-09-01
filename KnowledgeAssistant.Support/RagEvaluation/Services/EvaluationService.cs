@@ -55,10 +55,11 @@ public sealed class EvaluationService
         string chatModel,
         string embeddingModel,
         string judgeModel,
+        int? documentId = null,
         IProgress<EvalProgress>? progress = null,
         CancellationToken ct = default)
     {
-        var testQueries = await _experimentRepository.LoadTestQueriesAsync(ct);
+        var testQueries = await _experimentRepository.LoadTestQueriesAsync(documentId, ct);
         if (testQueries.Count == 0)
         {
             throw new InvalidOperationException("No test queries found - run test-set generation first.");

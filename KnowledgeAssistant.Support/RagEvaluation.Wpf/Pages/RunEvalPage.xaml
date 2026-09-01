@@ -34,6 +34,12 @@
 
                     <TextBlock Margin="0,0,0,4" Text="Judge model" />
                     <ui:TextBox x:Name="JudgeModelBox" />
+
+                    <TextBlock Margin="0,0,0,4" Text="Document (optional - leave as 'All Documents' to run the full test set)" />
+                    <ComboBox
+    x:Name="DocumentSelector"
+    Margin="0,0,0,12"
+    DisplayMemberPath="Title" />
                 </StackPanel>
             </ui:Card>
 
