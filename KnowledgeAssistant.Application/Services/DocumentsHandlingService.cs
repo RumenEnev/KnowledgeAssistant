@@ -18,11 +18,9 @@ public class DocumentsHandlingService
     private readonly ModelCatalogService _modelCatalogService;
 
     private const string EmbeddingModel = "nomic-embed-text";
-    private const int CandidatePoolSize = 8;
     private const double TargetInjectionFraction = 0.30;
     private const double MaxInjectionFraction = 0.50;
     private const int CharsPerTokenApprox = 4;
-    private const double MaxDistanceThreshold = 0.50;
 
     public DocumentsHandlingService(IModelGateway modelGateway,
         IDocumentRepository documentRepository,
