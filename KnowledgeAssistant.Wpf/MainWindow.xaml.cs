@@ -30,6 +30,9 @@ namespace KnowledgeAssistant.Wpf
         private readonly MessageService _messageService;
         private bool _suppressProviderUpdate;
         private bool _suppressModelUpdate;
+        private bool _persistModelAfterProviderChange;
+        private string? _pendingConversationProvider;
+        private string? _pendingConversationModel;
         private string? _selectedModel;
         private string? _selectedProvider;
         private string? _userPrompt;
@@ -62,7 +65,6 @@ namespace KnowledgeAssistant.Wpf
             _messageService.Subscribe<ConversationCreatedEvent>(this, ConversationCreatedEventReceived);
             _messageService.Subscribe<ConversationUpdatedEvent>(this, ConversationUpdatedEventReceived);
             _messageService.Subscribe<ConversationDeletedEvent>(this, ConversationDeletedEventReceived);
-            _messageService.Subscribe<SelectedModelUpdatedEvent>(this, SelectedModelUpdatedEventReceived);
             _messageService.Subscribe<DocumentationReadyEvent>(this, DocumentationReadyEventReceived);
             _messageService.Subscribe<AvailableProvidersUpdatedEvent>(this, AvailableProvidersUpdatedEventReceived);
         }
@@ -72,10 +74,7 @@ namespace KnowledgeAssistant.Wpf
             get => _selectedProvider;
             set
             {
-                if (string.Equals(
-                        _selectedProvider,
-                        value,
-                        StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(_selectedProvider, value, StringComparison.OrdinalIgnoreCase))
                 {
                     return;
                 }
@@ -86,12 +85,21 @@ namespace KnowledgeAssistant.Wpf
                 _allModels.Clear();
                 Models = new ObservableCollection<string>();
                 SetSelectedModel(null, persist: false);
-                if (!_suppressProviderUpdate && !string.IsNullOrWhiteSpace(value))
+
+                if (_suppressProviderUpdate || string.IsNullOrWhiteSpace(value))
                 {
-                    StatusMessage = $"Loading models from {value}...";
-                    _messageService.Publish(new UpdateSelectedProviderRequest(value));
-                    _messageService.Publish(new GetAvailableModelsRequest(value));
+                    return;
                 }
+
+                // A provider selected through the UI belongs to the current
+                // conversation. Its first available model will be persisted
+                // after the provider catalogue has been loaded.
+                _pendingConversationProvider = null;
+                _pendingConversationModel = null;
+                _persistModelAfterProviderChange = SelectedConversation is not null;
+
+                StatusMessage = $"Loading models from {value}...";
+                _messageService.Publish(new GetAvailableModelsRequest(value));
             }
         }
 
@@ -142,15 +150,22 @@ namespace KnowledgeAssistant.Wpf
             get => _selectedConversation;
             set
             {
-                if (_selectedConversation != value)
+                if (_selectedConversation == value)
                 {
-                    _selectedConversation = value;
-                    OnPropertyChanged(nameof(SelectedConversation));
+                    return;
+                }
 
-                    if (_selectedConversation != null)
-                    {
-                        _messageService.Publish(new SelectedConversationChangedRequest(_selectedConversation.Id));
-                    }
+                _selectedConversation = value;
+                _pendingConversationProvider = null;
+                _pendingConversationModel = null;
+                _persistModelAfterProviderChange = false;
+
+                OnPropertyChanged(nameof(SelectedConversation));
+
+                if (_selectedConversation is not null)
+                {
+                    _messageService.Publish(
+                        new SelectedConversationChangedRequest(_selectedConversation.Id));
                 }
             }
         }
@@ -196,7 +211,7 @@ namespace KnowledgeAssistant.Wpf
                 {
                     _showOnlyToolCallingModels = value;
                     OnPropertyChanged(nameof(ShowOnlyToolCallingModels));
-                    RecalculateModels();
+                    RecalculateModels(persistFallback: true);
                 }
             }
         }
@@ -246,10 +261,21 @@ namespace KnowledgeAssistant.Wpf
 
             _selectedModel = value;
             OnPropertyChanged(nameof(SelectedModel));
-            if (persist && !_suppressModelUpdate && !string.IsNullOrWhiteSpace(value))
+
+            if (!persist ||
+                _suppressModelUpdate ||
+                string.IsNullOrWhiteSpace(value) ||
+                string.IsNullOrWhiteSpace(SelectedProvider) ||
+                SelectedConversation is null)
             {
-                _messageService.Publish(new UpdateSelectedModelRequest(value));
+                return;
             }
+
+            _messageService.Publish(
+                new UpdateConversationModelSelectionRequest(
+                    SelectedConversation.Id,
+                    SelectedProvider,
+                    value));
         }
 
         private ScrollViewer? FindScrollViewer(DependencyObject root)
@@ -330,32 +356,61 @@ namespace KnowledgeAssistant.Wpf
 
         private void UpdateConversationMessagesReceived(MessageBase message)
         {
-            System.Windows.Application.Current.Dispatcher.Invoke(ChatMessages.Clear);
-            if (message is UpdateConversationMessages request)
+            if (message is not UpdateConversationMessages request ||
+                request.Conversation is null)
             {
-                System.Windows.Application.Current.Dispatcher.Invoke(() =>
-                {
-                    if (!string.IsNullOrWhiteSpace(request.Conversation?.SelectedModel) && Models != null && Models.Contains(request.Conversation.SelectedModel))
-                    {
-                        SelectedModel = request.Conversation.SelectedModel;
-                    }
-
-                    if (request.Conversation?.Messages?.Any() == true)
-                    {
-                        foreach (var msg in request.Conversation.Messages)
-                        {
-                            var ucMessage = new UCChatMessage(null)
-                            {
-                                Message = msg.Content,
-                                IsUserMessage = msg.Role == "user",
-                                MessageCompleted = true
-                            };
-
-                            ChatMessages.Add(ucMessage);
-                        }
-                    }
-                });
+                return;
             }
+
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>  
+            {
+                ChatMessages.Clear();
+
+                var conversation = request.Conversation;
+                _pendingConversationProvider = conversation.Provider;
+                _pendingConversationModel = conversation.SelectedModel;
+                _persistModelAfterProviderChange = false;
+
+                var provider = conversation.Provider;
+                if (string.IsNullOrWhiteSpace(provider) ||
+                    string.Equals(provider, ModelProviderNames.Unknown, StringComparison.OrdinalIgnoreCase))
+                {
+                    provider = Providers.FirstOrDefault();
+                }
+
+                if (!string.IsNullOrWhiteSpace(provider))
+                {
+                    _allModels.Clear();
+                    Models = new ObservableCollection<string>();
+                    SetSelectedModel(null, persist: false);
+
+                    _suppressProviderUpdate = true;
+                    try
+                    {
+                        SelectedProvider = provider;
+                    }
+                    finally
+                    {
+                        _suppressProviderUpdate = false;
+                    }
+
+                    StatusMessage = $"Loading models from {provider}...";
+                    _messageService.Publish(new GetAvailableModelsRequest(provider));
+                }
+
+                if (conversation.Messages?.Any() == true)
+                {
+                    foreach (var msg in conversation.Messages)
+                    {
+                        ChatMessages.Add(new UCChatMessage(null)
+                        {
+                            Message = msg.Content,
+                            IsUserMessage = msg.Role == "user",
+                            MessageCompleted = true
+                        });
+                    }
+                }
+            });
         }
 
         private void UserMessageReceived(MessageBase message)
@@ -394,85 +449,58 @@ namespace KnowledgeAssistant.Wpf
 
             System.Windows.Application.Current.Dispatcher.Invoke(() =>
             {
-                if (!string.Equals(modelsEvent.Provider, SelectedProvider, StringComparison.OrdinalIgnoreCase))
+                // Ignore a late response for a provider that is no longer selected.
+                if (!string.Equals(
+                        modelsEvent.Provider,
+                        SelectedProvider,
+                        StringComparison.OrdinalIgnoreCase))
                 {
                     return;
                 }
 
                 _allModels = modelsEvent.Models.ToList();
-                RecalculateModels();
-                StatusMessage = Models.Count == 0
-                            ? $"No models are available from {modelsEvent.Provider}."
-                            : $"{Models.Count} models loaded from {modelsEvent.Provider}.";
 
-                _messageService.Publish(new GetSelectedModelRequest());
+                var isApplyingConversationSelection =
+                    !string.IsNullOrWhiteSpace(_pendingConversationModel);
+
+                RecalculateModels(
+                    persistFallback:
+                        _persistModelAfterProviderChange &&
+                        !isApplyingConversationSelection);
+
+                _pendingConversationProvider = null;
+                _pendingConversationModel = null;
+                _persistModelAfterProviderChange = false;
+
+                StatusMessage = Models.Count == 0
+                    ? $"No models are available from {modelsEvent.Provider}."
+                    : $"{Models.Count} models loaded from {modelsEvent.Provider}.";
             });
         }
 
-        private void RecalculateModels()
+        private void RecalculateModels(bool persistFallback = false)
         {
-            var previouslySelected = SelectedModel;
-            var filteredModels = _allModels.Where(model => !ShowOnlyToolCallingModels || model.CanCallTools)
-                                            .Select(model => model.Name)
-                                            .Where(name => !string.IsNullOrWhiteSpace(name))
-                                            .Distinct(StringComparer.Ordinal)
-                                            .OrderBy(name => name)
-                                            .ToList();
+            var preferredModel = !string.IsNullOrWhiteSpace(_pendingConversationModel)
+                ? _pendingConversationModel
+                : SelectedModel;
+
+            var filteredModels = _allModels
+                .Where(model => !ShowOnlyToolCallingModels || model.CanCallTools)
+                .Select(model => model.Name)
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(name => name)
+                .ToList();
 
             Models = new ObservableCollection<string>(filteredModels);
-            string? newSelectedModel = null;
-            if (!string.IsNullOrWhiteSpace(previouslySelected) && Models.Contains(previouslySelected))
-            {
-                newSelectedModel = previouslySelected;
-            }
-            else
-            {
-                newSelectedModel = Models.FirstOrDefault();
-            }
 
-            _suppressModelUpdate = true;
-            try
-            {
-                SetSelectedModel(newSelectedModel, persist: false);
-            }
-            finally
-            {
-                _suppressModelUpdate = false;
-            }
-        }
+            var newSelectedModel =
+                !string.IsNullOrWhiteSpace(preferredModel) &&
+                Models.Contains(preferredModel)
+                    ? preferredModel
+                    : Models.FirstOrDefault();
 
-        private void SelectedModelUpdatedEventReceived(MessageBase message)
-        {
-            if (message is not SelectedModelUpdatedEvent selectedEvent)
-            {
-                return;
-            }
-
-            System.Windows.Application.Current.Dispatcher.Invoke(() =>
-            {
-                var savedModel = selectedEvent.SelectedModel;
-
-                if (!string.IsNullOrWhiteSpace(savedModel) && Models.Contains(savedModel))
-                {
-                    _suppressModelUpdate = true;
-                    try
-                    {
-                        SetSelectedModel(savedModel, persist: false);
-                    }
-                    finally
-                    {
-                        _suppressModelUpdate = false;
-                    }
-
-                    return;
-                }
-
-                var fallbackModel = Models.FirstOrDefault();
-                if (!string.IsNullOrWhiteSpace(fallbackModel))
-                {
-                    SetSelectedModel(fallbackModel, persist: true);
-                }
-            });
+            SetSelectedModel(newSelectedModel, persistFallback);
         }
 
         private void DocumentationReadyEventReceived(MessageBase message)
@@ -553,14 +581,19 @@ namespace KnowledgeAssistant.Wpf
             System.Windows.Application.Current.Dispatcher.Invoke(() =>
             {
                 var providers = providersEvent.Providers
-                                            .Where(provider => !string.IsNullOrWhiteSpace(provider))
-                                            .Distinct(StringComparer.OrdinalIgnoreCase)
-                                            .OrderBy(provider => provider)
-                                            .ToList();
+                    .Where(provider => !string.IsNullOrWhiteSpace(provider))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(provider => provider)
+                    .ToList();
 
                 Providers = new ObservableCollection<string>(providers);
+
                 if (Providers.Count == 0)
                 {
+                    _pendingConversationProvider = null;
+                    _pendingConversationModel = null;
+                    _persistModelAfterProviderChange = false;
+
                     _suppressProviderUpdate = true;
                     try
                     {
@@ -575,10 +608,24 @@ namespace KnowledgeAssistant.Wpf
                     return;
                 }
 
-                var selectedProvider = !string.IsNullOrWhiteSpace(SelectedProvider) &&
-                                         Providers.Contains(SelectedProvider, StringComparer.OrdinalIgnoreCase)
-                                            ? SelectedProvider
-                                            : Providers.First();
+                var requestedProvider = !string.IsNullOrWhiteSpace(_pendingConversationProvider) &&
+                                        Providers.Contains(
+                                            _pendingConversationProvider,
+                                            StringComparer.OrdinalIgnoreCase)
+                    ? _pendingConversationProvider
+                    : SelectedProvider;
+
+                var selectedProvider = !string.IsNullOrWhiteSpace(requestedProvider) &&
+                                       Providers.Contains(
+                                           requestedProvider,
+                                           StringComparer.OrdinalIgnoreCase)
+                    ? requestedProvider
+                    : Providers.First();
+
+                _allModels.Clear();
+                Models = new ObservableCollection<string>();
+                SetSelectedModel(null, persist: false);
+                _persistModelAfterProviderChange = false;
 
                 _suppressProviderUpdate = true;
                 try
@@ -591,8 +638,8 @@ namespace KnowledgeAssistant.Wpf
                 }
 
                 StatusMessage = $"Loading models from {selectedProvider}...";
-                _messageService.Publish(new UpdateSelectedProviderRequest(selectedProvider));
-                _messageService.Publish(new GetAvailableModelsRequest(selectedProvider));
+                _messageService.Publish(
+                    new GetAvailableModelsRequest(selectedProvider));
             });
         }
 

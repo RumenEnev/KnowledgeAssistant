@@ -2,7 +2,7 @@
 
 public sealed class UpdateConversationModelSelectionDto
 {
-    public string SelectedProvider { get; init; } = string.Empty;
+    public required string SelectedProvider { get; init; }
 
-    public string SelectedModel { get; init; } = string.Empty;
+    public required string SelectedModel { get; init; }
 }

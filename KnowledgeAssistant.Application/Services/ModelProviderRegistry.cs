@@ -9,7 +9,6 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
     public ModelProviderRegistry(IEnumerable<INamedModelCatalogGateway> gateways)
     {
         ArgumentNullException.ThrowIfNull(gateways);
-
         var gatewayList = gateways.ToList();
         var duplicate = gatewayList
             .GroupBy(gateway => gateway.Provider, StringComparer.OrdinalIgnoreCase)

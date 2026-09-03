@@ -14,6 +14,8 @@ namespace KnowledgeAssistant.Wpf.Models
 
         public string? SelectedModel { get; set; }
 
+        public string? Provider { get; set; }
+
         public IEnumerable<ChatMessage>? Messages { get; set; }
     }
 }

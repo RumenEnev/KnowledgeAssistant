@@ -6,83 +6,130 @@ using KnowledgeAssistant.Infrastructure;
 using KnowledgeAssistant.Infrastructure.Streaming;
 using KnowledgeAssistant.Infrastructure.ToolCallRegistry;
 using Npgsql;
+using System.Net.Http.Headers;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-
-builder.Services.AddControllers()
+// MVC and error handling
+builder.Services
+    .AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
 
+builder.Services.AddOpenApi();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 
+// Application services
 builder.Services.AddScoped<ConversationService>();
 builder.Services.AddScoped<ModelCatalogService>();
 builder.Services.AddScoped<DocumentsHandlingService>();
+
+// Repositories
 builder.Services.AddScoped<IConversationRepository, ConversationRepository>();
 builder.Services.AddScoped<IConfigurationRepository, ConfigurationRepository>();
 builder.Services.AddScoped<IModelRepository, ModelRepository>();
 builder.Services.AddScoped<IDocumentRepository, DocumentRepository>();
 builder.Services.AddScoped<IToolRepository, ToolRepository>();
 
-var ollamaBaseUrl = builder.Configuration["Ollama:BaseUrl"]
-    ?? throw new InvalidOperationException("Configuration value 'Ollama:BaseUrl' is missing.");
-
-builder.Services.AddHttpClient<IModelGateway, OllamaModelGateway>(client =>
+// Model-provider configuration
+var ollamaBaseUrl = builder.Configuration["Ollama:BaseUrl"];
+if (string.IsNullOrWhiteSpace(ollamaBaseUrl))
 {
-    client.BaseAddress = new Uri(ollamaBaseUrl);
+    throw new InvalidOperationException("Configuration value 'Ollama:BaseUrl' is required.");
+}
+
+var aiHubBaseUrl = builder.Configuration["AdessoAiHub:BaseUrl"];
+if (string.IsNullOrWhiteSpace(aiHubBaseUrl))
+{
+    throw new InvalidOperationException("Configuration value 'AdessoAiHub:BaseUrl' is required.");
+}
+
+var aiHubApiKey = builder.Configuration["AdessoAiHub:ApiKey"];
+if (string.IsNullOrWhiteSpace(aiHubApiKey))
+{
+    throw new InvalidOperationException("Configuration value 'AdessoAiHub:ApiKey' is required.");
+}
+
+builder.Services.Configure<AdessoAiHubOptions>(builder.Configuration.GetSection("AdessoAiHub"));
+builder.Services.AddHttpClient<OllamaModelGateway>(client =>
+{
+    client.BaseAddress = new Uri(EnsureTrailingSlash(ollamaBaseUrl));
 });
 
-builder.Services.AddHttpClient<INamedModelCatalogGateway, OllamaModelCatalogGateway>(client =>
+builder.Services.AddHttpClient<AdessoAiHubModelGateway>(client =>
 {
-    client.BaseAddress = new Uri(ollamaBaseUrl);
+    client.BaseAddress = new Uri(EnsureTrailingSlash(aiHubBaseUrl));
+    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", aiHubApiKey);
 });
 
-// No fixed base address: each tool's endpoint_url is a full URL stored in the database.
-builder.Services.AddSingleton<IPendingToolCallRegistry, PendingToolCallRegistry>();  // must outlive any single request
-builder.Services.AddScoped<SseWriterAccessor>();                                     // one per request
-builder.Services.AddScoped<IToolExecutor, LocalToolExecutor>();                      // was: HttpToolExecutor
-builder.Services.AddHttpClient<IToolExecutionService, ToolExecutionService>();       // built-in server-side tools (uuid, web search, ...)
+builder.Services.AddTransient<IModelGateway>(serviceProvider => serviceProvider.GetRequiredService<OllamaModelGateway>());
+builder.Services.AddHttpClient<OllamaModelCatalogGateway>(client =>
+{
+    client.BaseAddress = new Uri(EnsureTrailingSlash(ollamaBaseUrl));
+});
 
-var dataSourceBuilder = new NpgsqlDataSourceBuilder(builder.Configuration.GetConnectionString("KnowledgeAssistant"));
+builder.Services.AddHttpClient<AdessoAiHubModelCatalogGateway>(client =>
+{
+    client.BaseAddress = new Uri(EnsureTrailingSlash(aiHubBaseUrl));
+    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", aiHubApiKey);
+});
+
+builder.Services.AddTransient<INamedModelCatalogGateway>(serviceProvider => serviceProvider.GetRequiredService<OllamaModelCatalogGateway>());
+builder.Services.AddTransient<INamedModelCatalogGateway>(serviceProvider => serviceProvider.GetRequiredService<AdessoAiHubModelCatalogGateway>());
+builder.Services.AddScoped<IModelProviderRegistry, ModelProviderRegistry>();
+
+// Tool calling and streaming
+builder.Services.AddSingleton<IPendingToolCallRegistry, PendingToolCallRegistry>();
+
+// One instance per HTTP request.
+builder.Services.AddScoped<SseWriterAccessor>();
+
+// Executes locally registered tools.
+builder.Services.AddScoped<IToolExecutor, LocalToolExecutor>();
+builder.Services.AddHttpClient<IToolExecutionService, ToolExecutionService>();
+
+// PostgreSQL
+var connectionString = builder.Configuration.GetConnectionString("KnowledgeAssistant")
+    ?? throw new InvalidOperationException("Connection string 'KnowledgeAssistant' is missing.");
+
+var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
 dataSourceBuilder.UseVector();
 var dataSource = dataSourceBuilder.Build();
 builder.Services.AddSingleton(dataSource);
 
-builder.Services.AddSingleton(dataSource);
-
+// CORS
 var allowedOriginPatterns = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-    ?? throw new InvalidOperationException("Configuration value 'Cors:AllowedOrigins' is missing.");
+                                ?? throw new InvalidOperationException(
+                                    "Configuration value 'Cors:AllowedOrigins' is missing.");
 
-// Patterns support '*' wildcards (e.g. "http://*:4200") so the API can be called
-// from any host on the network, not just localhost.
 var allowedOriginRegexes = allowedOriginPatterns
+    .Where(pattern => !string.IsNullOrWhiteSpace(pattern))
     .Select(pattern => new Regex(
         "^" + Regex.Escape(pattern).Replace("\\*", ".*") + "$",
-        RegexOptions.IgnoreCase))
+        RegexOptions.IgnoreCase |
+        RegexOptions.CultureInvariant |
+        RegexOptions.Compiled))
     .ToArray();
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAngularDev", policy =>
     {
-        policy.SetIsOriginAllowed(origin => allowedOriginRegexes.Any(regex => regex.IsMatch(origin)))
-              .AllowAnyMethod()
-              .AllowAnyHeader();
+        policy
+            .SetIsOriginAllowed(origin =>
+                allowedOriginRegexes.Any(regex =>
+                    regex.IsMatch(origin)))
+            .AllowAnyMethod()
+            .AllowAnyHeader();
     });
 });
 
 var app = builder.Build();
-
-// Configure the HTTP request pipeline.
 app.UseExceptionHandler();
 
 if (app.Environment.IsDevelopment())
@@ -91,9 +138,16 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("AllowAngularDev");
-
 app.UseAuthorization();
 app.MapControllers();
 
 SqlMapper.AddTypeHandler(new VectorTypeHandler());
+
 app.Run();
+
+static string EnsureTrailingSlash(string value)
+{
+    return value.EndsWith("/", StringComparison.Ordinal)
+        ? value
+        : value + "/";
+}

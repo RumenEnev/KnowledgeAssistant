@@ -95,8 +95,42 @@ namespace KnowledgeAssistant.Wpf.Services
             _messageService.Subscribe<ToolExecutionOutputIntermediateEvent>(this, ToolExecutionOutputIntermediateEventReceived);
             _messageService.Subscribe<GetAvailableProvidersRequest>(this, GetAvailableProvidersReceived);
             _messageService.Subscribe<UpdateSelectedProviderRequest>(this, UpdateSelectedProviderReceived);
+            _messageService.Subscribe<UpdateConversationModelSelectionRequest>(this, UpdateConversationModelSelectionReceived);
 
             _messageService.SubscribeAsync<GetRepositoriesRequest>(this, GetRepositoriesReceived);
+        }
+
+        private async void UpdateConversationModelSelectionReceived(MessageBase message)
+        {
+            if (message is UpdateConversationModelSelectionRequest request)
+            {
+                try
+                {
+                    var dto = new UpdateConversationModelSelectionDto
+                    {
+                        SelectedProvider = request.SelectedProvider,
+                        SelectedModel = request.SelectedModel
+                    };
+
+                    var relativeUrl = $"api/conversations/{request.ConversationId}/model-selection";
+                    using var httpRequest = new HttpRequestMessage(HttpMethod.Put, relativeUrl);
+                    httpRequest.Content = new StringContent(JsonSerializer.Serialize(dto), Encoding.UTF8, "application/json");
+                    using var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, _cancellationToken);
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        var responseBody = await response.Content.ReadAsStringAsync(_cancellationToken);
+                        throw new HttpRequestException($"PUT {relativeUrl} returned " + $"{(int)response.StatusCode} {response.ReasonPhrase}. " + $"Response: {responseBody}");
+                    }
+                }
+                catch (OperationCanceledException) when (_cancellationToken.IsCancellationRequested)
+                {
+                    // Application is closing.
+                }
+                catch (Exception ex)
+                {
+                    _messageService.Publish(new UserMessage("Error", $"Error saving conversation model selection: {ex.Message}", MessageType.Error));
+                }
+            }
         }
 
         private async void UpdateSelectedProviderReceived(MessageBase message)
