@@ -1,12 +1,13 @@
 ﻿using KnowledgeAssistant.Application.Abstraction;
+using KnowledgeAssistant.Contracts.Definitions;
 using KnowledgeAssistant.Domain;
-using KnowledgeAssistant.Infrastructure.Dto;
+using KnowledgeAssistant.Infrastructure.Dto.Ollama;
 using System.Net.Http.Json;
 using System.Text.Json;
 
 namespace KnowledgeAssistant.Infrastructure
 {
-    public class OllamaModelCatalogGateway : IModelCatalogGateway
+    public class OllamaModelCatalogGateway : INamedModelCatalogGateway
     {
         private readonly HttpClient _httpClient;
 
@@ -14,6 +15,8 @@ namespace KnowledgeAssistant.Infrastructure
         {
             _httpClient = httpClient;
         }
+
+        public string Provider => ModelProviderNames.Ollama;
 
         public async Task<IReadOnlyCollection<ModelInfo>> GetModelsAsync(CancellationToken cancellationToken)
         {

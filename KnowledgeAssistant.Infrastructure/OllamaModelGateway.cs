@@ -1,6 +1,6 @@
 ﻿using KnowledgeAssistant.Application.Abstraction;
 using KnowledgeAssistant.Domain.Conversation;
-using KnowledgeAssistant.Infrastructure.Dto;
+using KnowledgeAssistant.Infrastructure.Dto.Ollama;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;

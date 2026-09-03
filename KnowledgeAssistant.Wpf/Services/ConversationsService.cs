@@ -1,6 +1,8 @@
-﻿using KnowledgeAssistant.Domain.Conversation;
+﻿using KnowledgeAssistant.Contracts.Definitions;
+using KnowledgeAssistant.Domain.Conversation;
 using KnowledgeAssistant.Wpf.Messages;
 using KnowledgeAssistant.Wpf.Messages.Conversations;
+using KnowledgeAssistant.Wpf.Messages.ModelsManagement;
 using KnowledgeAssistant.Wpf.Models;
 using MessageServices;
 using MessageServices.Enums;
@@ -86,7 +88,8 @@ namespace KnowledgeAssistant.Wpf.Services
                     Id = _conversation?.Id ?? Guid.Empty,
                     Title = _conversation?.Title ?? string.Empty,
                     CreatedAt = _conversation?.CreatedOn ?? DateTime.UtcNow,
-                    UpdatedAt = _conversation?.UpdatedOn ?? DateTime.UtcNow
+                    UpdatedAt = _conversation?.UpdatedOn ?? DateTime.UtcNow,
+                    Provider = ModelProviderNames.Unknown
                 }));
             }
         }

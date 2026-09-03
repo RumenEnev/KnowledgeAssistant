@@ -129,14 +129,25 @@
             Margin="2">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <ComboBox
                 Grid.Column="0"
-                ItemsSource="{Binding Models}"
-                SelectedItem="{Binding SelectedModel}" />
-            <CheckBox
+                Margin="1"
+                DisplayMemberPath=""
+                IsEnabled="{Binding HasProviders}"
+                ItemsSource="{Binding Providers}"
+                SelectedItem="{Binding SelectedProvider, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+            <ComboBox
                 Grid.Column="1"
+                Margin="1"
+                DisplayMemberPath=""
+                IsEnabled="{Binding HasModels}"
+                ItemsSource="{Binding Models}"
+                SelectedItem="{Binding SelectedModel, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+            <CheckBox
+                Grid.Column="2"
                 Margin="8,0,0,0"
                 VerticalAlignment="Center"
                 Content="Show only can-call-tools models"

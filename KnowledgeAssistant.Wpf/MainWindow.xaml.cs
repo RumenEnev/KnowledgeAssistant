@@ -1,8 +1,12 @@
 ﻿using Infrastructure.Dto;
+using KnowledgeAssistant.Contracts.Definitions;
 using KnowledgeAssistant.Domain.Conversation;
+using KnowledgeAssistant.Infrastructure.Dto;
 using KnowledgeAssistant.Wpf.Messages;
 using KnowledgeAssistant.Wpf.Messages.Conversations;
 using KnowledgeAssistant.Wpf.Messages.Documentation;
+using KnowledgeAssistant.Wpf.Messages.ModelsManagement;
+using KnowledgeAssistant.Wpf.Models;
 using KnowledgeAssistant.Wpf.UserControls;
 using KnowledgeAssistant.Wpf.Views;
 using KnowledgeAssistant.Wpf.Windows;
@@ -24,16 +28,20 @@ namespace KnowledgeAssistant.Wpf
     public partial class MainWindow : Window, INotifyPropertyChanged, IMessageServiceSubscriber
     {
         private readonly MessageService _messageService;
+        private bool _suppressProviderUpdate;
+        private bool _suppressModelUpdate;
         private string? _selectedModel;
+        private string? _selectedProvider;
         private string? _userPrompt;
         private string? _statusMessage;
         private Thickness _chatMessageMargin;
         private Conversation? _selectedConversation;
         private Guid? _lastConversationId;
-        private ObservableCollection<string>? _models;
+        private ObservableCollection<string> _models = new ObservableCollection<string>();
+        private ObservableCollection<string> _providers = new ObservableCollection<string>();
         private List<AvailableModelInfo> _allModels = new List<AvailableModelInfo>();
         private bool _showOnlyToolCallingModels;
-        private ObservableCollection<Conversation> _conversations;
+        private ObservableCollection<Conversation> _conversations = new ObservableCollection<Conversation>();
         private ObservableCollection<UCChatMessage> _chatMessages = new ObservableCollection<UCChatMessage>();
 
         public MainWindow(MessageService messageService)
@@ -56,24 +64,41 @@ namespace KnowledgeAssistant.Wpf
             _messageService.Subscribe<ConversationDeletedEvent>(this, ConversationDeletedEventReceived);
             _messageService.Subscribe<SelectedModelUpdatedEvent>(this, SelectedModelUpdatedEventReceived);
             _messageService.Subscribe<DocumentationReadyEvent>(this, DocumentationReadyEventReceived);
+            _messageService.Subscribe<AvailableProvidersUpdatedEvent>(this, AvailableProvidersUpdatedEventReceived);
+        }
+
+        public string? SelectedProvider
+        {
+            get => _selectedProvider;
+            set
+            {
+                if (string.Equals(
+                        _selectedProvider,
+                        value,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
+
+                _selectedProvider = value;
+                OnPropertyChanged(nameof(SelectedProvider));
+
+                _allModels.Clear();
+                Models = new ObservableCollection<string>();
+                SetSelectedModel(null, persist: false);
+                if (!_suppressProviderUpdate && !string.IsNullOrWhiteSpace(value))
+                {
+                    StatusMessage = $"Loading models from {value}...";
+                    _messageService.Publish(new UpdateSelectedProviderRequest(value));
+                    _messageService.Publish(new GetAvailableModelsRequest(value));
+                }
+            }
         }
 
         public string? SelectedModel
         {
             get => _selectedModel;
-            set
-            {
-                if (_selectedModel != value)
-                {
-                    _selectedModel = value;
-                    OnPropertyChanged(nameof(SelectedModel));
-
-                    if (!string.IsNullOrWhiteSpace(value))
-                    {
-                        _messageService.Publish(new UpdateSelectedModelRequest(value));
-                    }
-                }
-            }
+            set => SetSelectedModel(value, persist: true);
         }
 
         public string? UserPrompt
@@ -130,16 +155,35 @@ namespace KnowledgeAssistant.Wpf
             }
         }
 
-        public ObservableCollection<string>? Models
+        public ObservableCollection<string> Models
         {
             get => _models;
             set
             {
-                if (_models != value)
+                if (ReferenceEquals(_models, value))
                 {
-                    _models = value;
-                    OnPropertyChanged(nameof(Models));
+                    return;
                 }
+
+                _models = value;
+                OnPropertyChanged(nameof(Models));
+                OnPropertyChanged(nameof(HasModels));
+            }
+        }
+
+        public ObservableCollection<string> Providers
+        {
+            get => _providers;
+            set
+            {
+                if (ReferenceEquals(_providers, value))
+                {
+                    return;
+                }
+
+                _providers = value;
+                OnPropertyChanged(nameof(Providers));
+                OnPropertyChanged(nameof(HasProviders));
             }
         }
 
@@ -182,11 +226,30 @@ namespace KnowledgeAssistant.Wpf
             }
         }
 
+        public bool HasProviders => Providers.Count > 0;
+
+        public bool HasModels => Models.Count > 0;
+
         public event PropertyChangedEventHandler? PropertyChanged;
 
         protected virtual void OnPropertyChanged(string propertyName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        private void SetSelectedModel(string? value, bool persist)
+        {
+            if (string.Equals(_selectedModel, value, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            _selectedModel = value;
+            OnPropertyChanged(nameof(SelectedModel));
+            if (persist && !_suppressModelUpdate && !string.IsNullOrWhiteSpace(value))
+            {
+                _messageService.Publish(new UpdateSelectedModelRequest(value));
+            }
         }
 
         private ScrollViewer? FindScrollViewer(DependencyObject root)
@@ -324,41 +387,92 @@ namespace KnowledgeAssistant.Wpf
 
         private void AvailableModelsUpdatedEventReceived(MessageBase message)
         {
-            if (message is AvailableModelsUpdatedEvent availableModelsUpdatedEvent)
+            if (message is not AvailableModelsUpdatedEvent modelsEvent)
             {
-                _allModels = availableModelsUpdatedEvent.Models.ToList();
-                RecalculateModels();
-                SelectedModel = Models?.FirstOrDefault();
-                _messageService.Publish(new GetSelectedModelRequest());
+                return;
             }
+
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            {
+                if (!string.Equals(modelsEvent.Provider, SelectedProvider, StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
+
+                _allModels = modelsEvent.Models.ToList();
+                RecalculateModels();
+                StatusMessage = Models.Count == 0
+                            ? $"No models are available from {modelsEvent.Provider}."
+                            : $"{Models.Count} models loaded from {modelsEvent.Provider}.";
+
+                _messageService.Publish(new GetSelectedModelRequest());
+            });
         }
 
         private void RecalculateModels()
         {
             var previouslySelected = SelectedModel;
-            var filtered = _allModels
-                .Where(m => !ShowOnlyToolCallingModels || m.CanCallTools)
-                .Select(m => m.Name);
+            var filteredModels = _allModels.Where(model => !ShowOnlyToolCallingModels || model.CanCallTools)
+                                            .Select(model => model.Name)
+                                            .Where(name => !string.IsNullOrWhiteSpace(name))
+                                            .Distinct(StringComparer.Ordinal)
+                                            .OrderBy(name => name)
+                                            .ToList();
 
-            Models = new ObservableCollection<string>(filtered);
+            Models = new ObservableCollection<string>(filteredModels);
+            string? newSelectedModel = null;
+            if (!string.IsNullOrWhiteSpace(previouslySelected) && Models.Contains(previouslySelected))
+            {
+                newSelectedModel = previouslySelected;
+            }
+            else
+            {
+                newSelectedModel = Models.FirstOrDefault();
+            }
 
-            SelectedModel = previouslySelected != null && Models.Contains(previouslySelected)
-                ? previouslySelected
-                : Models.FirstOrDefault();
+            _suppressModelUpdate = true;
+            try
+            {
+                SetSelectedModel(newSelectedModel, persist: false);
+            }
+            finally
+            {
+                _suppressModelUpdate = false;
+            }
         }
 
         private void SelectedModelUpdatedEventReceived(MessageBase message)
         {
-            if (message is SelectedModelUpdatedEvent request)
+            if (message is not SelectedModelUpdatedEvent selectedEvent)
             {
-                System.Windows.Application.Current.Dispatcher.Invoke(() =>
-                {
-                    if (!string.IsNullOrWhiteSpace(request.SelectedModel) && Models != null && Models.Contains(request.SelectedModel))
-                    {
-                        SelectedModel = request.SelectedModel;
-                    }
-                });
+                return;
             }
+
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            {
+                var savedModel = selectedEvent.SelectedModel;
+
+                if (!string.IsNullOrWhiteSpace(savedModel) && Models.Contains(savedModel))
+                {
+                    _suppressModelUpdate = true;
+                    try
+                    {
+                        SetSelectedModel(savedModel, persist: false);
+                    }
+                    finally
+                    {
+                        _suppressModelUpdate = false;
+                    }
+
+                    return;
+                }
+
+                var fallbackModel = Models.FirstOrDefault();
+                if (!string.IsNullOrWhiteSpace(fallbackModel))
+                {
+                    SetSelectedModel(fallbackModel, persist: true);
+                }
+            });
         }
 
         private void DocumentationReadyEventReceived(MessageBase message)
@@ -419,6 +533,7 @@ namespace KnowledgeAssistant.Wpf
                         {
                             Id = request.ConversationId,
                             Title = request.Title,
+                            Provider = ModelProviderNames.Unknown
                         };
 
                         Conversations.Add(conversation);
@@ -428,9 +543,63 @@ namespace KnowledgeAssistant.Wpf
             }
         }
 
-        private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
+        private void AvailableProvidersUpdatedEventReceived(MessageBase message)
         {
-            _messageService.Publish(new GetAvailableModelsRequest());
+            if (message is not AvailableProvidersUpdatedEvent providersEvent)
+            {
+                return;
+            }
+
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            {
+                var providers = providersEvent.Providers
+                                            .Where(provider => !string.IsNullOrWhiteSpace(provider))
+                                            .Distinct(StringComparer.OrdinalIgnoreCase)
+                                            .OrderBy(provider => provider)
+                                            .ToList();
+
+                Providers = new ObservableCollection<string>(providers);
+                if (Providers.Count == 0)
+                {
+                    _suppressProviderUpdate = true;
+                    try
+                    {
+                        SelectedProvider = null;
+                    }
+                    finally
+                    {
+                        _suppressProviderUpdate = false;
+                    }
+
+                    StatusMessage = "No AI model providers are available.";
+                    return;
+                }
+
+                var selectedProvider = !string.IsNullOrWhiteSpace(SelectedProvider) &&
+                                         Providers.Contains(SelectedProvider, StringComparer.OrdinalIgnoreCase)
+                                            ? SelectedProvider
+                                            : Providers.First();
+
+                _suppressProviderUpdate = true;
+                try
+                {
+                    SelectedProvider = selectedProvider;
+                }
+                finally
+                {
+                    _suppressProviderUpdate = false;
+                }
+
+                StatusMessage = $"Loading models from {selectedProvider}...";
+                _messageService.Publish(new UpdateSelectedProviderRequest(selectedProvider));
+                _messageService.Publish(new GetAvailableModelsRequest(selectedProvider));
+            });
+        }
+
+        private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+        {
+            StatusMessage = "Loading AI model providers...";
+            _messageService.Publish(new GetAvailableProvidersRequest());
             _messageService.Publish(new GetConversationsRequest());
         }
 

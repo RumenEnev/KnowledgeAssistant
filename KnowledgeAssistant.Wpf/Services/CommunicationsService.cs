@@ -5,11 +5,13 @@ using KnowledgeAssistant.Contracts.Repositories;
 using KnowledgeAssistant.Contracts.Tools;
 using KnowledgeAssistant.Domain.Conversation;
 using KnowledgeAssistant.Domain.Documents;
+using KnowledgeAssistant.Infrastructure.Dto;
 using KnowledgeAssistant.Wpf.Messages;
 using KnowledgeAssistant.Wpf.Messages.Conversations;
 using KnowledgeAssistant.Wpf.Messages.Documentation;
 using KnowledgeAssistant.Wpf.Messages.Documents;
 using KnowledgeAssistant.Wpf.Messages.ModelContextWindows;
+using KnowledgeAssistant.Wpf.Messages.ModelsManagement;
 using KnowledgeAssistant.Wpf.Messages.RepositoriesManagement;
 using KnowledgeAssistant.Wpf.Messages.ToolsExecution;
 using KnowledgeAssistant.Wpf.Messages.ToolsManagement;
@@ -91,8 +93,60 @@ namespace KnowledgeAssistant.Wpf.Services
             _messageService.Subscribe<SendPromptRequest>(this, SendPromptReceived);
             _messageService.Subscribe<ToolExecutionCompletedRequest>(this, ToolExecutionCompletedReceived);
             _messageService.Subscribe<ToolExecutionOutputIntermediateEvent>(this, ToolExecutionOutputIntermediateEventReceived);
+            _messageService.Subscribe<GetAvailableProvidersRequest>(this, GetAvailableProvidersReceived);
+            _messageService.Subscribe<UpdateSelectedProviderRequest>(this, UpdateSelectedProviderReceived);
 
             _messageService.SubscribeAsync<GetRepositoriesRequest>(this, GetRepositoriesReceived);
+        }
+
+        private async void UpdateSelectedProviderReceived(MessageBase message)
+        {
+            if (message is UpdateSelectedProviderRequest request)
+            {
+
+                try
+                {
+                    var dto = new UpdateSelectedProviderDto
+                    {
+                        SelectedProvider = request.SelectedProvider
+                    };
+
+                    using var httpRequest = new HttpRequestMessage(HttpMethod.Put, "api/configuration/selected-provider");
+                    httpRequest.Content = new StringContent(JsonSerializer.Serialize(dto), Encoding.UTF8, "application/json");
+                    using var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, _cancellationToken);
+                    response.EnsureSuccessStatusCode();
+                }
+                catch (OperationCanceledException) when (_cancellationToken.IsCancellationRequested)
+                {
+                    // Application is closing.
+                }
+                catch (Exception ex)
+                {
+                    _messageService.Publish(new UserMessage("Error", $"Error saving selected provider: {ex.Message}", MessageType.Error));
+                }
+            }
+        }
+
+        private async void GetAvailableProvidersReceived(MessageBase message)
+        {
+            if (message is GetAvailableProvidersRequest)
+            {
+                try
+                {
+                    using var response = await _httpClient.GetAsync("api/models/providers", _cancellationToken);
+                    response.EnsureSuccessStatusCode();
+                    var providers = await response.Content.ReadFromJsonAsync<List<string>>(cancellationToken: _cancellationToken) ?? new List<string>();
+                    _messageService.Publish(new AvailableProvidersUpdatedEvent(providers));
+                }
+                catch (OperationCanceledException) when (_cancellationToken.IsCancellationRequested)
+                {
+                    // Application is closing.
+                }
+                catch (Exception ex)
+                {
+                    _messageService.Publish(new UserMessage("Error", $"Error loading model providers: {ex.Message}", MessageType.Error));
+                }
+            }
         }
 
         private async void ToolExecutionOutputIntermediateEventReceived(MessageBase message)
@@ -479,7 +533,8 @@ namespace KnowledgeAssistant.Wpf.Services
                     _messageService.Publish(new ConversationUpdatedEvent(new Conversation
                     {
                         Id = conversation.Id,
-                        Title = conversation.Title
+                        Title = conversation.Title,
+                        Provider = ModelProviderNames.Unknown
                     }));
                 }
             }
@@ -504,7 +559,8 @@ namespace KnowledgeAssistant.Wpf.Services
                             Id = conversation.Id,
                             Title = conversation.Title,
                             TopicId = conversation.TopicId,
-                            Topic = conversation.Topic
+                            Topic = conversation.Topic,
+                            Provider = ModelProviderNames.Unknown
                         }));
                     }
                 }
@@ -548,7 +604,8 @@ namespace KnowledgeAssistant.Wpf.Services
                             Id = conversation.Id,
                             Title = conversation.Title,
                             TopicId = conversation.TopicId,
-                            Topic = conversation.Topic
+                            Topic = conversation.Topic,
+                            Provider = ModelProviderNames.Unknown
                         }));
                     }
                 }
@@ -571,7 +628,8 @@ namespace KnowledgeAssistant.Wpf.Services
                         Id = c.Id,
                         Title = c.Title,
                         TopicId = c.TopicId,
-                        Topic = c.Topic
+                        Topic = c.Topic,
+                        Provider = ModelProviderNames.Unknown
                     }) ?? Enumerable.Empty<Conversation>()));
                 }
                 catch (Exception ex)
@@ -604,16 +662,24 @@ namespace KnowledgeAssistant.Wpf.Services
 
         private async void GetAvailableModelsReceived(MessageBase message)
         {
-            if (message is GetAvailableModelsRequest)
+            if (message is GetAvailableModelsRequest request)
             {
+
                 try
                 {
-                    var models = await _httpClient.GetFromJsonAsync<List<ModelInfoDto>>("api/models");
-                    _messageService.Publish(new AvailableModelsUpdatedEvent(models?.Select(model => new AvailableModelInfo(model.Name, model.CanCallTools)) ?? Enumerable.Empty<AvailableModelInfo>()));
+                    var provider = Uri.EscapeDataString(request.Provider);
+                    using var response = await _httpClient.GetAsync($"api/models?provider={provider}", _cancellationToken);
+                    response.EnsureSuccessStatusCode();
+                    var models = await response.Content.ReadFromJsonAsync<List<AvailableModelInfo>>(cancellationToken: _cancellationToken) ?? new List<AvailableModelInfo>();
+                    _messageService.Publish(new AvailableModelsUpdatedEvent(request.Provider, models));
+                }
+                catch (OperationCanceledException) when (_cancellationToken.IsCancellationRequested)
+                {
+                    // Application is closing.
                 }
                 catch (Exception ex)
                 {
-                    _messageService.Publish(new UserMessage("Error", $"Error fetching available models: {ex.Message}", MessageType.Information));
+                    _messageService.Publish(new UserMessage("Error", $"Error loading models from " + $"'{request.Provider}': {ex.Message}", MessageType.Error));
                 }
             }
         }

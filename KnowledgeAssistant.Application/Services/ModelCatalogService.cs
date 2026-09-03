@@ -5,9 +5,9 @@ namespace KnowledgeAssistant.Application.Services
 {
     public class ModelCatalogService
     {
-        private readonly IModelCatalogGateway _gateway;
+        private readonly INamedModelCatalogGateway _gateway;
 
-        public ModelCatalogService(IModelCatalogGateway gateway)
+        public ModelCatalogService(INamedModelCatalogGateway gateway)
         {
             _gateway = gateway;
         }

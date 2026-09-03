@@ -1,4 +1,5 @@
 ﻿using KnowledgeAssistant.Application.Abstraction;
+using KnowledgeAssistant.Contracts.Definitions;
 using KnowledgeAssistant.Contracts.Dto;
 using KnowledgeAssistant.Contracts.Enums;
 using KnowledgeAssistant.Domain;
@@ -119,7 +120,8 @@ namespace KnowledgeAssistant.Application.Services
                 Title = await GenerateTitleAsync(request.Message, request.Model ?? "llama3", cancellationToken),
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
-                SelectedModelId = await _modelRepository.GetOrCreateModelIdAsync(request.Model ?? "llama3", cancellationToken)
+                SelectedModelId = await _modelRepository.GetOrCreateModelIdAsync(request.Model ?? "llama3", cancellationToken),
+                Provider = ModelProviderNames.Unknown
             };
 
             await _repository.CreateAsync(conversation, cancellationToken);

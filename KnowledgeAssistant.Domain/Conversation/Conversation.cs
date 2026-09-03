@@ -10,6 +10,8 @@
 
         public DateTime UpdatedAt { get; set; }
 
+        public required string Provider { get; set; }
+
         public Guid? SelectedModelId { get; set; }
 
         public int? TopicId { get; set; }

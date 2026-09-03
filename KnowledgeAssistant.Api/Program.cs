@@ -41,7 +41,7 @@ builder.Services.AddHttpClient<IModelGateway, OllamaModelGateway>(client =>
     client.BaseAddress = new Uri(ollamaBaseUrl);
 });
 
-builder.Services.AddHttpClient<IModelCatalogGateway, OllamaModelCatalogGateway>(client =>
+builder.Services.AddHttpClient<INamedModelCatalogGateway, OllamaModelCatalogGateway>(client =>
 {
     client.BaseAddress = new Uri(ollamaBaseUrl);
 });

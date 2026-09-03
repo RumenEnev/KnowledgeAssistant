@@ -34,6 +34,7 @@
     <ProjectReference Include="..\KnowledgeAssistant.Application\KnowledgeAssistant.Application.csproj" />
     <ProjectReference Include="..\KnowledgeAssistant.Contracts\KnowledgeAssistant.Contracts.csproj" />
     <ProjectReference Include="..\KnowledgeAssistant.Domain\KnowledgeAssistant.Domain.csproj" />
+    <ProjectReference Include="..\KnowledgeAssistant.Infrastructure\KnowledgeAssistant.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

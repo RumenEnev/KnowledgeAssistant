@@ -142,7 +142,7 @@ public static class Program
             client.Timeout = TimeSpan.FromMinutes(5);
         });
 
-        services.AddHttpClient<IModelCatalogGateway, OllamaModelCatalogGateway>(client =>
+        services.AddHttpClient<INamedModelCatalogGateway, OllamaModelCatalogGateway>(client =>
         {
             client.BaseAddress = new Uri(ollamaBaseUrl);
         });
