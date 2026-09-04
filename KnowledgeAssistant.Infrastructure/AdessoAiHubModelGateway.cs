@@ -14,7 +14,6 @@ namespace KnowledgeAssistant.Infrastructure;
 public sealed class AdessoAiHubModelGateway : INamedModelGateway
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
-
     private readonly HttpClient _httpClient;
     private readonly string _apiKey;
     private int _promptTokensCount;
@@ -39,25 +38,22 @@ public sealed class AdessoAiHubModelGateway : INamedModelGateway
     public (int, int) GetTokenConsumption() =>
         (Volatile.Read(ref _promptTokensCount), Volatile.Read(ref _responseTokensCount));
 
-    public async Task<string> GenerateAsync(
-        string model,
-        ChatMessage userMessage,
-        ChatMessage systemMessage,
-        CancellationToken cancellationToken)
+    public async Task<string> GenerateAsync(string model, ChatMessage userMessage, ChatMessage systemMessage, CancellationToken cancellationToken)
     {
         ResetTokenConsumption();
-        var requestBody = new
+        var messages = NormalizeMessageOrder([systemMessage, userMessage]);
+        var payload = new
         {
             model,
-            messages = new[]
+            messages = messages.Select(message => new
             {
-                new { role = systemMessage.Role, content = systemMessage.Content },
-                new { role = userMessage.Role, content = userMessage.Content }
-            },
+                role = message.Role.ToLowerInvariant(),
+                content = message.Content
+            }),
             stream = false
         };
 
-        using var request = CreateJsonRequest(HttpMethod.Post, "v1/chat/completions", requestBody);
+        using var request = CreateJsonRequest(HttpMethod.Post, "v1/chat/completions", payload);
         using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         await EnsureSuccessAsync(response, model, cancellationToken);
 
@@ -68,17 +64,14 @@ public sealed class AdessoAiHubModelGateway : INamedModelGateway
         return result?.Choices.FirstOrDefault()?.Message?.Content ?? string.Empty;
     }
 
-    public async IAsyncEnumerable<string> StreamAsync(
-        string model,
-        List<ChatMessage> messages,
-        [EnumeratorCancellation] CancellationToken cancellationToken)
+    public async IAsyncEnumerable<string> StreamAsync(string model, List<ChatMessage> messages, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         ResetTokenConsumption();
-
+        var normalizedMessages = NormalizeMessageOrder(messages);
         var requestBody = new
         {
             model,
-            messages = messages.Select(message => new
+            messages = normalizedMessages.Select(message => new
             {
                 role = message.Role,
                 content = message.Content
@@ -90,16 +83,11 @@ public sealed class AdessoAiHubModelGateway : INamedModelGateway
         };
 
         using var request = CreateJsonRequest(HttpMethod.Post, "v1/chat/completions", requestBody);
-        using var response = await _httpClient.SendAsync(
-            request,
-            HttpCompletionOption.ResponseHeadersRead,
-            cancellationToken);
-
+        using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         await EnsureSuccessAsync(response, model, cancellationToken);
 
         await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
         using var reader = new StreamReader(responseStream);
-
         while (true)
         {
             var line = await reader.ReadLineAsync(cancellationToken);
@@ -126,13 +114,10 @@ public sealed class AdessoAiHubModelGateway : INamedModelGateway
             }
             catch (JsonException exception)
             {
-                throw new InvalidOperationException(
-                    "The AI Hub returned an invalid server-sent event payload.",
-                    exception);
+                throw new InvalidOperationException("The AI Hub returned an invalid server-sent event payload.", exception);
             }
 
             UpdateTokenConsumption(chunk?.Usage);
-
             var content = chunk?.Choices.FirstOrDefault()?.Delta?.Content;
             if (!string.IsNullOrEmpty(content))
             {
@@ -149,21 +134,17 @@ public sealed class AdessoAiHubModelGateway : INamedModelGateway
         CancellationToken cancellationToken)
     {
         ResetTokenConsumption();
-
         var toolsArray = new JsonArray();
         foreach (var tool in tools)
         {
             JsonNode parameters;
             try
             {
-                parameters = JsonNode.Parse(tool.ParametersJsonSchema)
-                    ?? throw new JsonException("The schema is empty.");
+                parameters = JsonNode.Parse(tool.ParametersJsonSchema) ?? throw new JsonException("The schema is empty.");
             }
             catch (JsonException exception)
             {
-                throw new InvalidOperationException(
-                    $"Tool '{tool.Name}' has an invalid ParametersJsonSchema.",
-                    exception);
+                throw new InvalidOperationException($"Tool '{tool.Name}' has an invalid ParametersJsonSchema.", exception);
             }
 
             toolsArray.Add(new JsonObject
@@ -178,39 +159,27 @@ public sealed class AdessoAiHubModelGateway : INamedModelGateway
             });
         }
 
-        var requestBody = new JsonObject
+        var messages = NormalizeMessageOrder([systemMessage, userMessage]);
+        var payload = new
         {
-            ["model"] = model,
-            ["messages"] = new JsonArray(
-                new JsonObject
-                {
-                    ["role"] = systemMessage.Role,
-                    ["content"] = systemMessage.Content
-                },
-                new JsonObject
-                {
-                    ["role"] = userMessage.Role,
-                    ["content"] = userMessage.Content
-                }),
-            ["tools"] = toolsArray,
-            ["tool_choice"] = "auto",
-            ["temperature"] = 0,
-            ["stream"] = false
+            model,
+            messages = messages.Select(message => new
+            {
+                role = message.Role.ToLowerInvariant(),
+                content = message.Content
+            }),
+            tools = toolsArray,
+            tool_choice = "auto",
+            temperature = 0,
+            stream = false
         };
 
-        using var request = CreateJsonRequest(HttpMethod.Post, "v1/chat/completions", requestBody);
-        using var response = await _httpClient.SendAsync(
-            request,
-            HttpCompletionOption.ResponseHeadersRead,
-            cancellationToken);
-
+        using var request = CreateJsonRequest(HttpMethod.Post, "v1/chat/completions", payload);
+        using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         await EnsureSuccessAsync(response, model, cancellationToken);
 
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        var result = await JsonSerializer.DeserializeAsync<AiHubChatCompletionResponseDto>(
-            stream,
-            JsonOptions,
-            cancellationToken);
+        var result = await JsonSerializer.DeserializeAsync<AiHubChatCompletionResponseDto>(stream, JsonOptions, cancellationToken);
 
         UpdateTokenConsumption(result?.Usage);
 
@@ -231,13 +200,9 @@ public sealed class AdessoAiHubModelGateway : INamedModelGateway
         };
     }
 
-    public async Task<float[]> GetEmbeddingAsync(
-        string model,
-        string text,
-        CancellationToken cancellationToken)
+    public async Task<float[]> GetEmbeddingAsync(string model, string text, CancellationToken cancellationToken)
     {
         ResetTokenConsumption();
-
         var requestBody = new
         {
             model,
@@ -246,18 +211,11 @@ public sealed class AdessoAiHubModelGateway : INamedModelGateway
         };
 
         using var request = CreateJsonRequest(HttpMethod.Post, "v1/embeddings", requestBody);
-        using var response = await _httpClient.SendAsync(
-            request,
-            HttpCompletionOption.ResponseHeadersRead,
-            cancellationToken);
-
+        using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         await EnsureSuccessAsync(response, model, cancellationToken);
 
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        var result = await JsonSerializer.DeserializeAsync<AiHubEmbeddingResponseDto>(
-            stream,
-            JsonOptions,
-            cancellationToken);
+        var result = await JsonSerializer.DeserializeAsync<AiHubEmbeddingResponseDto>(stream, JsonOptions, cancellationToken);
 
         UpdateTokenConsumption(result?.Usage);
         return result?.Data.OrderBy(item => item.Index).FirstOrDefault()?.Embedding ?? [];
@@ -267,10 +225,7 @@ public sealed class AdessoAiHubModelGateway : INamedModelGateway
     {
         var request = new HttpRequestMessage(method, relativeUrl)
         {
-            Content = new StringContent(
-                JsonSerializer.Serialize(body, JsonOptions),
-                Encoding.UTF8,
-                "application/json")
+            Content = new StringContent(JsonSerializer.Serialize(body, JsonOptions), Encoding.UTF8, "application/json")
         };
 
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
@@ -314,10 +269,7 @@ public sealed class AdessoAiHubModelGateway : INamedModelGateway
         Interlocked.Exchange(ref _responseTokensCount, usage.CompletionTokens);
     }
 
-    private static async Task EnsureSuccessAsync(
-        HttpResponseMessage response,
-        string model,
-        CancellationToken cancellationToken)
+    private static async Task EnsureSuccessAsync(HttpResponseMessage response, string model, CancellationToken cancellationToken)
     {
         if (response.IsSuccessStatusCode)
         {
@@ -340,8 +292,52 @@ public sealed class AdessoAiHubModelGateway : INamedModelGateway
             // Keep the raw response body.
         }
 
-        throw new InvalidOperationException(
-            $"AI Hub request for model '{model}' failed with status " +
-            $"{(int)response.StatusCode} ({response.StatusCode}): {reason}");
+        throw new InvalidOperationException($"AI Hub request for model '{model}' failed with status " + $"{(int)response.StatusCode} ({response.StatusCode}): {reason}");
+    }
+
+    private static List<ChatMessage> NormalizeMessageOrder(IEnumerable<ChatMessage> messages)
+    {
+        ArgumentNullException.ThrowIfNull(messages);
+
+        var messageList = messages.Where(message =>
+                                    message is not null &&
+                                    !string.IsNullOrWhiteSpace(message.Content))
+                                .ToList();
+
+        var systemMessages = messageList.Where(message =>
+                                        string.Equals(
+                                            message.Role,
+                                            "system",
+                                            StringComparison.OrdinalIgnoreCase))
+                                    .ToList();
+
+        var nonSystemMessages = messageList.Where(message =>
+                                            !string.Equals(
+                                                message.Role,
+                                                "system",
+                                                StringComparison.OrdinalIgnoreCase))
+                                        .ToList();
+
+        if (systemMessages.Count == 0)
+        {
+            return nonSystemMessages;
+        }
+
+        // Some models accept only one system message. Merge all system
+        // instructions and place the result at index 0.
+        var mergedSystemContent = string.Join(
+            Environment.NewLine + Environment.NewLine,
+            systemMessages
+                .Select(message => message.Content.Trim())
+                .Where(content => content.Length > 0));
+
+        var firstSystemMessage = systemMessages[0] with
+        {
+            Role = "system",
+            Content = mergedSystemContent
+        };
+
+        nonSystemMessages.Insert(0, firstSystemMessage);
+        return nonSystemMessages;
     }
 }
