@@ -36,6 +36,8 @@ export class AppComponent implements OnInit {
   @ViewChild('messageList') private messageListRef!: ElementRef<HTMLElement>;
 
   isStreaming = signal(false);
+  allProviders = signal<string[]>([]);
+  selectedProvider = signal<string>('');
   allModels = signal<ModelInfo[]>([]);
   showOnlyToolCallingModels = signal(false);
   models = computed(() =>
@@ -73,30 +75,15 @@ export class AppComponent implements OnInit {
         this.selectedModel.set(visibleModels[0]);
       }
     }, { allowSignalWrites: true });
-
-    effect(() => {
-      const model = this.selectedModel();
-      if (!model) {
-        return;
-      }
-
-      this.chatService.updateSelectedModel(model).catch(err => {
-        this.notificationService.error(this.toMessage(err, 'Failed to save the selected model.'));
-      });
-    });
   }
 
   async ngOnInit() {
     try {
-      const models = await this.chatService.getModels();
-      this.allModels.set(models);
-      if (models.length > 0) {
-        this.selectedModel.set(models[0].name);
-      }
-
-      const savedModel = await this.chatService.getSelectedModel();
-      if (savedModel && this.models().includes(savedModel)) {
-        this.selectedModel.set(savedModel);
+      const providers = await this.chatService.getProviders();
+      this.allProviders.set(providers);
+      if (providers.length > 0) {
+        this.selectedProvider.set(providers[0]);
+        await this.loadModelsForProvider(providers[0]);
       }
 
       const conversations = await this.chatService.getConversations();
@@ -109,6 +96,46 @@ export class AppComponent implements OnInit {
     }
   }
 
+  private async loadModelsForProvider(provider: string): Promise<void> {
+    try {
+      const models = await this.chatService.getModels(provider);
+      this.allModels.set(models);
+    } catch (err) {
+      this.allModels.set([]);
+      this.notificationService.error(this.toMessage(err, `Failed to load models for provider '${provider}'.`));
+    }
+  }
+
+  private async persistModelSelection(): Promise<void> {
+    const conversation = this.selectedConversation();
+    const provider = this.selectedProvider();
+    const model = this.selectedModel();
+    if (!conversation || !provider || !model) {
+      return;
+    }
+
+    try {
+      await this.chatService.updateConversationModelSelection(conversation.id, provider, model);
+    } catch (err) {
+      this.notificationService.error(this.toMessage(err, 'Failed to save the selected model.'));
+    }
+  }
+
+  async onProviderChange(provider: string): Promise<void> {
+    if (provider === this.selectedProvider()) {
+      return;
+    }
+
+    this.selectedProvider.set(provider);
+    await this.loadModelsForProvider(provider);
+    await this.persistModelSelection();
+  }
+
+  async onModelChange(model: string): Promise<void> {
+    this.selectedModel.set(model);
+    await this.persistModelSelection();
+  }
+
   async selectConversation(conv: Conversation) {
     try {
       const conversation = await this.chatService.getConversation(conv.id);
@@ -116,6 +143,11 @@ export class AppComponent implements OnInit {
           this.messages.set(conversation.messages.map(msg => ({ role: msg.role, text: msg.content })));
       }
       this.selectedConversation.set(conversation);
+
+      if (conversation.selectedProvider && conversation.selectedProvider !== this.selectedProvider()) {
+        this.selectedProvider.set(conversation.selectedProvider);
+        await this.loadModelsForProvider(conversation.selectedProvider);
+      }
 
       if (conversation.selectedModel && this.models().includes(conversation.selectedModel)) {
         this.selectedModel.set(conversation.selectedModel);
@@ -285,6 +317,7 @@ export class AppComponent implements OnInit {
           conversationId,
           message: text,
           model: this.selectedModel(),
+          provider: this.selectedProvider(),
           source: 'Web'
         },
 

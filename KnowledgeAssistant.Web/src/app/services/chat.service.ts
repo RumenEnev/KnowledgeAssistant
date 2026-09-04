@@ -32,8 +32,14 @@ export class ChatService {
     throw new Error(message);
   }
 
-  async getModels(): Promise<ModelInfo[]> {
-    const response = await fetch(`${this.baseUrl}/api/models`);
+  async getProviders(): Promise<string[]> {
+    const response = await fetch(`${this.baseUrl}/api/models/providers`);
+    await this.assertOk(response);
+    return response.json();
+  }
+
+  async getModels(provider: string): Promise<ModelInfo[]> {
+    const response = await fetch(`${this.baseUrl}/api/models?provider=${encodeURIComponent(provider)}`);
     await this.assertOk(response);
     return response.json();
   }
@@ -82,20 +88,13 @@ export class ChatService {
     await this.assertOk(response);
   }
 
-  async updateSelectedModel(selectedModel: string): Promise<void> {
-    const response = await fetch(`${this.baseUrl}/api/configuration/selected-model`, {
+  async updateConversationModelSelection(conversationId: string, selectedProvider: string, selectedModel: string): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/api/conversations/${conversationId}/model-selection`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ selectedModel })
+      body: JSON.stringify({ selectedProvider, selectedModel })
     });
     await this.assertOk(response);
-  }
-
-  async getSelectedModel(): Promise<string | null> {
-    const response = await fetch(`${this.baseUrl}/api/configuration/selected-model`);
-    await this.assertOk(response);
-    const dto = await response.json();
-    return dto?.selectedModel ?? null;
   }
 
   async getChunkingSettings(): Promise<{ chunkTargetSizeChars: number; chunkOverlapChars: number }> {

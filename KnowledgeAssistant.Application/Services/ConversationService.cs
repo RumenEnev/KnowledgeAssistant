@@ -49,10 +49,15 @@ namespace KnowledgeAssistant.Application.Services
 
         public async Task<string> GenerateTitleAsync(Guid conversationId,string userMessage, string model, CancellationToken cancellationToken)
         {
+            var modelGateway = await GetModelGatewayAsync(conversationId, cancellationToken);
+            return await GenerateTitleAsync(modelGateway, userMessage, model, cancellationToken);
+        }
+
+        private async Task<string> GenerateTitleAsync(IModelGateway modelGateway, string userMessage, string model, CancellationToken cancellationToken)
+        {
             const int maxTitleWords = 6;
             const int maxTitleLength = 60;
             string? generated = null;
-            var modelGateway = await GetModelGatewayAsync(conversationId, cancellationToken);
             try
             {
                 generated = await modelGateway.GenerateAsync(
@@ -115,14 +120,15 @@ namespace KnowledgeAssistant.Application.Services
                 }
             }
 
+            var provider = string.IsNullOrWhiteSpace(request.Provider) ? ModelProviderNames.Unknown : request.Provider;
             var conversation = new Conversation()
             {
                 Id = Guid.NewGuid(),
-                Title = await GenerateTitleAsync((Guid)request.ConversationId, request.Message, request.Model ?? "llama3", cancellationToken),
+                Title = await GenerateTitleAsync(GetModelGatewayByProvider(provider), request.Message, request.Model ?? "llama3", cancellationToken),
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
                 SelectedModelId = await _modelRepository.GetOrCreateModelIdAsync(request.Model ?? "llama3", cancellationToken),
-                Provider = ModelProviderNames.Unknown
+                Provider = provider
             };
 
             await _repository.CreateAsync(conversation, cancellationToken);
@@ -403,6 +409,16 @@ namespace KnowledgeAssistant.Application.Services
             if (string.IsNullOrWhiteSpace(provider))
             {
                 throw new InvalidOperationException($"Conversation '{conversationId}' does not have " + "a selected model provider.");
+            }
+
+            return _modelGatewayResolver.GetRequiredGateway(provider);
+        }
+
+        private IModelGateway GetModelGatewayByProvider(string provider)
+        {
+            if (string.IsNullOrWhiteSpace(provider))
+            {
+                throw new InvalidOperationException("A model provider is required to generate a response.");
             }
 
             return _modelGatewayResolver.GetRequiredGateway(provider);

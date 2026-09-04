@@ -46,6 +46,16 @@ public class ChatController : Controller
             return;
         }
 
+        if (!request.ConversationId.HasValue && string.IsNullOrWhiteSpace(request.Provider))
+        {
+            await writer.WriteAsync(SseEvents.Error, new ErrorEventDto
+            {
+                Message = "Please select a model provider before sending a message."
+            }, cancellationToken);
+
+            return;
+        }
+
         try
         {
             _logger.LogInformation("Received chat message for conversation {ConversationId} from {Source} client.", request.ConversationId, request.Source);

@@ -12,6 +12,8 @@ public class ChatRequestDto
 
     public string? Model { get; set; }
 
+    public string? Provider { get; set; }
+
     public double? Temperature { get; set; }
 
     public string SystemPromt { get; set; } = string.Empty;

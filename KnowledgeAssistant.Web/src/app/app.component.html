@@ -30,7 +30,12 @@
 
   <div class="main-content">
     <div class="models-bar">
-      <select class="model-select" [(ngModel)]="selectedModel">
+      <select class="provider-select" [ngModel]="selectedProvider()" (ngModelChange)="onProviderChange($event)">
+          @for (provider of allProviders(); track provider) {
+            <option [value]="provider">{{ provider }}</option>
+          }
+      </select>
+      <select class="model-select" [ngModel]="selectedModel()" (ngModelChange)="onModelChange($event)">
           @for (model of models(); track model) {
             <option>{{ model }}</option>
           }

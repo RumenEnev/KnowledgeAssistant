@@ -92,7 +92,8 @@
   border-bottom: 1px solid #eaeaea;
 }
 
-.model-select {
+.model-select,
+.provider-select {
   padding: 2px;
   border: 1px solid #ddd;
   border-radius: 6px;
