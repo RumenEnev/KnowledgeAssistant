@@ -30,7 +30,7 @@ namespace KnowledgeAssistant.Wpf.Services
             _messageService.Subscribe<ConversationLoadedEvent>(this, ConversationLoadedReceived);
             _messageService.Subscribe<ConversationDeletedEvent>(this, ConversationDeletedEventReceived);
             _messageService.Subscribe<CreateConversationsRequest>(this, CreateConversationsReceived);
-            _messageService.Subscribe<UpdateSelectedModelRequest>(this, UpdateSelectedModelReceived);
+            _messageService.Subscribe<UpdateConversationModelSelectionRequest>(this, UpdateSelectedModelReceived);
         }
 
         private async void SendUserMessageReceived(MessageBase message)
@@ -68,7 +68,7 @@ namespace KnowledgeAssistant.Wpf.Services
 
         private void UpdateSelectedModelReceived(MessageBase message)
         {
-            if (message is UpdateSelectedModelRequest request)
+            if (message is UpdateConversationModelSelectionRequest request)
             {
                 _currentModel = request.SelectedModel;
                 if (_conversation != null)

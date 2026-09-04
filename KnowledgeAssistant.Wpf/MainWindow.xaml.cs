@@ -91,9 +91,6 @@ namespace KnowledgeAssistant.Wpf
                     return;
                 }
 
-                // A provider selected through the UI belongs to the current
-                // conversation. Its first available model will be persisted
-                // after the provider catalogue has been loaded.
                 _pendingConversationProvider = null;
                 _pendingConversationModel = null;
                 _persistModelAfterProviderChange = SelectedConversation is not null;
@@ -271,11 +268,7 @@ namespace KnowledgeAssistant.Wpf
                 return;
             }
 
-            _messageService.Publish(
-                new UpdateConversationModelSelectionRequest(
-                    SelectedConversation.Id,
-                    SelectedProvider,
-                    value));
+            _messageService.Publish(new UpdateConversationModelSelectionRequest(SelectedConversation.Id, SelectedProvider, value));
         }
 
         private ScrollViewer? FindScrollViewer(DependencyObject root)
@@ -362,7 +355,7 @@ namespace KnowledgeAssistant.Wpf
                 return;
             }
 
-            System.Windows.Application.Current.Dispatcher.Invoke(() =>  
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
             {
                 ChatMessages.Clear();
 
