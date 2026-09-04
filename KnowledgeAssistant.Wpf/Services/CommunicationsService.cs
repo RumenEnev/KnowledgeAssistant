@@ -1,5 +1,6 @@
 ﻿using KnowledgeAssistant.Contracts.Definitions;
 using KnowledgeAssistant.Contracts.Dto;
+using KnowledgeAssistant.Contracts.Dto.Conversation;
 using KnowledgeAssistant.Contracts.Enums;
 using KnowledgeAssistant.Contracts.Repositories;
 using KnowledgeAssistant.Contracts.Tools;
@@ -675,11 +676,17 @@ namespace KnowledgeAssistant.Wpf.Services
 
         private async Task<MessageBase> CreateConversationsReceived(MessageBase message)
         {
-            if (message is CreateConversationsRequest)
+            if (message is CreateConversationsRequest request)
             {
                 try
                 {
-                    var response = await _httpClient.PostAsync("api/conversations", null, _cancellationToken);
+                    var payload = new CreateConversationDto
+                    {
+                        Provider = request.Provider,
+                        Model = request.Model
+                    };
+
+                    var response = await _httpClient.PostAsync("api/conversations", new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json"), _cancellationToken);
                     response.EnsureSuccessStatusCode();
 
                     var conversation = await response.Content.ReadFromJsonAsync<ConversationDto>(_cancellationToken);
@@ -698,7 +705,6 @@ namespace KnowledgeAssistant.Wpf.Services
         {
             if (message is GetAvailableModelsRequest request)
             {
-
                 try
                 {
                     var provider = Uri.EscapeDataString(request.Provider);
@@ -725,6 +731,7 @@ namespace KnowledgeAssistant.Wpf.Services
                 var httpRequest = new HttpRequestMessage(HttpMethod.Post, "api/chat/title");
                 var dto = new ChatRequestDto
                 {
+                    ConversationId = request.ConversationId,
                     Role = "user",
                     Message = request.UserPrompt,
                     Model = request.Model,

@@ -656,7 +656,7 @@ namespace KnowledgeAssistant.Wpf
 
                 ChatMessages.Add(userMessage);
                 ChatMessages.Add(new UCChatMessage(_messageService));
-                _messageService.Publish(new SendUserMessageRequest(UserPrompt));
+                _messageService.Publish(new SendUserMessageRequest(UserPrompt, SelectedProvider, SelectedModel));
                 UserPrompt = string.Empty;
             }
         }
@@ -672,7 +672,10 @@ namespace KnowledgeAssistant.Wpf
 
         private async void CreateConversation_Click(object sender, RoutedEventArgs e)
         {
-            _messageService.Publish(new CreateConversationsRequest());
+            if (!string.IsNullOrWhiteSpace(SelectedProvider) && !string.IsNullOrWhiteSpace(SelectedModel))
+            {
+                _messageService.Publish(new CreateConversationsRequest(SelectedProvider, SelectedModel));
+            }
         }
 
         private void RenameConversation_Click(object sender, RoutedEventArgs e)

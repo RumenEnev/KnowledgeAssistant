@@ -2,6 +2,7 @@
 using KnowledgeAssistant.Application.Services;
 using KnowledgeAssistant.Contracts.Definitions;
 using KnowledgeAssistant.Contracts.Dto;
+using KnowledgeAssistant.Contracts.Dto.Conversation;
 using KnowledgeAssistant.Infrastructure.Streaming;
 using KnowledgeAssistant.Infrastructure.ToolCallRegistry;
 using Microsoft.AspNetCore.Mvc;
@@ -98,7 +99,7 @@ public class ChatController : Controller
             return BadRequest("Model is required.");
         }
 
-        var title = await _conversationService.GenerateTitleAsync(request.Message, request.Model, cancellationToken);
+        var title = await _conversationService.GenerateTitleAsync((Guid)request.ConversationId, request.Message, request.Model, cancellationToken);
         return Ok(new ConversationDto { Title = title });
     }
 

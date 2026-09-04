@@ -43,8 +43,8 @@ namespace KnowledgeAssistant.Application.Services
             using (NpgsqlConnection connection = new NpgsqlConnection(_connectionString))
             {
                 connection.Open();
-                var query = $"INSERT INTO ai_interactions.conversations (id, title, created_at, updated_at, selected_model_id) VALUES " +
-                    $"(@Id, @Title, @CreatedAt, @UpdatedAt, @SelectedModelId)";
+                var query = $"INSERT INTO ai_interactions.conversations (id, title, created_at, updated_at, selected_model_id, provider) VALUES " +
+                    $"(@Id, @Title, @CreatedAt, @UpdatedAt, @SelectedModelId, @Provider)";
                 
                 await connection.ExecuteAsync(query, new
                 {
@@ -53,6 +53,7 @@ namespace KnowledgeAssistant.Application.Services
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow,
                     SelectedModelId = conversation.SelectedModelId ?? Guid.Empty,
+                    Provider = conversation.Provider
                 });
             }
         }
@@ -79,7 +80,7 @@ namespace KnowledgeAssistant.Application.Services
         {
             await using var connection = new NpgsqlConnection(_connectionString);
             await connection.OpenAsync(cancellationToken);
-            var query = "SELECT c.id, c.title, c.created_at AS CreatedAt, c.updated_at AS UpdatedAt, c.selected_model_id AS SelectedModelId, " +
+            var query = "SELECT c.id, c.title, c.created_at AS CreatedAt, c.updated_at AS UpdatedAt, c.provider as Provider, c.selected_model_id AS SelectedModelId, " +
                 "c.topic_id AS TopicId, t.name AS Topic " +
                 "FROM ai_interactions.conversations c " +
                 "LEFT JOIN rag.topics t ON t.id = c.topic_id " +

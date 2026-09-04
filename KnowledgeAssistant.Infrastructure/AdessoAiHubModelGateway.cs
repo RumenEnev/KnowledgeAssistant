@@ -1,6 +1,6 @@
 using KnowledgeAssistant.Application.Abstraction;
+using KnowledgeAssistant.Contracts.Definitions;
 using KnowledgeAssistant.Domain.Conversation;
-using KnowledgeAssistant.Infrastructure.Dto;
 using KnowledgeAssistant.Infrastructure.Dto.AiHub;
 using Microsoft.Extensions.Options;
 using System.Net.Http.Headers;
@@ -11,7 +11,7 @@ using System.Text.Json.Nodes;
 
 namespace KnowledgeAssistant.Infrastructure;
 
-public sealed class AdessoAiHubModelGateway : IModelGateway
+public sealed class AdessoAiHubModelGateway : INamedModelGateway
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -20,9 +20,7 @@ public sealed class AdessoAiHubModelGateway : IModelGateway
     private int _promptTokensCount;
     private int _responseTokensCount;
 
-    public AdessoAiHubModelGateway(
-        HttpClient httpClient,
-        IOptions<AdessoAiHubOptions> options)
+    public AdessoAiHubModelGateway(HttpClient httpClient, IOptions<AdessoAiHubOptions> options)
     {
         ArgumentNullException.ThrowIfNull(httpClient);
         ArgumentNullException.ThrowIfNull(options);
@@ -32,10 +30,11 @@ public sealed class AdessoAiHubModelGateway : IModelGateway
 
         if (string.IsNullOrWhiteSpace(_apiKey))
         {
-            throw new InvalidOperationException(
-                $"Configuration value '{AdessoAiHubOptions.SectionName}:ApiKey' is required.");
+            throw new InvalidOperationException($"Configuration value '{AdessoAiHubOptions.SectionName}:ApiKey' is required.");
         }
     }
+
+    public string Provider => ModelProviderNames.AdessoAiHub;
 
     public (int, int) GetTokenConsumption() =>
         (Volatile.Read(ref _promptTokensCount), Volatile.Read(ref _responseTokensCount));
@@ -47,7 +46,6 @@ public sealed class AdessoAiHubModelGateway : IModelGateway
         CancellationToken cancellationToken)
     {
         ResetTokenConsumption();
-
         var requestBody = new
         {
             model,
@@ -60,18 +58,11 @@ public sealed class AdessoAiHubModelGateway : IModelGateway
         };
 
         using var request = CreateJsonRequest(HttpMethod.Post, "v1/chat/completions", requestBody);
-        using var response = await _httpClient.SendAsync(
-            request,
-            HttpCompletionOption.ResponseHeadersRead,
-            cancellationToken);
-
+        using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         await EnsureSuccessAsync(response, model, cancellationToken);
 
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        var result = await JsonSerializer.DeserializeAsync<AiHubChatCompletionResponseDto>(
-            stream,
-            JsonOptions,
-            cancellationToken);
+        var result = await JsonSerializer.DeserializeAsync<AiHubChatCompletionResponseDto>(stream, JsonOptions, cancellationToken);
 
         UpdateTokenConsumption(result?.Usage);
         return result?.Choices.FirstOrDefault()?.Message?.Content ?? string.Empty;

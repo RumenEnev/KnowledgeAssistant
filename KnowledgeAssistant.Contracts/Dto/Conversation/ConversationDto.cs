@@ -1,4 +1,4 @@
-﻿namespace KnowledgeAssistant.Contracts.Dto;
+﻿namespace KnowledgeAssistant.Contracts.Dto.Conversation;
 
 public class ConversationDto
 {

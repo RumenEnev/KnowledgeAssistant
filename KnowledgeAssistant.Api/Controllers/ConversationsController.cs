@@ -1,6 +1,7 @@
 ﻿using KnowledgeAssistant.Application.Abstraction;
 using KnowledgeAssistant.Contracts.Definitions;
 using KnowledgeAssistant.Contracts.Dto;
+using KnowledgeAssistant.Contracts.Dto.Conversation;
 using KnowledgeAssistant.Domain.Conversation;
 using Microsoft.AspNetCore.Mvc;
 
@@ -14,10 +15,7 @@ public sealed class ConversationsController : ControllerBase
     private readonly IModelRepository _modelRepository;
     private readonly IModelProviderRegistry _providerRegistry;
 
-    public ConversationsController(
-        IConversationRepository repository,
-        IModelRepository modelRepository,
-        IModelProviderRegistry providerRegistry)
+    public ConversationsController(IConversationRepository repository, IModelRepository modelRepository, IModelProviderRegistry providerRegistry)
     {
         _repository = repository;
         _modelRepository = modelRepository;
@@ -25,8 +23,7 @@ public sealed class ConversationsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetConversations(
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> GetConversations(CancellationToken cancellationToken)
     {
         var conversations = await _repository.GetAllAsync(cancellationToken);
         var conversationDtos = conversations.Select(conversation => new ConversationDto
@@ -43,29 +40,20 @@ public sealed class ConversationsController : ControllerBase
     }
 
     [HttpGet("{conversationId:guid}")]
-    public async Task<IActionResult> GetConversation(
-        Guid conversationId,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> GetConversation(Guid conversationId, CancellationToken cancellationToken)
     {
-        var conversation = await _repository.GetAsync(
-            conversationId,
-            cancellationToken);
-
+        var conversation = await _repository.GetAsync(conversationId, cancellationToken);
         if (conversation is null)
         {
             return NotFound();
         }
 
-        var selectedModel = await GetSelectedModelNameAsync(
-            conversation,
-            cancellationToken);
-
+        var selectedModel = await GetSelectedModelNameAsync(conversation, cancellationToken);
         return Ok(ToDto(conversation, selectedModel));
     }
 
     [HttpPost]
-    public async Task<IActionResult> CreateConversation(
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> CreateConversation([FromBody] CreateConversationDto request, CancellationToken cancellationToken)
     {
         var conversation = new Conversation
         {
@@ -73,35 +61,24 @@ public sealed class ConversationsController : ControllerBase
             Title = "New Conversation",
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
-            Provider = ModelProviderNames.Unknown
+            Provider = request.Provider,
         };
 
         await _repository.CreateAsync(conversation, cancellationToken);
-
         return Ok(ToDto(conversation, selectedModel: null));
     }
 
-    /// <summary>
-    /// Atomically stores the provider/model pair on one conversation.
-    /// </summary>
     [HttpPut("{conversationId:guid}/model-selection")]
-    public async Task<IActionResult> UpdateModelSelection(
-        Guid conversationId,
-        [FromBody] UpdateConversationModelSelectionDto request,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> UpdateModelSelection(Guid conversationId, [FromBody] UpdateConversationModelSelectionDto request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.SelectedProvider))
         {
-            ModelState.AddModelError(
-                nameof(request.SelectedProvider),
-                "SelectedProvider is required.");
+            ModelState.AddModelError(nameof(request.SelectedProvider), "SelectedProvider is required.");
         }
 
         if (string.IsNullOrWhiteSpace(request.SelectedModel))
         {
-            ModelState.AddModelError(
-                nameof(request.SelectedModel),
-                "SelectedModel is required.");
+            ModelState.AddModelError(nameof(request.SelectedModel), "SelectedModel is required.");
         }
 
         if (!ModelState.IsValid)
@@ -109,9 +86,7 @@ public sealed class ConversationsController : ControllerBase
             return ValidationProblem(ModelState);
         }
 
-        if (!_providerRegistry.TryGetCatalogGateway(
-                request.SelectedProvider,
-                out var catalogGateway))
+        if (!_providerRegistry.TryGetCatalogGateway(request.SelectedProvider, out var catalogGateway))
         {
             return BadRequest(new ProblemDetails
             {
@@ -125,10 +100,7 @@ public sealed class ConversationsController : ControllerBase
             });
         }
 
-        var conversation = await _repository.GetAsync(
-            conversationId,
-            cancellationToken);
-
+        var conversation = await _repository.GetAsync(conversationId, cancellationToken);
         if (conversation is null)
         {
             return NotFound();
@@ -137,12 +109,7 @@ public sealed class ConversationsController : ControllerBase
         // Validate the pair, so a model from Ollama cannot accidentally be saved
         // together with AdessoAiHub (or vice versa).
         var availableModels = await catalogGateway.GetModelsAsync(cancellationToken);
-        var selectedModel = availableModels.FirstOrDefault(model =>
-            string.Equals(
-                model.Name,
-                request.SelectedModel,
-                StringComparison.Ordinal));
-
+        var selectedModel = availableModels.FirstOrDefault(model => string.Equals(model.Name, request.SelectedModel, StringComparison.Ordinal));
         if (selectedModel is null)
         {
             return BadRequest(new ProblemDetails
@@ -153,29 +120,19 @@ public sealed class ConversationsController : ControllerBase
             });
         }
 
-        var modelId = await _modelRepository.GetOrCreateModelIdAsync(
-            selectedModel.Name,
-            cancellationToken);
-
+        var modelId = await _modelRepository.GetOrCreateModelIdAsync(selectedModel.Name, cancellationToken);
         conversation.Provider = catalogGateway.Provider;
         conversation.SelectedModelId = modelId;
         conversation.UpdatedAt = DateTime.UtcNow;
 
         await _repository.UpdateAsync(conversation, cancellationToken);
-
         return NoContent();
     }
 
     [HttpPatch("{conversationId:guid}/title")]
-    public async Task<IActionResult> UpdateConversationTitle(
-        Guid conversationId,
-        [FromQuery] string newTitle,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> UpdateConversationTitle(Guid conversationId, [FromQuery] string newTitle, CancellationToken cancellationToken)
     {
-        var conversation = await _repository.GetAsync(
-            conversationId,
-            cancellationToken);
-
+        var conversation = await _repository.GetAsync(conversationId, cancellationToken);
         if (conversation is null)
         {
             return NotFound();
@@ -243,27 +200,20 @@ public sealed class ConversationsController : ControllerBase
 
         if (deletedConversationId == Guid.Empty)
         {
-            return StatusCode(
-                StatusCodes.Status500InternalServerError,
-                "An error occurred while deleting the conversation.");
+            return StatusCode(StatusCodes.Status500InternalServerError, "An error occurred while deleting the conversation.");
         }
 
         return Ok(deletedConversationId);
     }
 
-    private async Task<string?> GetSelectedModelNameAsync(
-        Conversation conversation,
-        CancellationToken cancellationToken)
+    private async Task<string?> GetSelectedModelNameAsync(Conversation conversation, CancellationToken cancellationToken)
     {
-        if (!conversation.SelectedModelId.HasValue ||
-            conversation.SelectedModelId.Value == Guid.Empty)
+        if (!conversation.SelectedModelId.HasValue || conversation.SelectedModelId.Value == Guid.Empty)
         {
             return null;
         }
 
-        return await _modelRepository.GetModelNameAsync(
-            conversation.SelectedModelId.Value,
-            cancellationToken);
+        return await _modelRepository.GetModelNameAsync(conversation.SelectedModelId.Value, cancellationToken);
     }
 
     private static ConversationDto ToDto(Conversation conversation, string? selectedModel)

@@ -39,7 +39,7 @@ namespace KnowledgeAssistant.Wpf.Services
             {
                 if (_conversation == null)
                 {
-                    await CreateNewConversationAsync();
+                    await CreateNewConversationAsync(request.Provider, request.Model);
                 }
 
                 if (_conversation != null && ShouldGenerateTitle(_conversation))
@@ -80,9 +80,9 @@ namespace KnowledgeAssistant.Wpf.Services
 
         private async void CreateConversationsReceived(MessageBase message)
         {
-            if (message is CreateConversationsRequest)
+            if (message is CreateConversationsRequest request)
             {
-                await CreateNewConversationAsync();
+                await CreateNewConversationAsync(request.Provider, request.Model);
                 _messageService.Publish(new ConversationCreatedEvent(new Conversation()
                 {
                     Id = _conversation?.Id ?? Guid.Empty,
@@ -156,9 +156,9 @@ namespace KnowledgeAssistant.Wpf.Services
                 (string.IsNullOrWhiteSpace(conversation.Title) || conversation.Title == DefaultConversationTitle);
         }
 
-        private async Task CreateNewConversationAsync()
+        private async Task CreateNewConversationAsync(string provider, string model)
         {
-            var result = await _messageService.RequestAsync<CreateConversationsResponse>(new CreateConversationsRequest());
+            var result = await _messageService.RequestAsync<CreateConversationsResponse>(new CreateConversationsRequest(provider, model));
             var conversation = result.FirstOrDefault()?.Conversation;
             if (conversation == null || conversation.Id == Guid.Empty)
             {

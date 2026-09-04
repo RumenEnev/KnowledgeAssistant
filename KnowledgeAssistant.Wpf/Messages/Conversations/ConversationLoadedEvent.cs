@@ -1,4 +1,4 @@
-﻿using KnowledgeAssistant.Contracts.Dto;
+﻿using KnowledgeAssistant.Contracts.Dto.Conversation;
 using MessageServices;
 
 namespace KnowledgeAssistant.Wpf.Messages.Conversations

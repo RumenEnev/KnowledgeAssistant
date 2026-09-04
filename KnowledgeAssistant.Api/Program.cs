@@ -67,7 +67,6 @@ builder.Services.AddHttpClient<AdessoAiHubModelGateway>(client =>
     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", aiHubApiKey);
 });
 
-builder.Services.AddTransient<IModelGateway>(serviceProvider => serviceProvider.GetRequiredService<OllamaModelGateway>());
 builder.Services.AddHttpClient<OllamaModelCatalogGateway>(client =>
 {
     client.BaseAddress = new Uri(EnsureTrailingSlash(ollamaBaseUrl));
@@ -82,6 +81,11 @@ builder.Services.AddHttpClient<AdessoAiHubModelCatalogGateway>(client =>
 builder.Services.AddTransient<INamedModelCatalogGateway>(serviceProvider => serviceProvider.GetRequiredService<OllamaModelCatalogGateway>());
 builder.Services.AddTransient<INamedModelCatalogGateway>(serviceProvider => serviceProvider.GetRequiredService<AdessoAiHubModelCatalogGateway>());
 builder.Services.AddScoped<IModelProviderRegistry, ModelProviderRegistry>();
+
+builder.Services.AddTransient<IModelGateway>(serviceProvider => serviceProvider.GetRequiredService<OllamaModelGateway>());
+builder.Services.AddTransient<INamedModelGateway>(serviceProvider => serviceProvider.GetRequiredService<OllamaModelGateway>());
+builder.Services.AddTransient<INamedModelGateway>(serviceProvider => serviceProvider.GetRequiredService<AdessoAiHubModelGateway>());
+builder.Services.AddScoped<IModelGatewayResolver, ModelGatewayResolver>();
 
 // Tool calling and streaming
 builder.Services.AddSingleton<IPendingToolCallRegistry, PendingToolCallRegistry>();

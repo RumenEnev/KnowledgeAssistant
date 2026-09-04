@@ -1,4 +1,5 @@
 ﻿using KnowledgeAssistant.Application.Abstraction;
+using KnowledgeAssistant.Contracts.Definitions;
 using KnowledgeAssistant.Domain.Conversation;
 using KnowledgeAssistant.Infrastructure.Dto.Ollama;
 using System.Runtime.CompilerServices;
@@ -8,17 +9,18 @@ using System.Text.Json.Nodes;
 
 namespace KnowledgeAssistant.Infrastructure
 {
-    public class OllamaModelGateway : IModelGateway
+    public class OllamaModelGateway : INamedModelGateway
     {
+        private readonly HttpClient _httpClient;
         private int _promptTokensCount;
         private int _responseTokensCount;
-
-        private readonly HttpClient _httpClient;
 
         public OllamaModelGateway(HttpClient httpClient)
         {
             _httpClient = httpClient;
         }
+
+        public string Provider => ModelProviderNames.Ollama;
 
         public (int, int) GetTokenConsumption()
         {
