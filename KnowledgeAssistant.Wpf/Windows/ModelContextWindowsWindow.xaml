@@ -5,8 +5,8 @@
     Title="Model Context Windows"
     Width="950"
     Height="520"
-    ResizeMode="NoResize"
     Loaded="ModelContextWindowsWindow_Loaded"
+    ResizeMode="NoResize"
     WindowStartupLocation="CenterOwner">
 
     <Grid Margin="8">

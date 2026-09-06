@@ -5,4 +5,6 @@ public record AvailableModelInfo
     public required string Name { get; init; }
 
     public bool CanCallTools { get; init; }
+
+    public bool IsFavorite { get; init; }
 }

@@ -112,8 +112,8 @@ export class ChatService {
     await this.assertOk(response);
   }
 
-  async getModelContextWindows(): Promise<ModelContextWindow[]> {
-    const response = await fetch(`${this.baseUrl}/api/models/context-windows`);
+  async getModelContextWindows(provider: string): Promise<ModelContextWindow[]> {
+    const response = await fetch(`${this.baseUrl}/api/models/context-windows?provider=${encodeURIComponent(provider)}`);
     await this.assertOk(response);
     return response.json();
   }

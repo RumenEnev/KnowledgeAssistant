@@ -8,9 +8,11 @@ export interface ModelContextWindow {
   quantizationLevel: string | null;
   internalUseOnly: boolean;
   canCallTools: boolean;
+  isFavorite: boolean;
 }
 
 export interface UpdateModelContextWindow {
   internalUseOnly: boolean;
   canCallTools: boolean;
+  isFavorite: boolean;
 }

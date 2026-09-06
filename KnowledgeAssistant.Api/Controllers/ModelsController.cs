@@ -33,7 +33,6 @@ public sealed class ModelsController : ControllerBase
 
         var models = await gateway.GetModelsAsync(cancellationToken);
         var result = new List<ModelInfoDto>(models.Count);
-
         foreach (var model in models)
         {
             // If two providers may expose the same model name, evolve the model
@@ -49,11 +48,12 @@ public sealed class ModelsController : ControllerBase
             result.Add(new ModelInfoDto
             {
                 Name = model.Name,
-                CanCallTools = flags.CanCallTools
+                CanCallTools = flags.CanCallTools,
+                IsFavorite = flags.IsFavorite
             });
         }
 
-        return Ok(result);
+        return Ok(result.OrderByDescending(model => model.IsFavorite));
     }
 
     [HttpGet("context-windows")]

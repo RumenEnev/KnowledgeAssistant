@@ -41,6 +41,7 @@ namespace KnowledgeAssistant.Wpf
         private Conversation? _selectedConversation;
         private Guid? _lastConversationId;
         private ObservableCollection<string> _models = new ObservableCollection<string>();
+        private HashSet<string> _favoriteModelNames = new HashSet<string>(StringComparer.Ordinal);
         private ObservableCollection<string> _providers = new ObservableCollection<string>();
         private List<AvailableModelInfo> _allModels = new List<AvailableModelInfo>();
         private bool _showOnlyToolCallingModels;
@@ -180,6 +181,16 @@ namespace KnowledgeAssistant.Wpf
                 _models = value;
                 OnPropertyChanged(nameof(Models));
                 OnPropertyChanged(nameof(HasModels));
+            }
+        }
+
+        public HashSet<string> FavoriteModelNames
+        {
+            get => _favoriteModelNames;
+            private set
+            {
+                _favoriteModelNames = value;
+                OnPropertyChanged(nameof(FavoriteModelNames));
             }
         }
 
@@ -477,12 +488,20 @@ namespace KnowledgeAssistant.Wpf
                 ? _pendingConversationModel
                 : SelectedModel;
 
+            var favoriteNames = _allModels
+                .Where(model => model.IsFavorite)
+                .Select(model => model.Name)
+                .ToHashSet(StringComparer.Ordinal);
+
+            FavoriteModelNames = favoriteNames;
+
             var filteredModels = _allModels
                 .Where(model => !ShowOnlyToolCallingModels || model.CanCallTools)
                 .Select(model => model.Name)
                 .Where(name => !string.IsNullOrWhiteSpace(name))
                 .Distinct(StringComparer.Ordinal)
-                .OrderBy(name => name)
+                .OrderByDescending(name => favoriteNames.Contains(name))
+                .ThenBy(name => name, StringComparer.Ordinal)
                 .ToList();
 
             Models = new ObservableCollection<string>(filteredModels);

@@ -36,8 +36,8 @@
           }
       </select>
       <select class="model-select" [ngModel]="selectedModel()" (ngModelChange)="onModelChange($event)">
-          @for (model of models(); track model) {
-            <option>{{ model }}</option>
+          @for (model of modelOptions(); track model.name) {
+            <option [value]="model.name">{{ model.isFavorite ? '★ ' + model.name : model.name }}</option>
           }
       </select>
       <label class="hide-tool-models-label">
@@ -75,7 +75,7 @@
 }
 
 @if (showModelContextWindowsManager()) {
-  <app-model-context-windows-manager (closed)="closeModelContextWindowsManager()" />
+  <app-model-context-windows-manager [provider]="selectedProvider()" (closed)="closeModelContextWindowsManager()" />
 }
 
 @if (showTopicsManager()) {

@@ -1,4 +1,4 @@
-import { Component, EventEmitter, inject, OnInit, Output, signal } from '@angular/core';
+import { Component, EventEmitter, inject, Input, OnInit, Output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ChatService } from '../../services/chat.service';
 import { NotificationService } from '../../services/notification.service';
@@ -17,6 +17,7 @@ interface ModelContextWindowRow extends ModelContextWindow {
   styleUrl: './model-context-windows-manager.component.css'
 })
 export class ModelContextWindowsManagerComponent implements OnInit {
+  @Input() provider = '';
   @Output() closed = new EventEmitter<void>();
 
   private chatService = inject(ChatService);
@@ -32,9 +33,15 @@ export class ModelContextWindowsManagerComponent implements OnInit {
   }
 
   async loadModels() {
+    if (!this.provider) {
+      this.rows.set([]);
+      this.notificationService.error('A model provider must be selected before managing models.');
+      return;
+    }
+
     this.isLoading.set(true);
     try {
-      const models = await this.chatService.getModelContextWindows();
+      const models = await this.chatService.getModelContextWindows(this.provider);
       this.rows.set(models.map(model => ({ ...model, isSaving: false, isDirty: false })));
     } catch (err) {
       this.notificationService.error(this.toMessage(err, 'Failed to load models.'));
@@ -52,7 +59,8 @@ export class ModelContextWindowsManagerComponent implements OnInit {
     try {
       await this.chatService.updateModelContextWindow(row.id, {
         internalUseOnly: row.internalUseOnly,
-        canCallTools: row.canCallTools
+        canCallTools: row.canCallTools,
+        isFavorite: row.isFavorite
       });
       row.isDirty = false;
       this.notificationService.success(`Saved settings for ${row.name}.`);

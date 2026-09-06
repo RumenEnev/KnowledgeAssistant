@@ -40,11 +40,18 @@ export class AppComponent implements OnInit {
   selectedProvider = signal<string>('');
   allModels = signal<ModelInfo[]>([]);
   showOnlyToolCallingModels = signal(false);
-  models = computed(() =>
+  modelOptions = computed(() =>
     this.allModels()
       .filter(model => !this.showOnlyToolCallingModels() || model.canCallTools)
-      .map(model => model.name)
+      .slice()
+      .sort((a, b) => {
+        if (a.isFavorite !== b.isFavorite) {
+          return a.isFavorite ? -1 : 1;
+        }
+        return a.name.localeCompare(b.name);
+      })
   );
+  models = computed(() => this.modelOptions().map(model => model.name));
   selectedModel = signal<string>('');
   userPrompt = signal<string>('');
   messages = signal([{ role: 'user', text: ''}]);

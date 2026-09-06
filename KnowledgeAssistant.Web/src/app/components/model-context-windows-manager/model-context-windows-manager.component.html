@@ -28,13 +28,14 @@
                 <th class="col-quantization">Quantization</th>
                 <th class="col-flag">Internal Use Only</th>
                 <th class="col-flag">Can Call Tools</th>
+                <th class="col-flag">Is Favorite</th>
                 <th class="col-actions"></th>
               </tr>
             </thead>
             <tbody>
               @for (row of rows(); track row.id) {
                 <tr [class.dirty]="row.isDirty">
-                  <td class="col-name">{{ row.name }}</td>
+                  <td class="col-name">{{ row.isFavorite ? '★ ' + row.name : row.name }}</td>
                   <td class="col-size">{{ formatSize(row.size) }}</td>
                   <td class="col-parameters">{{ row.parameterSize ?? '—' }}</td>
                   <td class="col-context-length">{{ row.contextLength ?? '—' }}</td>
@@ -51,6 +52,12 @@
                       type="checkbox"
                       [ngModel]="row.canCallTools"
                       (ngModelChange)="row.canCallTools = $event; markDirty(row)" />
+                  </td>
+                  <td class="col-flag">
+                    <input
+                      type="checkbox"
+                      [ngModel]="row.isFavorite"
+                      (ngModelChange)="row.isFavorite = $event; markDirty(row)" />
                   </td>
                   <td class="col-actions">
                     <button
