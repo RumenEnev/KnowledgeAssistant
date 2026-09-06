@@ -742,7 +742,8 @@ namespace KnowledgeAssistant.Wpf
         {
             var window = new ModelContextWindowsWindow(_messageService)
             {
-                Owner = this
+                Owner = this,
+                Provider = SelectedProvider
             };
 
             window.ShowDialog();

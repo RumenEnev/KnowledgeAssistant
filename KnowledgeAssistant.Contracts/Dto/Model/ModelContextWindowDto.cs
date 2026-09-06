@@ -1,0 +1,24 @@
+﻿namespace KnowledgeAssistant.Contracts.Dto.Model;
+
+public class ModelContextWindowDto
+{
+    public Guid Id { get; set; }
+
+    public required string Name { get; set; }
+
+    public long Size { get; set; }
+
+    public int? ContextLength { get; set; }
+
+    public string? Family { get; set; }
+
+    public string? QuantizationLevel { get; set; }
+
+    public string? ParameterSize { get; set; }
+
+    public bool InternalUseOnly { get; set; }
+
+    public bool CanCallTools { get; set; }
+
+    public bool IsFavorite { get; set; }
+}

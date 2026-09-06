@@ -1,6 +1,7 @@
 ﻿using KnowledgeAssistant.Contracts.Definitions;
 using KnowledgeAssistant.Contracts.Dto;
 using KnowledgeAssistant.Contracts.Dto.Conversation;
+using KnowledgeAssistant.Contracts.Dto.Model;
 using KnowledgeAssistant.Contracts.Enums;
 using KnowledgeAssistant.Contracts.Repositories;
 using KnowledgeAssistant.Contracts.Tools;
@@ -457,14 +458,15 @@ namespace KnowledgeAssistant.Wpf.Services
 
         private async void GetModelContextWindowsReceived(MessageBase message)
         {
-            if (message is GetModelContextWindowsRequest)
+            if (message is GetModelContextWindowsRequest request)
             {
                 try
                 {
-                    var dtos = await _httpClient.GetFromJsonAsync<List<ModelContextWindowDto>>("api/models/context-windows", _cancellationToken);
+                    var dtos = await _httpClient.GetFromJsonAsync<List<ModelContextWindowDto>>($"api/models/context-windows?provider={request.Provider}",  _cancellationToken);
                     var models = (dtos ?? new List<ModelContextWindowDto>())
-                        .Select(d => new ModelContextWindowInfo(d.Id, d.Name, d.Size, d.ContextLength, d.Family, d.QuantizationLevel, d.ParameterSize, d.InternalUseOnly, d.CanCallTools))
+                        .Select(d => new ModelContextWindowInfo(d.Id, d.Name, d.Size, d.ContextLength, d.Family, d.QuantizationLevel, d.ParameterSize, d.InternalUseOnly, d.CanCallTools, d.IsFavorite))
                         .ToList();
+
                     _messageService.Publish(new ModelContextWindowsUpdatedEvent(models));
                 }
                 catch (Exception ex)
@@ -483,10 +485,11 @@ namespace KnowledgeAssistant.Wpf.Services
                     var dto = new UpdateModelContextWindowDto
                     {
                         InternalUseOnly = request.InternalUseOnly,
-                        CanCallTools = request.CanCallTools
+                        CanCallTools = request.CanCallTools,
+                        IsFavorite = request.IsFavorite
                     };
-                    using var response = await _httpClient.PutAsJsonAsync($"api/models/{request.Id}/context-window", dto, _cancellationToken);
 
+                    using var response = await _httpClient.PutAsJsonAsync($"api/models/{request.Id}/context-window", dto, _cancellationToken);
                     if (!response.IsSuccessStatusCode)
                     {
                         var error = await ReadErrorMessageAsync(response);

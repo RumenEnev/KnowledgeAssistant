@@ -9,5 +9,6 @@
         string? QuantizationLevel,
         string? ParameterSize,
         bool InternalUseOnly,
-        bool CanCallTools);
+        bool CanCallTools,
+        bool IsFavorite);
 }

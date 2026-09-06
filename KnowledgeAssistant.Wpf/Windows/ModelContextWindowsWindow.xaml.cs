@@ -3,7 +3,6 @@ using KnowledgeAssistant.Wpf.Models;
 using MessageServices;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -24,12 +23,18 @@ namespace KnowledgeAssistant.Wpf.Windows
             _messageService.Subscribe<ModelContextWindowSaveResultEvent>(this, ModelContextWindowSaveResultEventReceived);
         }
 
+        public string? Provider { get; set; }
+
         public ObservableCollection<ModelContextWindowDisplayModel> Models { get; } = new ObservableCollection<ModelContextWindowDisplayModel>();
 
         public string? StatusMessage
         {
             get => _statusMessage;
-            set { _statusMessage = value; OnPropertyChanged(nameof(StatusMessage)); }
+            set
+            {
+                _statusMessage = value;
+                OnPropertyChanged(nameof(StatusMessage));
+            }
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;
@@ -41,7 +46,10 @@ namespace KnowledgeAssistant.Wpf.Windows
 
         private void ModelContextWindowsWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            _messageService.Publish(new GetModelContextWindowsRequest());
+            if (!string.IsNullOrEmpty(Provider))
+            {
+                _messageService.Publish(new GetModelContextWindowsRequest(Provider));
+            }
         }
 
         private void ModelContextWindowsUpdatedEventReceived(MessageBase message)
@@ -63,7 +71,8 @@ namespace KnowledgeAssistant.Wpf.Windows
                             QuantizationLevel = model.QuantizationLevel,
                             ParameterSize = model.ParameterSize,
                             InternalUseOnly = model.InternalUseOnly,
-                            CanCallTools = model.CanCallTools
+                            CanCallTools = model.CanCallTools,
+                            IsFavorite = model.IsFavorite
                         };
 
                         // Setting the properties above marks the model dirty; reset it since this is the initial load.
@@ -113,7 +122,7 @@ namespace KnowledgeAssistant.Wpf.Windows
 
             model.IsSaving = true;
             model.IsDirty = false;
-            _messageService.Publish(new UpdateModelContextWindowRequest(model.Id, model.InternalUseOnly, model.CanCallTools));
+            _messageService.Publish(new UpdateModelContextWindowRequest(model.Id, model.InternalUseOnly, model.CanCallTools, model.IsFavorite));
         }
     }
 }

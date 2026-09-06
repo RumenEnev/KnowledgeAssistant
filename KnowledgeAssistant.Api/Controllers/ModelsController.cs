@@ -1,5 +1,5 @@
 ﻿using KnowledgeAssistant.Application.Abstraction;
-using KnowledgeAssistant.Contracts.Dto;
+using KnowledgeAssistant.Contracts.Dto.Model;
 using Microsoft.AspNetCore.Mvc;
 
 namespace KnowledgeAssistant.Api.Controllers;
@@ -17,23 +17,14 @@ public sealed class ModelsController : ControllerBase
         _modelRepository = modelRepository;
     }
 
-    /// <summary>
-    /// Returns the model providers registered in the API.
-    /// </summary>
     [HttpGet("providers")]
     public ActionResult<IReadOnlyCollection<string>> GetProviders()
     {
         return Ok(_providerRegistry.Providers);
     }
 
-    /// <summary>
-    /// Returns the selectable models belonging to one provider.
-    /// Example: GET api/models?provider=Ollama
-    /// </summary>
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyCollection<ModelInfoDto>>> Get(
-        [FromQuery] string provider,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<IReadOnlyCollection<ModelInfoDto>>> Get([FromQuery] string provider, CancellationToken cancellationToken)
     {
         if (!TryGetGateway(provider, out var gateway, out var error))
         {
@@ -48,14 +39,8 @@ public sealed class ModelsController : ControllerBase
             // If two providers may expose the same model name, evolve the model
             // repository key to (provider, modelName). The current repository API
             // is intentionally preserved here to keep this patch focused.
-            var id = await _modelRepository.GetOrCreateModelIdAsync(
-                model.Name,
-                cancellationToken);
-
-            var flags = await _modelRepository.GetModelFlagsAsync(
-                id,
-                cancellationToken);
-
+            var id = await _modelRepository.GetOrCreateModelIdAsync(model.Name, cancellationToken);
+            var flags = await _modelRepository.GetModelFlagsAsync(id, cancellationToken);
             if (flags.InternalUseOnly)
             {
                 continue;
@@ -72,9 +57,7 @@ public sealed class ModelsController : ControllerBase
     }
 
     [HttpGet("context-windows")]
-    public async Task<ActionResult<IReadOnlyCollection<ModelContextWindowDto>>> GetContextWindows(
-        [FromQuery] string provider,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<IReadOnlyCollection<ModelContextWindowDto>>> GetContextWindows([FromQuery] string provider, CancellationToken cancellationToken)
     {
         if (!TryGetGateway(provider, out var gateway, out var error))
         {
@@ -83,17 +66,10 @@ public sealed class ModelsController : ControllerBase
 
         var models = await gateway.GetModelsAsync(cancellationToken);
         var result = new List<ModelContextWindowDto>(models.Count);
-
         foreach (var model in models)
         {
-            var id = await _modelRepository.GetOrCreateModelIdAsync(
-                model.Name,
-                cancellationToken);
-
-            var flags = await _modelRepository.GetModelFlagsAsync(
-                id,
-                cancellationToken);
-
+            var id = await _modelRepository.GetOrCreateModelIdAsync(model.Name, cancellationToken);
+            var flags = await _modelRepository.GetModelFlagsAsync(id, cancellationToken);
             result.Add(new ModelContextWindowDto
             {
                 Id = id,
@@ -104,7 +80,8 @@ public sealed class ModelsController : ControllerBase
                 QuantizationLevel = model.QuantizationLevel,
                 ParameterSize = model.ParameterSize,
                 InternalUseOnly = flags.InternalUseOnly,
-                CanCallTools = flags.CanCallTools
+                CanCallTools = flags.CanCallTools,
+                IsFavorite = flags.IsFavorite
             });
         }
 
@@ -112,24 +89,19 @@ public sealed class ModelsController : ControllerBase
     }
 
     [HttpPut("{id:guid}/context-window")]
-    public async Task<IActionResult> UpdateContextWindow(
-        Guid id,
-        [FromBody] UpdateModelContextWindowDto request,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> UpdateContextWindow(Guid id, [FromBody] UpdateModelContextWindowDto request, CancellationToken cancellationToken)
     {
         await _modelRepository.UpdateModelFlagsAsync(
             id,
             request.InternalUseOnly,
             request.CanCallTools,
+            request.IsFavorite,
             cancellationToken);
 
         return NoContent();
     }
 
-    private bool TryGetGateway(
-        string provider,
-        out INamedModelCatalogGateway gateway,
-        out ActionResult? error)
+    private bool TryGetGateway(string provider, out INamedModelCatalogGateway gateway, out ActionResult? error)
     {
         if (string.IsNullOrWhiteSpace(provider))
         {

@@ -1,81 +1,87 @@
 ﻿using Dapper;
 using KnowledgeAssistant.Application.Abstraction;
+using KnowledgeAssistant.Contracts.Dto.Model;
 using Microsoft.Extensions.Configuration;
 using Npgsql;
 
-namespace KnowledgeAssistant.Application.Services
+namespace KnowledgeAssistant.Application.Services;
+
+public class ModelRepository : IModelRepository
 {
-    public class ModelRepository : IModelRepository
+    private readonly string _connectionString;
+
+    public ModelRepository(IConfiguration configuration)
     {
-        private readonly string _connectionString;
+        _connectionString = configuration.GetConnectionString("KnowledgeAssistant")
+            ?? throw new InvalidOperationException("Connection string is missing.");
+    }
 
-        public ModelRepository(IConfiguration configuration)
+    public async Task<Guid> GetOrCreateModelIdAsync(string modelName, CancellationToken cancellationToken)
+    {
+        await using var connection = new NpgsqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        var selectQuery = "SELECT \"Id\" FROM ai_interactions.models WHERE name = @Name LIMIT 1";
+        var existingId = await connection.QuerySingleOrDefaultAsync<Guid?>(selectQuery, new { Name = modelName });
+        if (existingId.HasValue)
         {
-            _connectionString = configuration.GetConnectionString("KnowledgeAssistant")
-                ?? throw new InvalidOperationException("Connection string is missing.");
+            return existingId.Value;
         }
 
-        public async Task<Guid> GetOrCreateModelIdAsync(string modelName, CancellationToken cancellationToken)
+        var newId = Guid.NewGuid();
+        var insertQuery = "INSERT INTO ai_interactions.models (\"Id\", name, provider, is_installed, last_seen) " +
+                           "VALUES (@Id, @Name, @Provider, @IsInstalled, @LastSeen)";
+
+        await connection.ExecuteAsync(insertQuery, new
         {
-            await using var connection = new NpgsqlConnection(_connectionString);
-            await connection.OpenAsync(cancellationToken);
+            Id = newId,
+            Name = modelName,
+            Provider = "ollama",
+            IsInstalled = true,
+            LastSeen = DateTimeOffset.UtcNow
+        });
 
-            var selectQuery = "SELECT \"Id\" FROM ai_interactions.models WHERE name = @Name LIMIT 1";
-            var existingId = await connection.QuerySingleOrDefaultAsync<Guid?>(selectQuery, new { Name = modelName });
-            if (existingId.HasValue)
-            {
-                return existingId.Value;
-            }
+        return newId;
+    }
 
-            var newId = Guid.NewGuid();
-            var insertQuery = "INSERT INTO ai_interactions.models (\"Id\", name, provider, is_installed, last_seen) " +
-                               "VALUES (@Id, @Name, @Provider, @IsInstalled, @LastSeen)";
+    public async Task<string?> GetModelNameAsync(Guid modelId, CancellationToken cancellationToken)
+    {
+        await using var connection = new NpgsqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
 
-            await connection.ExecuteAsync(insertQuery, new
-            {
-                Id = newId,
-                Name = modelName,
-                Provider = "ollama",
-                IsInstalled = true,
-                LastSeen = DateTimeOffset.UtcNow
-            });
+        var query = "SELECT name FROM ai_interactions.models WHERE \"Id\" = @Id";
+        return await connection.QuerySingleOrDefaultAsync<string?>(query, new { Id = modelId });
+    }
 
-            return newId;
-        }
+    public async Task<ModelFlagsDto> GetModelFlagsAsync(Guid modelId, CancellationToken cancellationToken)
+    {
+        await using var connection = new NpgsqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
 
-        public async Task<string?> GetModelNameAsync(Guid modelId, CancellationToken cancellationToken)
+        var query = "SELECT internal_use_only, can_call_tools, is_favorite FROM ai_interactions.models WHERE \"Id\" = @Id";
+        var row = await connection.QuerySingleOrDefaultAsync<(bool internal_use_only, bool can_call_tools, bool is_favorite)>(query, new { Id = modelId });
+        return new ModelFlagsDto()
         {
-            await using var connection = new NpgsqlConnection(_connectionString);
-            await connection.OpenAsync(cancellationToken);
+            InternalUseOnly = row.internal_use_only,
+            CanCallTools = row.can_call_tools,
+            IsFavorite = row.is_favorite
+        };
+    }
 
-            var query = "SELECT name FROM ai_interactions.models WHERE \"Id\" = @Id";
-            return await connection.QuerySingleOrDefaultAsync<string?>(query, new { Id = modelId });
-        }
+    public async Task UpdateModelFlagsAsync(Guid modelId, bool internalUseOnly, bool canCallTools, bool isFavorite, CancellationToken cancellationToken)
+    {
+        await using var connection = new NpgsqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+        var query = "UPDATE ai_interactions.models " +
+                     "SET internal_use_only = @InternalUseOnly, can_call_tools = @CanCallTools, is_favorite = @IsFavorite " +
+                     "WHERE \"Id\" = @Id";
 
-        public async Task<ModelFlags> GetModelFlagsAsync(Guid modelId, CancellationToken cancellationToken)
+        await connection.ExecuteAsync(query, new
         {
-            await using var connection = new NpgsqlConnection(_connectionString);
-            await connection.OpenAsync(cancellationToken);
-
-            var query = "SELECT internal_use_only, can_call_tools FROM ai_interactions.models WHERE \"Id\" = @Id";
-            var row = await connection.QuerySingleOrDefaultAsync<(bool internal_use_only, bool can_call_tools)>(query, new { Id = modelId });
-            return new ModelFlags(row.internal_use_only, row.can_call_tools);
-        }
-
-        public async Task UpdateModelFlagsAsync(Guid modelId, bool internalUseOnly, bool canCallTools, CancellationToken cancellationToken)
-        {
-            await using var connection = new NpgsqlConnection(_connectionString);
-            await connection.OpenAsync(cancellationToken);
-
-            var query = "UPDATE ai_interactions.models " +
-                         "SET internal_use_only = @InternalUseOnly, can_call_tools = @CanCallTools " +
-                         "WHERE \"Id\" = @Id";
-            await connection.ExecuteAsync(query, new
-            {
-                Id = modelId,
-                InternalUseOnly = internalUseOnly,
-                CanCallTools = canCallTools
-            });
-        }
+            Id = modelId,
+            InternalUseOnly = internalUseOnly,
+            CanCallTools = canCallTools,
+            IsFavorite = isFavorite
+        });
     }
 }

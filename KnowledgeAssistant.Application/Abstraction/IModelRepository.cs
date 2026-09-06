@@ -1,15 +1,14 @@
-﻿namespace KnowledgeAssistant.Application.Abstraction
+﻿using KnowledgeAssistant.Contracts.Dto.Model;
+
+namespace KnowledgeAssistant.Application.Abstraction;
+
+public interface IModelRepository
 {
-    public record ModelFlags(bool InternalUseOnly, bool CanCallTools);
+    Task<Guid> GetOrCreateModelIdAsync(string modelName, CancellationToken cancellationToken);
 
-    public interface IModelRepository
-    {
-        Task<Guid> GetOrCreateModelIdAsync(string modelName, CancellationToken cancellationToken);
+    Task<string?> GetModelNameAsync(Guid modelId, CancellationToken cancellationToken);
 
-        Task<string?> GetModelNameAsync(Guid modelId, CancellationToken cancellationToken);
+    Task<ModelFlagsDto> GetModelFlagsAsync(Guid modelId, CancellationToken cancellationToken);
 
-        Task<ModelFlags> GetModelFlagsAsync(Guid modelId, CancellationToken cancellationToken);
-
-        Task UpdateModelFlagsAsync(Guid modelId, bool internalUseOnly, bool canCallTools, CancellationToken cancellationToken);
-    }
+    Task UpdateModelFlagsAsync(Guid modelId, bool internalUseOnly, bool canCallTools, bool isFavorite, CancellationToken cancellationToken);
 }
