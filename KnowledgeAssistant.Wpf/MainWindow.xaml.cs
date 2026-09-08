@@ -1,12 +1,10 @@
-﻿using Infrastructure.Dto;
-using KnowledgeAssistant.Contracts.Definitions;
+﻿using KnowledgeAssistant.Contracts.Definitions;
 using KnowledgeAssistant.Domain.Conversation;
 using KnowledgeAssistant.Infrastructure.Dto;
 using KnowledgeAssistant.Wpf.Messages;
 using KnowledgeAssistant.Wpf.Messages.Conversations;
 using KnowledgeAssistant.Wpf.Messages.Documentation;
 using KnowledgeAssistant.Wpf.Messages.ModelsManagement;
-using KnowledgeAssistant.Wpf.Models;
 using KnowledgeAssistant.Wpf.UserControls;
 using KnowledgeAssistant.Wpf.Views;
 using KnowledgeAssistant.Wpf.Windows;

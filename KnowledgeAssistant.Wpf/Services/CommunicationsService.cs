@@ -737,6 +737,7 @@ namespace KnowledgeAssistant.Wpf.Services
                     ConversationId = request.ConversationId,
                     Role = "user",
                     Message = request.UserPrompt,
+                    Provider = request.Provider,
                     Model = request.Model,
                     Source = MessageSource.Desktop
                 };
@@ -772,6 +773,7 @@ namespace KnowledgeAssistant.Wpf.Services
                 {
                     Role = request.Role,
                     Message = request.Prompt,
+                    Provider = request.Provider,
                     Model = request.Model,
                     ConversationId = request.ConversationId,
                     SystemPromt = request.SystemPrompt,

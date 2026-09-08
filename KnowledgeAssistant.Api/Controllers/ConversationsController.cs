@@ -62,10 +62,11 @@ public sealed class ConversationsController : ControllerBase
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
             Provider = request.Provider,
+            SelectedModelId = await _modelRepository.GetOrCreateModelIdAsync(request.Model, cancellationToken)
         };
 
         await _repository.CreateAsync(conversation, cancellationToken);
-        return Ok(ToDto(conversation, selectedModel: null));
+        return Ok(ToDto(conversation, selectedModel: request.Model));
     }
 
     [HttpPut("{conversationId:guid}/model-selection")]

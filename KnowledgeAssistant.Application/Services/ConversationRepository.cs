@@ -142,14 +142,15 @@ namespace KnowledgeAssistant.Application.Services
             return message;
         }
 
-        public async Task UpdateSelectedModelAsync(Guid conversationId, Guid modelId, CancellationToken cancellationToken)
+        public async Task UpdateSelectedModelAsync(Guid conversationId, string provider, Guid modelId, CancellationToken cancellationToken)
         {
             await using var connection = new NpgsqlConnection(_connectionString);
             await connection.OpenAsync(cancellationToken);
-            var query = "UPDATE ai_interactions.conversations SET selected_model_id = @ModelId, updated_at = @UpdatedAt WHERE id = @Id";
+            var query = "UPDATE ai_interactions.conversations SET provider = @Provider, selected_model_id = @ModelId, updated_at = @UpdatedAt WHERE id = @Id";
             await connection.ExecuteAsync(query, new
             {
                 Id = conversationId,
+                Provider = provider,
                 ModelId = modelId,
                 UpdatedAt = DateTime.UtcNow
             });
