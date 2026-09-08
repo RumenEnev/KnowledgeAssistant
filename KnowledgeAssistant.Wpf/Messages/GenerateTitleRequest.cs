@@ -1,20 +1,22 @@
 ﻿using MessageServices;
 
-namespace KnowledgeAssistant.Wpf.Messages
+namespace KnowledgeAssistant.Wpf.Messages;
+
+public record GenerateTitleRequest : MessageBase
 {
-    public record GenerateTitleRequest : MessageBase
+    public GenerateTitleRequest(string userPrompt, string provider, string model, Guid conversationId)
     {
-        public GenerateTitleRequest(string userPrompt, string model, Guid conversationId)
-        {
-            UserPrompt = userPrompt;
-            Model = model;
-            ConversationId = conversationId;
-        }
-
-        public string UserPrompt { get; }
-
-        public string Model { get; }
-
-        public Guid ConversationId { get; }
+        UserPrompt = userPrompt;
+        Provider = provider;
+        Model = model;
+        ConversationId = conversationId;
     }
+
+    public string UserPrompt { get; }
+
+    public string Provider { get; }
+
+    public string Model { get; }
+
+    public Guid ConversationId { get; }
 }

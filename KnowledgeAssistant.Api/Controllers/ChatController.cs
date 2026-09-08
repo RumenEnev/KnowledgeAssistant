@@ -62,7 +62,7 @@ public class ChatController : Controller
             await writer.WriteAsync(SseEvents.Progress, new ProgressEventDto { Message = "Analyzing your request..." }, cancellationToken);
             var conversationId = await _conversationService.EnsureConversationAsync(request, cancellationToken);
             await writer.WriteAsync(SseEvents.Progress, new ProgressEventDto { Message = "Retrieving relevant context and generating a response..." }, cancellationToken);
-            await foreach (var token in _conversationService.GenerateAssistantMessageAsync(conversationId, request.Message, request.Model, request.Source, cancellationToken))
+            await foreach (var token in _conversationService.GenerateAssistantMessageAsync(conversationId, request.Message, request.Provider, request.Model, request.Source, cancellationToken))
             {
                 await writer.WriteAsync(SseEvents.Token, new { conversationId, content = token }, cancellationToken);
             }

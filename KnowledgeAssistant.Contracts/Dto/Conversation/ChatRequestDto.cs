@@ -10,9 +10,9 @@ public class ChatRequestDto
 
     public string Message { get; set; } = default!;
 
-    public string? Model { get; set; }
+    public required string Model { get; set; }
 
-    public string? Provider { get; set; }
+    public required string Provider { get; set; }
 
     public double? Temperature { get; set; }
 

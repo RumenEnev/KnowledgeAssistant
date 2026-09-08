@@ -18,7 +18,7 @@ namespace KnowledgeAssistant.Application.Abstraction
 
         Task<ChatMessage?> GetLastAssistantMessageAsync(Guid conversationId, CancellationToken cancellationToken);
 
-        Task UpdateSelectedModelAsync(Guid conversationId, Guid modelId, CancellationToken cancellationToken);
+        Task UpdateSelectedModelAsync(Guid conversationId, string provider, Guid modelId, CancellationToken cancellationToken);
 
         Task UpdateTopicAsync(Guid conversationId, int? topicId, CancellationToken cancellationToken);
     }
