@@ -10,17 +10,15 @@ namespace RagEvaluation.Services;
 public sealed class TestSetGenerationService
 {
     private readonly IDocumentRepository _documentRepository;
-    private readonly IModelGateway _modelGateway;
     private readonly IExperimentRepository _experimentRepository;
 
-    public TestSetGenerationService(IDocumentRepository documentRepository, IModelGateway modelGateway, IExperimentRepository experimentRepository)
+    public TestSetGenerationService(IDocumentRepository documentRepository, IExperimentRepository experimentRepository)
     {
         _documentRepository = documentRepository;
-        _modelGateway = modelGateway;
         _experimentRepository = experimentRepository;
     }
 
-    public async Task<int> GenerateAsync(string generatorModel, int questionsPerChunk, int? documentId = null, IProgress<(int done, int total)>? progress = null, CancellationToken ct = default)
+    public async Task<int> GenerateAsync(IModelGateway modelGateway, string provider, string generatorModel, int questionsPerChunk, int? documentId = null, IProgress<(int done, int total)>? progress = null, CancellationToken ct = default)
     {
         var allTopics = await _documentRepository.GetAllTopicsAsync(ct);
         var topicIdByName = allTopics.ToDictionary(t => t.Name, t => t.Id);
@@ -66,7 +64,7 @@ public sealed class TestSetGenerationService
                 chunksCounter++;
                 Console.WriteLine($"Generating questions for chunk #: {chunksCounter}; Document #: {documentCounter} of {eligibleDocuments.Count}");
                 progress?.Report((chunksCounter, totalChunks));
-                var questions = await GenerateQuestionsAsync(generatorModel, chunk.ChunkText, questionsPerChunk, ct);
+                var questions = await GenerateQuestionsAsync(modelGateway, generatorModel, chunk.ChunkText, questionsPerChunk, ct);
                 foreach (var question in questions)
                 {
                     foreach (var topicId in documentTopicIds)
@@ -77,7 +75,9 @@ public sealed class TestSetGenerationService
                             Type = QueryType.SingleChunk,
                             TopicId = topicId,
                             SourceDocumentId = document.Id,
-                            ExpectedChunkIds = new List<int> { chunk.Id }
+                            ExpectedChunkIds = new List<int> { chunk.Id },
+                            GeneratorProvider = provider,
+                            GeneratorModel = generatorModel
                         });
                     }
                 }
@@ -88,7 +88,7 @@ public sealed class TestSetGenerationService
         return saved.Count;
     }
 
-    private async Task<List<string>> GenerateQuestionsAsync(string model, string chunkText, int count, CancellationToken ct)
+    private async Task<List<string>> GenerateQuestionsAsync(IModelGateway modelGateway, string model, string chunkText, int count, CancellationToken ct)
     {
         var systemMessage = new ChatMessage
         {
@@ -107,7 +107,7 @@ public sealed class TestSetGenerationService
             Content = $"Number of questions: {count}\n\nPassage:\n{chunkText}"
         };
 
-        var raw = await _modelGateway.GenerateAsync(model, userMessage, systemMessage, ct);
+        var raw = await modelGateway.GenerateAsync(model, userMessage, systemMessage, ct);
         try
         {
             var jsonStart = raw.IndexOf('[');

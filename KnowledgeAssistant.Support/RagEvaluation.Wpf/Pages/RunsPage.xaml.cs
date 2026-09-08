@@ -101,7 +101,7 @@ public partial class RunsPage : Page
 
     private static string FormatSummary(RunSummary summary)
     {
-        return $"=== Run: {summary.Run.RunName} (chat: {summary.Run.ChatModel}, judge: {summary.Run.JudgeModel}) ===\n" +
+        return $"=== Run: {summary.Run.RunName} (chat: {summary.Run.ChatProvider}/{summary.Run.ChatModel}, judge: {summary.Run.JudgeProvider}/{summary.Run.JudgeModel}) ===\n" +
             $"Retrieval  - Precision: {summary.MeanPrecisionAtK:F3}  Recall: {summary.MeanRecallAtK:F3}  MRR: {summary.MeanReciprocalRank:F3}  NDCG: {summary.MeanNdcgAtK:F3}\n" +
             $"Generation - Faithfulness: {summary.MeanFaithfulness:F2}/5  Relevance: {summary.MeanRelevance:F2}/5  Completeness: {summary.MeanCompleteness:F2}/5";
     }

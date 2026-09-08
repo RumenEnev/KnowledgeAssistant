@@ -48,9 +48,13 @@ public static class Program
                         var perChunk = GetIntArg(args, "--per-chunk", int.Parse(config["Eval:QuestionsPerChunk"] ?? "1"));
                         var documentIdArg = GetStringArg(args, "--document-id");
                         int? documentId = documentIdArg is not null ? int.Parse(documentIdArg) : null;
+                        var providerName = GetStringArg(args, "--provider") ?? config["Llm:Provider"] ?? KnowledgeAssistant.Contracts.Definitions.ModelProviderNames.Ollama;
+
+                        var resolver = sp.GetRequiredService<IModelGatewayResolver>();
+                        var gateway = resolver.GetRequiredGateway(providerName);
 
                         var generator = sp.GetRequiredService<TestSetGenerationService>();
-                        var count = await generator.GenerateAsync(config["Llm:ChatModel"]!, perChunk, documentId, ct: ct);
+                        var count = await generator.GenerateAsync(gateway, providerName, config["Llm:ChatModel"]!, perChunk, documentId, ct: ct);
                         Console.WriteLine($"Saved {count} synthetic test queries (one row per chunk x topic){(documentId is not null ? $" for document {documentId}" : "")}.");
                         Console.WriteLine("Hand-review a sample and mix in real user queries before trusting retrieval scores from this set alone.");
                         return 0;
@@ -64,6 +68,13 @@ public static class Program
                         var judgeModel = GetStringArg(args, "--judge-model") ?? config["Llm:JudgeModel"]!;
                         var documentIdArg = GetStringArg(args, "--document-id");
                         int? documentId = documentIdArg is not null ? int.Parse(documentIdArg) : null;
+                        var defaultProviderName = GetStringArg(args, "--provider") ?? config["Llm:Provider"] ?? KnowledgeAssistant.Contracts.Definitions.ModelProviderNames.Ollama;
+                        var chatProviderName = GetStringArg(args, "--chat-provider") ?? defaultProviderName;
+                        var judgeProviderName = GetStringArg(args, "--judge-provider") ?? defaultProviderName;
+
+                        var resolver = sp.GetRequiredService<IModelGatewayResolver>();
+                        var chatGateway = resolver.GetRequiredGateway(chatProviderName);
+                        var judgeGateway = resolver.GetRequiredGateway(judgeProviderName);
 
                         var evalService = sp.GetRequiredService<EvaluationService>();
                         var progress = new Progress<EvalProgress>(p =>
@@ -72,8 +83,8 @@ public static class Program
                                 Console.WriteLine($"  [{p.Phase}] {p.Done}/{p.Total} queries evaluated");
                         });
 
-                        Console.WriteLine($"Running eval '{runName}' (chat={chatModel}, judge={judgeModel}{(documentId is not null ? $", document={documentId}" : "")})...");
-                        var outcome = await evalService.RunEvalAsync(runName, chatModel, embeddingModel, judgeModel, documentId, progress, ct);
+                        Console.WriteLine($"Running eval '{runName}' (chat={chatProviderName}/{chatModel}, judge={judgeProviderName}/{judgeModel}{(documentId is not null ? $", document={documentId}" : "")})...");
+                        var outcome = await evalService.RunEvalAsync(chatGateway, chatProviderName, judgeGateway, judgeProviderName, runName, chatModel, embeddingModel, judgeModel, documentId, progress, ct);
                         if (outcome.SkippedQueries > 0)
                         {
                             Console.WriteLine($"  ({outcome.SkippedQueries} queries skipped - no candidates or empty budget selection)");
@@ -135,17 +146,52 @@ public static class Program
         // --- Ollama gateways, matching the main app's registrations exactly ---
         var ollamaBaseUrl = config["Llm:OllamaBaseUrl"]!;
 
-        services.AddHttpClient<IModelGateway, OllamaModelGateway>(client =>
+        services.AddHttpClient<OllamaModelGateway>(client =>
         {
             client.BaseAddress = new Uri(ollamaBaseUrl);
             client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             client.Timeout = TimeSpan.FromMinutes(5);
         });
 
-        services.AddHttpClient<INamedModelCatalogGateway, OllamaModelCatalogGateway>(client =>
+        services.AddHttpClient<OllamaModelCatalogGateway>(client =>
         {
             client.BaseAddress = new Uri(ollamaBaseUrl);
         });
+
+        // Embeddings (used by DocumentsHandlingService for retrieval) always go through
+        // Ollama - that's tied to the ingestion pipeline's embedding model, not swappable
+        // per eval run. Same single-gateway wiring as the main app.
+        services.AddTransient<IModelGateway>(sp => sp.GetRequiredService<OllamaModelGateway>());
+        services.AddTransient<INamedModelCatalogGateway>(sp => sp.GetRequiredService<OllamaModelCatalogGateway>());
+
+        // --- Optional AdessoAiHub gateways, so "Generate Test Set" / "Run Evaluation" can
+        // target that provider too. Only registered when configured, so existing
+        // Ollama-only appsettings.json files keep working unchanged. ---
+        var aiHubBaseUrl = config["AdessoAiHub:BaseUrl"];
+        var aiHubApiKey = config["AdessoAiHub:ApiKey"];
+        if (!string.IsNullOrWhiteSpace(aiHubBaseUrl) && !string.IsNullOrWhiteSpace(aiHubApiKey))
+        {
+            services.Configure<AdessoAiHubOptions>(config.GetSection("AdessoAiHub"));
+
+            services.AddHttpClient<AdessoAiHubModelGateway>(client =>
+            {
+                client.BaseAddress = new Uri(EnsureTrailingSlash(aiHubBaseUrl));
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", aiHubApiKey);
+            });
+
+            services.AddHttpClient<AdessoAiHubModelCatalogGateway>(client =>
+            {
+                client.BaseAddress = new Uri(EnsureTrailingSlash(aiHubBaseUrl));
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", aiHubApiKey);
+            });
+
+            services.AddTransient<INamedModelGateway>(sp => sp.GetRequiredService<AdessoAiHubModelGateway>());
+            services.AddTransient<INamedModelCatalogGateway>(sp => sp.GetRequiredService<AdessoAiHubModelCatalogGateway>());
+        }
+
+        services.AddTransient<INamedModelGateway>(sp => sp.GetRequiredService<OllamaModelGateway>());
+        services.AddScoped<IModelGatewayResolver, ModelGatewayResolver>();
+        services.AddScoped<IModelProviderRegistry, ModelProviderRegistry>();
 
         // --- DocumentsHandlingService's other dependencies - now wired to match the main
         // app's Program.cs registrations exactly. NOTE: assumes ConfigurationRepository and
@@ -158,15 +204,22 @@ public static class Program
 
         // --- Eval-specific, all new ---
         services.AddScoped<IExperimentRepository, EvalRepository>();
-        services.AddScoped<ILlmJudge>(sp => new LlmJudge(sp.GetRequiredService<IModelGateway>()));
+        services.AddScoped<ILlmJudge, LlmJudge>();
         services.AddScoped<TestSetGenerationService>();
         services.AddScoped<EvaluationService>();
+    }
+
+    private static string EnsureTrailingSlash(string value)
+    {
+        return value.EndsWith("/", StringComparison.Ordinal)
+            ? value
+            : value + "/";
     }
 
     private static void PrintSummary(RagEvaluation.Models.RunSummary summary)
     {
         Console.WriteLine();
-        Console.WriteLine($"=== Run: {summary.Run.RunName} (chat: {summary.Run.ChatModel}, judge: {summary.Run.JudgeModel}) ===");
+        Console.WriteLine($"=== Run: {summary.Run.RunName} (chat: {summary.Run.ChatProvider}/{summary.Run.ChatModel}, judge: {summary.Run.JudgeProvider}/{summary.Run.JudgeModel}) ===");
         Console.WriteLine($"Retrieval  - Precision: {summary.MeanPrecisionAtK:F3}  Recall: {summary.MeanRecallAtK:F3}  MRR: {summary.MeanReciprocalRank:F3}  NDCG: {summary.MeanNdcgAtK:F3}");
         Console.WriteLine($"Generation - Faithfulness: {summary.MeanFaithfulness:F2}/5  Relevance: {summary.MeanRelevance:F2}/5  Completeness: {summary.MeanCompleteness:F2}/5");
         Console.WriteLine();
@@ -190,8 +243,8 @@ public static class Program
             ka-eval - RAG evaluation tool for KnowledgeAssistant
 
             Usage:
-              ka-eval generate-testset [--per-chunk N]
-              ka-eval run-eval [--name RUN_NAME] [--chat-model MODEL] [--embedding-model MODEL] [--judge-model MODEL]
+              ka-eval generate-testset [--per-chunk N] [--provider Ollama|AdessoAiHub]
+              ka-eval run-eval [--name RUN_NAME] [--chat-model MODEL] [--embedding-model MODEL] [--judge-model MODEL] [--provider Ollama|AdessoAiHub] [--chat-provider P] [--judge-provider P]
               ka-eval list-runs
               ka-eval show-run --id RUN_ID
 

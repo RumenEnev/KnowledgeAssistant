@@ -25,6 +25,21 @@
 
             <ui:Card Margin="0,0,0,16" Padding="16">
                 <StackPanel>
+                    <TextBlock Margin="0,0,0,4" Text="Provider" />
+                    <ComboBox
+                        x:Name="ProviderSelector"
+                        Margin="0,0,0,12"
+                        HorizontalAlignment="Left"
+                        MinWidth="200"
+                        SelectionChanged="ProviderSelector_SelectionChanged" />
+
+                    <TextBlock Margin="0,0,0,4" Text="Model" />
+                    <ComboBox
+                        x:Name="ModelSelector"
+                        Margin="0,0,0,12"
+                        HorizontalAlignment="Left"
+                        MinWidth="200" />
+
                     <TextBlock Margin="0,0,0,4" Text="Questions per chunk" />
                     <ui:NumberBox
                         x:Name="QuestionsPerChunkBox"

@@ -17,4 +17,8 @@ public sealed class TestQuery
     public string? ExpectedAnswer { get; init; }
 
     public required List<int> ExpectedChunkIds { get; init; }
+
+    public string? GeneratorProvider { get; init; }
+
+    public string? GeneratorModel { get; init; }
 }

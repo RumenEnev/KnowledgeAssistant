@@ -13,25 +13,89 @@ public partial class RunEvalPage : Page
 {
     private readonly EvaluationService _evaluationService;
     private readonly IDocumentRepository _documentRepository;
+    private readonly IModelProviderRegistry _providerRegistry;
+    private readonly IModelGatewayResolver _gatewayResolver;
     private readonly IConfiguration _configuration;
     private readonly ILogger<RunEvalPage> _logger;
 
     private static readonly Document AllDocumentsOption = new() { Id = 0, Title = "All Documents", OriginalText = "", Topics = [] };
 
-    public RunEvalPage(EvaluationService evaluationService, IDocumentRepository documentRepository, IConfiguration configuration, ILogger<RunEvalPage> logger)
+    public RunEvalPage(
+        EvaluationService evaluationService,
+        IDocumentRepository documentRepository,
+        IModelProviderRegistry providerRegistry,
+        IModelGatewayResolver gatewayResolver,
+        IConfiguration configuration,
+        ILogger<RunEvalPage> logger)
     {
         _evaluationService = evaluationService;
         _documentRepository = documentRepository;
+        _providerRegistry = providerRegistry;
+        _gatewayResolver = gatewayResolver;
         _configuration = configuration;
         _logger = logger;
 
         InitializeComponent();
 
-        ChatModelBox.Text = _configuration["Llm:ChatModel"] ?? string.Empty;
         EmbeddingModelBox.Text = _configuration["Llm:EmbeddingModel"] ?? string.Empty;
-        JudgeModelBox.Text = _configuration["Llm:JudgeModel"] ?? string.Empty;
+
+        ChatProviderSelector.ItemsSource = _providerRegistry.Providers;
+        ChatProviderSelector.SelectedItem = _providerRegistry.Providers.FirstOrDefault();
+
+        JudgeProviderSelector.ItemsSource = _providerRegistry.Providers;
+        JudgeProviderSelector.SelectedItem = _providerRegistry.Providers.FirstOrDefault();
 
         Loaded += async (_, _) => await LoadDocumentsAsync();
+    }
+
+    private async void ChatProviderSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        var provider = ChatProviderSelector.SelectedItem as string;
+        ChatModelSelector.ItemsSource = null;
+        if (string.IsNullOrWhiteSpace(provider) || !_providerRegistry.TryGetCatalogGateway(provider, out var catalogGateway))
+        {
+            return;
+        }
+
+        try
+        {
+            var models = await catalogGateway.GetModelsAsync(CancellationToken.None);
+            var modelNames = models.Select(m => m.Name).ToList();
+            ChatModelSelector.ItemsSource = modelNames;
+
+            var configuredChatModel = _configuration["Llm:ChatModel"];
+            ChatModelSelector.SelectedItem = configuredChatModel is not null && modelNames.Contains(configuredChatModel) ? configuredChatModel : modelNames.FirstOrDefault();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load models for chat provider {Provider}", provider);
+            ResultText.Text = $"Error loading models for '{provider}': {ex.Message}";
+        }
+    }
+
+    private async void JudgeProviderSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        var provider = JudgeProviderSelector.SelectedItem as string;
+        JudgeModelSelector.ItemsSource = null;
+        if (string.IsNullOrWhiteSpace(provider) || !_providerRegistry.TryGetCatalogGateway(provider, out var catalogGateway))
+        {
+            return;
+        }
+
+        try
+        {
+            var models = await catalogGateway.GetModelsAsync(CancellationToken.None);
+            var modelNames = models.Select(m => m.Name).ToList();
+            JudgeModelSelector.ItemsSource = modelNames;
+
+            var configuredJudgeModel = _configuration["Llm:JudgeModel"];
+            JudgeModelSelector.SelectedItem = configuredJudgeModel is not null && modelNames.Contains(configuredJudgeModel) ? configuredJudgeModel : modelNames.FirstOrDefault();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load models for judge provider {Provider}", provider);
+            ResultText.Text = $"Error loading models for '{provider}': {ex.Message}";
+        }
     }
 
     private async Task LoadDocumentsAsync()
@@ -151,6 +215,17 @@ public partial class RunEvalPage : Page
 
     private async void RunButton_Click(object sender, RoutedEventArgs e)
     {
+        var chatProvider = ChatProviderSelector.SelectedItem as string;
+        var chatModel = ChatModelSelector.SelectedItem as string;
+        var judgeProvider = JudgeProviderSelector.SelectedItem as string;
+        var judgeModel = JudgeModelSelector.SelectedItem as string;
+        if (string.IsNullOrWhiteSpace(chatProvider) || string.IsNullOrWhiteSpace(chatModel) ||
+            string.IsNullOrWhiteSpace(judgeProvider) || string.IsNullOrWhiteSpace(judgeModel))
+        {
+            ResultText.Text = "Select a chat provider/model and a judge provider/model before running.";
+            return;
+        }
+
         RunButton.IsEnabled = false;
         ProgressBarControl.Visibility = Visibility.Visible;
         ProgressBarControl.Value = 0;
@@ -160,15 +235,15 @@ public partial class RunEvalPage : Page
         var runName = string.IsNullOrWhiteSpace(RunNameBox.Text)
             ? $"run-{DateTime.UtcNow:yyyyMMdd-HHmmss}"
             : RunNameBox.Text.Trim();
-        var chatModel = ChatModelBox.Text.Trim();
         var embeddingModel = EmbeddingModelBox.Text.Trim();
-        var judgeModel = JudgeModelBox.Text.Trim();
 
         var selectedDocument = DocumentSelector.SelectedItem as Document;
         int? documentId = selectedDocument is null || selectedDocument.Id == 0 ? null : selectedDocument.Id;
 
         try
         {
+            var chatGateway = _gatewayResolver.GetRequiredGateway(chatProvider);
+            var judgeGateway = _gatewayResolver.GetRequiredGateway(judgeProvider);
             var progress = new Progress<EvalProgress>(p =>
             {
                 ProgressBarControl.Maximum = Math.Max(p.Total, 1);
@@ -186,7 +261,9 @@ public partial class RunEvalPage : Page
                 ProgressText.Text = $"{p.Done}/{p.Total} queries - {phaseLabel}: {p.QueryText}";
             });
 
-            var outcome = await _evaluationService.RunEvalAsync(runName, chatModel, embeddingModel, judgeModel, documentId, progress, CancellationToken.None);
+            var outcome = await _evaluationService.RunEvalAsync(
+                chatGateway, chatProvider, judgeGateway, judgeProvider,
+                runName, chatModel, embeddingModel, judgeModel, documentId, progress, CancellationToken.None);
 
             ResultText.Text = FormatSummary(outcome);
         }
@@ -205,7 +282,7 @@ public partial class RunEvalPage : Page
     private static string FormatSummary(EvalRunOutcome outcome)
     {
         var summary = outcome.Summary;
-        var text = $"=== Run: {summary.Run.RunName} (chat: {summary.Run.ChatModel}, judge: {summary.Run.JudgeModel}) ===\n" +
+        var text = $"=== Run: {summary.Run.RunName} (chat: {summary.Run.ChatProvider}/{summary.Run.ChatModel}, judge: {summary.Run.JudgeProvider}/{summary.Run.JudgeModel}) ===\n" +
             $"Retrieval  - Precision: {summary.MeanPrecisionAtK:F3}  Recall: {summary.MeanRecallAtK:F3}  MRR: {summary.MeanReciprocalRank:F3}  NDCG: {summary.MeanNdcgAtK:F3}\n" +
             $"Generation - Faithfulness: {summary.MeanFaithfulness:F2}/5  Relevance: {summary.MeanRelevance:F2}/5  Completeness: {summary.MeanCompleteness:F2}/5";
 

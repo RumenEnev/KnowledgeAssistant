@@ -26,8 +26,8 @@ public sealed class EvalRepository : IExperimentRepository
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
         await using var tx = await connection.BeginTransactionAsync(ct);
         const string insertQuery = """
-            INSERT INTO rag.eval_queries (query_text, query_type, topic_id, source_document_id, expected_answer)
-            VALUES (@QueryText, @QueryType, @TopicId, @SourceDocumentId, @ExpectedAnswer)
+            INSERT INTO rag.eval_queries (query_text, query_type, topic_id, source_document_id, expected_answer, generator_provider, generator_model)
+            VALUES (@QueryText, @QueryType, @TopicId, @SourceDocumentId, @ExpectedAnswer, @GeneratorProvider, @GeneratorModel)
             RETURNING id;
             """;
 
@@ -45,7 +45,9 @@ public sealed class EvalRepository : IExperimentRepository
                 QueryType = q.Type.ToString(),
                 TopicId = q.TopicId,
                 SourceDocumentId = q.SourceDocumentId,
-                ExpectedAnswer = q.ExpectedAnswer
+                ExpectedAnswer = q.ExpectedAnswer,
+                GeneratorProvider = q.GeneratorProvider,
+                GeneratorModel = q.GeneratorModel
             }, tx);
 
             foreach (var chunkId in q.ExpectedChunkIds)
@@ -61,7 +63,9 @@ public sealed class EvalRepository : IExperimentRepository
                 TopicId = q.TopicId,
                 SourceDocumentId = q.SourceDocumentId,
                 ExpectedAnswer = q.ExpectedAnswer,
-                ExpectedChunkIds = q.ExpectedChunkIds
+                ExpectedChunkIds = q.ExpectedChunkIds,
+                GeneratorProvider = q.GeneratorProvider,
+                GeneratorModel = q.GeneratorModel
             });
         }
 
@@ -75,6 +79,7 @@ public sealed class EvalRepository : IExperimentRepository
         const string sql = """
             SELECT q.id, q.query_text AS QueryText, q.query_type AS QueryType, q.topic_id AS TopicId,
                    q.source_document_id AS SourceDocumentId, q.expected_answer AS ExpectedAnswer,
+                   q.generator_provider AS GeneratorProvider, q.generator_model AS GeneratorModel,
                    COALESCE(array_agg(ec.chunk_id) FILTER (WHERE ec.chunk_id IS NOT NULL), '{}') AS ExpectedChunkIds
             FROM rag.eval_queries q
             LEFT JOIN rag.eval_query_expected_chunks ec ON ec.query_id = q.id
@@ -92,15 +97,17 @@ public sealed class EvalRepository : IExperimentRepository
             TopicId = r.TopicId,
             SourceDocumentId = r.SourceDocumentId,
             ExpectedAnswer = r.ExpectedAnswer,
-            ExpectedChunkIds = (r.ExpectedChunkIds ?? Array.Empty<int>()).ToList()
+            ExpectedChunkIds = (r.ExpectedChunkIds ?? Array.Empty<int>()).ToList(),
+            GeneratorProvider = r.GeneratorProvider,
+            GeneratorModel = r.GeneratorModel
         }).ToList();
     }
 
     public async Task<ExperimentRun> SaveRunAsync(ExperimentRun run, CancellationToken ct = default)
     {
         const string sql = """
-            INSERT INTO rag.eval_runs (run_name, chunking_config, chat_model, embedding_model, judge_model, notes, created_at)
-            VALUES (@run_name, @chunking_config, @chat_model, @embedding_model, @judge_model, @notes, @created_at)
+            INSERT INTO rag.eval_runs (run_name, chunking_config, chat_model, embedding_model, judge_model, notes, created_at, chat_provider, judge_provider)
+            VALUES (@run_name, @chunking_config, @chat_model, @embedding_model, @judge_model, @notes, @created_at, @chat_provider, @judge_provider)
             RETURNING id;
             """;
 
@@ -112,6 +119,8 @@ public sealed class EvalRepository : IExperimentRepository
         cmd.Parameters.AddWithValue("judge_model", run.JudgeModel);
         cmd.Parameters.AddWithValue("notes", (object?)run.Notes ?? DBNull.Value);
         cmd.Parameters.AddWithValue("created_at", run.CreatedAt);
+        cmd.Parameters.AddWithValue("chat_provider", (object?)run.ChatProvider ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("judge_provider", (object?)run.JudgeProvider ?? DBNull.Value);
 
         var id = (int)(await cmd.ExecuteScalarAsync(ct))!;
 
@@ -124,7 +133,9 @@ public sealed class EvalRepository : IExperimentRepository
             JudgeModel = run.JudgeModel,
             ChunkingConfigNotes = run.ChunkingConfigNotes,
             CreatedAt = run.CreatedAt,
-            Notes = run.Notes
+            Notes = run.Notes,
+            ChatProvider = run.ChatProvider,
+            JudgeProvider = run.JudgeProvider
         };
     }
 
@@ -220,7 +231,7 @@ public sealed class EvalRepository : IExperimentRepository
         const string runSql = """
             SELECT id, run_name AS RunName, chunking_config::text AS ChunkingConfigNotes,
                    chat_model AS ChatModel, embedding_model AS EmbeddingModel, judge_model AS JudgeModel,
-                   notes, created_at AS CreatedAt
+                   notes, created_at AS CreatedAt, chat_provider AS ChatProvider, judge_provider AS JudgeProvider
             FROM rag.eval_runs WHERE id = @RunId;
             """;
 
@@ -268,7 +279,7 @@ public sealed class EvalRepository : IExperimentRepository
         const string sql = """
             SELECT id, run_name AS RunName, chunking_config::text AS ChunkingConfigNotes,
                    chat_model AS ChatModel, embedding_model AS EmbeddingModel, judge_model AS JudgeModel,
-                   notes, created_at AS CreatedAt
+                   notes, created_at AS CreatedAt, chat_provider AS ChatProvider, judge_provider AS JudgeProvider
             FROM rag.eval_runs
             ORDER BY created_at DESC;
             """;
@@ -371,6 +382,7 @@ public sealed class EvalRepository : IExperimentRepository
         const string query = """
                             SELECT q.id, q.query_text AS QueryText, q.query_type AS Type, q.topic_id AS TopicId,
                                    q.source_document_id AS SourceDocumentId, q.expected_answer AS ExpectedAnswer,
+                                   q.generator_provider AS GeneratorProvider, q.generator_model AS GeneratorModel,
                                    COALESCE(array_agg(ec.chunk_id) FILTER (WHERE ec.chunk_id IS NOT NULL), ARRAY[]::int[]) AS ExpectedChunkIds
                             FROM rag.eval_queries q
                             LEFT JOIN rag.eval_query_expected_chunks ec ON ec.query_id = q.id
@@ -388,7 +400,9 @@ public sealed class EvalRepository : IExperimentRepository
             TopicId = r.TopicId,
             SourceDocumentId = r.SourceDocumentId,
             ExpectedAnswer = r.ExpectedAnswer,
-            ExpectedChunkIds = r.ExpectedChunkIds.ToList()
+            ExpectedChunkIds = r.ExpectedChunkIds.ToList(),
+            GeneratorProvider = r.GeneratorProvider,
+            GeneratorModel = r.GeneratorModel
         }).ToList();
     }
 

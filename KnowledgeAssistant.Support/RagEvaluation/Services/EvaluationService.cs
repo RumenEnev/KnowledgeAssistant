@@ -25,7 +25,6 @@ public sealed class EvaluationService
 {
     private readonly IDocumentRepository _documentRepository;
     private readonly DocumentsHandlingService _documentsHandlingService;
-    private readonly IModelGateway _modelGateway;
     private readonly IExperimentRepository _experimentRepository;
     private readonly IRetrievalMetricsCalculator _metricsCalculator;
     private readonly ILlmJudge _judge;
@@ -34,7 +33,6 @@ public sealed class EvaluationService
     public EvaluationService(
         IDocumentRepository documentRepository,
         DocumentsHandlingService documentsHandlingService,
-        IModelGateway modelGateway,
         IExperimentRepository experimentRepository,
         IRetrievalMetricsCalculator? metricsCalculator = null,
         ILlmJudge? judge = null,
@@ -42,15 +40,17 @@ public sealed class EvaluationService
     {
         _documentRepository = documentRepository;
         _documentsHandlingService = documentsHandlingService;
-        _modelGateway = modelGateway;
         _experimentRepository = experimentRepository;
         _metricsCalculator = metricsCalculator ?? new RetrievalMetricsCalculator();
-        _judge = judge ?? throw new ArgumentNullException(nameof(judge),
-            "ILlmJudge needs an IModelGateway to construct - pass Judging.LlmJudge built with the same gateway.");
+        _judge = judge ?? new KnowledgeAssistant.Eval.Core.Judging.LlmJudge();
         _logger = logger;
     }
 
     public async Task<EvalRunOutcome> RunEvalAsync(
+        IModelGateway chatGateway,
+        string chatProvider,
+        IModelGateway judgeGateway,
+        string judgeProvider,
         string runName,
         string chatModel,
         string embeddingModel,
@@ -73,7 +73,9 @@ public sealed class EvaluationService
             RunName = runName,
             ChatModel = chatModel,
             EmbeddingModel = embeddingModel,
-            JudgeModel = judgeModel
+            JudgeModel = judgeModel,
+            ChatProvider = chatProvider,
+            JudgeProvider = judgeProvider
         }, ct);
 
         var skipped = 0;
@@ -136,7 +138,7 @@ public sealed class EvaluationService
                 };
 
                 progress?.Report(new EvalProgress(i, testQueries.Count, EvalPhase.Generation, query.QueryText));
-                var answer = await _modelGateway.GenerateAsync(chatModel, userMessage, systemMessage, ct);
+                var answer = await chatGateway.GenerateAsync(chatModel, userMessage, systemMessage, ct);
                 var generationResult = new GenerationResult
                 {
                     QueryId = query.Id,
@@ -146,7 +148,7 @@ public sealed class EvaluationService
                 };
 
                 progress?.Report(new EvalProgress(i, testQueries.Count, EvalPhase.Judging, query.QueryText));
-                var generationMetrics = await _judge.ScoreAsync(judgeModel, query, generationResult, contextChunks, ct);
+                var generationMetrics = await _judge.ScoreAsync(judgeGateway, judgeModel, query, generationResult, contextChunks, ct);
                 await _experimentRepository.SaveGenerationResultAsync(
                     generationResult, generationMetrics, KnowledgeAssistant.Eval.Core.Judging.LlmJudge.JudgePromptVersion, judgeModel, ct);
 

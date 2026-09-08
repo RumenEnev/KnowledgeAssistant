@@ -11,4 +11,6 @@ public sealed class TestQueryRow
     public int? SourceDocumentId { get; init; }
     public string? ExpectedAnswer { get; init; }
     public int[] ExpectedChunkIds { get; init; } = [];
+    public string? GeneratorProvider { get; init; }
+    public string? GeneratorModel { get; init; }
 }

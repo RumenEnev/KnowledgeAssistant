@@ -11,14 +11,8 @@ public sealed class LlmJudge : ILlmJudge
 {
     public const string JudgePromptVersion = "v1";
 
-    private readonly IModelGateway _modelGateway;
-
-    public LlmJudge(IModelGateway modelGateway)
-    {
-        _modelGateway = modelGateway;
-    }
-
     public async Task<GenerationMetrics> ScoreAsync(
+        IModelGateway modelGateway,
         string judgeModel,
         TestQuery query,
         GenerationResult result,
@@ -59,7 +53,7 @@ public sealed class LlmJudge : ILlmJudge
         var systemMessage = new ChatMessage { Role = "system", Content = systemPromptText };
         var userMessage = new ChatMessage { Role = "user", Content = userPromptText };
 
-        var raw = await _modelGateway.GenerateAsync(judgeModel, userMessage, systemMessage, ct);
+        var raw = await modelGateway.GenerateAsync(judgeModel, userMessage, systemMessage, ct);
         return ParseJudgeResponse(query.Id, raw);
     }
 

@@ -17,4 +17,10 @@ public sealed class ExperimentRun
     public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
 
     public string? Notes { get; init; }
+
+    /// <summary>Model provider (e.g. "Ollama", "AdessoAiHub") used for chat generation in this run.</summary>
+    public string? ChatProvider { get; init; }
+
+    /// <summary>Model provider (e.g. "Ollama", "AdessoAiHub") used for judging in this run.</summary>
+    public string? JudgeProvider { get; init; }
 }

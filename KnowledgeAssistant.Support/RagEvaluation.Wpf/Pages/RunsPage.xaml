@@ -2,12 +2,12 @@
     x:Class="RagEvaluation.Desktop.Pages.RunsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
     Title="Runs"
     d:DesignHeight="700"
     d:DesignWidth="900"
-    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
     <Grid Margin="24">
@@ -54,11 +54,34 @@
             MouseDoubleClick="RunsGrid_MouseDoubleClick"
             SelectionMode="Single">
             <DataGrid.Columns>
-                <DataGridTextColumn Binding="{Binding Id}" Header="Id" Width="60" />
-                <DataGridTextColumn Binding="{Binding RunName}" Header="Run Name" Width="220" />
-                <DataGridTextColumn Binding="{Binding ChatModel}" Header="Chat Model" Width="180" />
-                <DataGridTextColumn Binding="{Binding JudgeModel}" Header="Judge Model" Width="180" />
-                <DataGridTextColumn Binding="{Binding CreatedAt}" Header="Created" Width="160" />
+                <DataGridTextColumn
+                    Width="60"
+                    Binding="{Binding Id}"
+                    Header="Id" />
+                <DataGridTextColumn
+                    Width="180"
+                    Binding="{Binding RunName}"
+                    Header="Run Name" />
+                <DataGridTextColumn
+                    Width="110"
+                    Binding="{Binding ChatProvider}"
+                    Header="Chat Provider" />
+                <DataGridTextColumn
+                    Width="150"
+                    Binding="{Binding ChatModel}"
+                    Header="Chat Model" />
+                <DataGridTextColumn
+                    Width="110"
+                    Binding="{Binding JudgeProvider}"
+                    Header="Judge Provider" />
+                <DataGridTextColumn
+                    Width="150"
+                    Binding="{Binding JudgeModel}"
+                    Header="Judge Model" />
+                <DataGridTextColumn
+                    Width="160"
+                    Binding="{Binding CreatedAt}"
+                    Header="Created" />
             </DataGrid.Columns>
         </DataGrid>
 

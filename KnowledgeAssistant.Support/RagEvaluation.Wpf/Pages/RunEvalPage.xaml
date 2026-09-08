@@ -30,14 +30,26 @@
                             Margin="0,0,0,12"
                             PlaceholderText="run-YYYYMMDD-HHmmss (leave blank to auto-generate)" />
 
+                        <TextBlock Margin="0,0,0,4" Text="Chat provider" />
+                        <ComboBox
+                            x:Name="ChatProviderSelector"
+                            Margin="0,0,0,12"
+                            SelectionChanged="ChatProviderSelector_SelectionChanged" />
+
                         <TextBlock Margin="0,0,0,4" Text="Chat model" />
-                        <ui:TextBox x:Name="ChatModelBox" Margin="0,0,0,12" />
+                        <ComboBox x:Name="ChatModelSelector" Margin="0,0,0,12" />
 
                         <TextBlock Margin="0,0,0,4" Text="Embedding model" />
                         <ui:TextBox x:Name="EmbeddingModelBox" Margin="0,0,0,12" />
 
+                        <TextBlock Margin="0,0,0,4" Text="Judge provider" />
+                        <ComboBox
+                            x:Name="JudgeProviderSelector"
+                            Margin="0,0,0,12"
+                            SelectionChanged="JudgeProviderSelector_SelectionChanged" />
+
                         <TextBlock Margin="0,0,0,4" Text="Judge model" />
-                        <ui:TextBox x:Name="JudgeModelBox" />
+                        <ComboBox x:Name="JudgeModelSelector" Margin="0,0,0,12" />
 
                         <TextBlock Margin="0,0,0,4" Text="Document (optional - leave as 'All Documents' to run the full test set)" />
                         <ComboBox

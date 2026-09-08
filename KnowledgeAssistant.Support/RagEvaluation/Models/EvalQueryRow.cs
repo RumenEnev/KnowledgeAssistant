@@ -15,4 +15,8 @@ public sealed class EvalQueryRow
     public string? ExpectedAnswer { get; init; }
 
     public int[]? ExpectedChunkIds { get; init; }
+
+    public string? GeneratorProvider { get; init; }
+
+    public string? GeneratorModel { get; init; }
 }

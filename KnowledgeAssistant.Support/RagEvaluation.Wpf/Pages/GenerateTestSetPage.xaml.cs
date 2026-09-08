@@ -15,16 +15,29 @@ public partial class GenerateTestSetPage : Page
     private readonly IConfiguration _configuration;
     private readonly ILogger<GenerateTestSetPage> _logger;
     private readonly IDocumentRepository _documentRepository;
+    private readonly IModelProviderRegistry _providerRegistry;
+    private readonly IModelGatewayResolver _gatewayResolver;
     private static readonly Document AllDocumentsOption = new() { Id = 0, Title = "All Documents", OriginalText = "", Topics = [] };
 
-    public GenerateTestSetPage(TestSetGenerationService generationService, IDocumentRepository documentRepository, IConfiguration configuration, ILogger<GenerateTestSetPage> logger)
+    public GenerateTestSetPage(
+        TestSetGenerationService generationService,
+        IDocumentRepository documentRepository,
+        IModelProviderRegistry providerRegistry,
+        IModelGatewayResolver gatewayResolver,
+        IConfiguration configuration,
+        ILogger<GenerateTestSetPage> logger)
     {
         _generationService = generationService;
         _documentRepository = documentRepository;
+        _providerRegistry = providerRegistry;
+        _gatewayResolver = gatewayResolver;
         _configuration = configuration;
         _logger = logger;
 
         InitializeComponent();
+        ProviderSelector.ItemsSource = _providerRegistry.Providers;
+        ProviderSelector.SelectedItem = _providerRegistry.Providers.FirstOrDefault();
+
         Loaded += async (_, _) => await LoadDocumentsAsync();
     }
 
@@ -45,8 +58,43 @@ public partial class GenerateTestSetPage : Page
         }
     }
 
+    private async void ProviderSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        var provider = ProviderSelector.SelectedItem as string;
+        ModelSelector.ItemsSource = null;
+        if (string.IsNullOrWhiteSpace(provider) || !_providerRegistry.TryGetCatalogGateway(provider, out var catalogGateway))
+        {
+            return;
+        }
+
+        try
+        {
+            var models = await catalogGateway.GetModelsAsync(CancellationToken.None);
+            var modelNames = models.Select(m => m.Name).ToList();
+            ModelSelector.ItemsSource = modelNames;
+
+            var configuredModel = _configuration["Llm:ChatModel"];
+            ModelSelector.SelectedItem = configuredModel is not null && modelNames.Contains(configuredModel)
+                ? configuredModel
+                : modelNames.FirstOrDefault();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load models for provider {Provider}", provider);
+            ResultText.Text = $"Error loading models for '{provider}': {ex.Message}";
+        }
+    }
+
     private async void GenerateButton_Click(object sender, RoutedEventArgs e)
     {
+        var provider = ProviderSelector.SelectedItem as string;
+        var model = ModelSelector.SelectedItem as string;
+        if (string.IsNullOrWhiteSpace(provider) || string.IsNullOrWhiteSpace(model))
+        {
+            ResultText.Text = "Select a provider and a model before generating.";
+            return;
+        }
+
         GenerateButton.IsEnabled = false;
         ProgressRing.Visibility = Visibility.Visible;
         ProgressRing.Progress = 0;
@@ -59,8 +107,7 @@ public partial class GenerateTestSetPage : Page
         try
         {
             var perChunk = (int)(QuestionsPerChunkBox.Value ?? 1);
-            var chatModel = _configuration["Llm:ChatModel"]
-                ?? throw new InvalidOperationException("Missing Llm:ChatModel configuration.");
+            var gateway = _gatewayResolver.GetRequiredGateway(provider);
 
             var progress = new Progress<(int done, int total)>(p =>
             {
@@ -68,8 +115,8 @@ public partial class GenerateTestSetPage : Page
                 ProgressText.Text = $"Generating questions: {p.done}/{p.total} chunks processed";
             });
 
-            var count = await _generationService.GenerateAsync(chatModel, perChunk, documentId, progress, CancellationToken.None);
-            ResultText.Text = $"Saved {count} synthetic test queries (one row per chunk x topic).";
+            var count = await _generationService.GenerateAsync(gateway, provider, model, perChunk, documentId, progress, CancellationToken.None);
+            ResultText.Text = $"Saved {count} synthetic test queries (one row per chunk x topic) using {provider} / {model}.";
         }
         catch (Exception ex)
         {
