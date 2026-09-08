@@ -199,12 +199,23 @@ export class AppComponent implements OnInit {
     }
   }
 
-  newConversation() {
-    // Don't create a conversation on the backend yet — the backend creates the
-    // real conversation (with a generated title) once the first message is sent.
-    this.selectedConversation.set(null);
-    this.messages.set([]);
-    this.tokenConsumption.set(null);
+  async newConversation() {
+    const provider = this.selectedProvider();
+    const model = this.selectedModel();
+    if (!provider || !model) {
+      this.notificationService.error('Please select a model provider and model before creating a conversation.');
+      return;
+    }
+
+    try {
+      const conversation = await this.chatService.newConversation(provider, model);
+      this.conversations.update(current => [conversation, ...current]);
+      this.selectedConversation.set(conversation);
+      this.messages.set([]);
+      this.tokenConsumption.set(null);
+    } catch (err) {
+      this.notificationService.error(this.toMessage(err, 'Failed to create a new conversation.'));
+    }
   }
 
   openDocumentsManager(): void {

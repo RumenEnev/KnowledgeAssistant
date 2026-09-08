@@ -56,10 +56,10 @@ export class ChatService {
     return response.json();
   }
 
-  async newConversation(): Promise<Conversation> {
+  async newConversation(provider: string, model: string): Promise<Conversation> {
     const response = await fetch(`${this.baseUrl}/api/conversations`, {
       method: 'POST',
-      body: null,
+      body: JSON.stringify({ provider, model }),
       headers: { 'Content-Type': 'application/json' }
     });
     await this.assertOk(response);
