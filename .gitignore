@@ -17,3 +17,5 @@ dist/
 .DS_Store
 Thumbs.db
 /KnowledgeAssistant.Api/appsettings.json
+/KnowledgeAssistant.Support/RagEvaluation/appsettings.json
+/KnowledgeAssistant.Support/RagEvaluation.Wpf/appsettings.json
