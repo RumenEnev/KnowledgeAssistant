@@ -19,10 +19,8 @@ public partial class DocumentsWindow : Window, INotifyPropertyChanged, IMessageS
     private string? _statusMessage;
     private int? _editingDocumentId;
     private bool _isSaving;
-    private int _chunkTargetSizeChars = 1000;
-    private int _chunkOverlapChars = 150;
-    private bool _isSavingChunkingSettings;
     private bool _isSavingRetrievalConfig;
+    private bool _canSaveRetrievalConfig;
     private DocumentRetrievalConfig? _retrievalConfig;
     private DocumentType _documentType = DocumentType.PlainText;
 
@@ -128,6 +126,25 @@ public partial class DocumentsWindow : Window, INotifyPropertyChanged, IMessageS
         }
     }
 
+    public DocumentRetrievalConfig? RetrievalConfig
+    {
+        get => _retrievalConfig;
+        set
+        {
+            _retrievalConfig = value;
+            OnPropertyChanged(nameof(RetrievalConfig));
+
+            ChunkSize = _retrievalConfig.ChunkSize;
+            ChunkOverlap = _retrievalConfig.ChunkOverlap;
+            CandidatePoolSize = _retrievalConfig.CandidatePoolSize;
+            CandidateFanout = _retrievalConfig.CandidateFanout;
+            MaxDistanceThreshold = _retrievalConfig.MaxDistanceThreshold;
+            RrfK = _retrievalConfig.RrfK;
+            TargetInjectionFraction = _retrievalConfig.TargetInjectionFraction;
+            MaxInjectionFraction = _retrievalConfig.MaxInjectionFraction;
+        }
+    }
+
     public int ChunkSize
     {
         get => _retrievalConfig?.ChunkSize ?? 0;
@@ -176,7 +193,15 @@ public partial class DocumentsWindow : Window, INotifyPropertyChanged, IMessageS
         set => UpdateConfig(c => c.MaxInjectionFraction = value);
     }
 
-    public bool CanSaveRetrievalConfig => !_isSavingRetrievalConfig && EditingDocumentId is not null;
+    public bool CanSaveRetrievalConfig
+    {
+        get => _canSaveRetrievalConfig;
+        set
+        {
+            _canSaveRetrievalConfig = value;
+            OnPropertyChanged(nameof(CanSaveRetrievalConfig));
+        }
+    }
 
     public string SaveRetrievalConfigButtonText => _isSavingRetrievalConfig ? "Saving..." : "Save Settings";
 
@@ -401,7 +426,7 @@ public partial class DocumentsWindow : Window, INotifyPropertyChanged, IMessageS
         }
     }
 
-    private void DocumentsList_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    private async void DocumentsList_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
     {
         if (sender is not System.Windows.Controls.ListView { SelectedItem: DocumentDisplayModel document })
         {
@@ -413,8 +438,8 @@ public partial class DocumentsWindow : Window, INotifyPropertyChanged, IMessageS
         NewTitle = document.Title;
         NewText = document.OriginalText;
         OnPropertyChanged(nameof(IsDocumentSelected));
-        _messageService.Publish(new GetRetrievalConfigRequest(document.Id));
-
+        RetrievalConfig = (await _messageService.RequestAsync<GetRetrievalConfigResponse>(new GetRetrievalConfigRequest(document.Id))).First().Config;
+        CanSaveRetrievalConfig = true;
         var documentTopics = new HashSet<string>(document.Topics, StringComparer.OrdinalIgnoreCase);
         foreach (var topic in AvailableTopics)
         {
@@ -440,8 +465,8 @@ public partial class DocumentsWindow : Window, INotifyPropertyChanged, IMessageS
                     ? DocumentType.Markdown
                     : DocumentType.PlainText;
 
-                _retrievalConfig = DocumentRetrievalConfig.Default(0);
-                OnPropertyChanged(string.Empty);
+                RetrievalConfig = DocumentRetrievalConfig.Default(0);
+                CanSaveRetrievalConfig = true;  
             }
             catch (Exception ex)
             {
@@ -468,7 +493,11 @@ public partial class DocumentsWindow : Window, INotifyPropertyChanged, IMessageS
 
     private void UpdateConfig(Action<DocumentRetrievalConfig> apply)
     {
-        if (_retrievalConfig is null) return;
+        if (_retrievalConfig is null)
+        {
+            return;
+        }
+
         apply(_retrievalConfig);
         OnPropertyChanged(string.Empty);
     }
@@ -488,7 +517,10 @@ public partial class DocumentsWindow : Window, INotifyPropertyChanged, IMessageS
 
     private void SaveRetrievalConfig_Click(object sender, RoutedEventArgs e)
     {
-        if (_retrievalConfig is null || _isSavingRetrievalConfig) return;
+        if (_retrievalConfig is null || _isSavingRetrievalConfig)
+        {
+            return;
+        }
 
         if (ChunkOverlap >= ChunkSize || ChunkOverlap < 0)
         {
@@ -498,7 +530,6 @@ public partial class DocumentsWindow : Window, INotifyPropertyChanged, IMessageS
 
         _isSavingRetrievalConfig = true;
         OnPropertyChanged(nameof(SaveRetrievalConfigButtonText));
-        OnPropertyChanged(nameof(CanSaveRetrievalConfig));
         _messageService.Publish(new SaveRetrievalConfigRequest(_retrievalConfig));
     }
 
@@ -506,7 +537,7 @@ public partial class DocumentsWindow : Window, INotifyPropertyChanged, IMessageS
     {
         if (EditingDocumentId is int documentId)
         {
-            _messageService.Publish(new ResetRetrievalConfigRequest(documentId));
+            RetrievalConfig = DocumentRetrievalConfig.Default(0);
         }
     }
 }

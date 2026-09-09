@@ -98,8 +98,55 @@ namespace KnowledgeAssistant.Wpf.Services
             _messageService.Subscribe<GetAvailableProvidersRequest>(this, GetAvailableProvidersReceived);
             _messageService.Subscribe<UpdateSelectedProviderRequest>(this, UpdateSelectedProviderReceived);
             _messageService.Subscribe<UpdateConversationModelSelectionRequest>(this, UpdateConversationModelSelectionReceived);
+            _messageService.Subscribe<SaveRetrievalConfigRequest>(this, SaveRetrievalConfigReceived);
 
             _messageService.SubscribeAsync<GetRepositoriesRequest>(this, GetRepositoriesReceived);
+            _messageService.SubscribeAsync<GetRetrievalConfigRequest>(this, GetRetrievalConfigReceived);
+        }
+
+        private void SaveRetrievalConfigReceived(MessageBase message)
+        {
+            if (message is SaveRetrievalConfigRequest request)
+            {
+                try
+                {
+                    var relativeUrl = $"api/documents/{request.Config.DocumentId}/retrieval-config";
+                    using var httpRequest = new HttpRequestMessage(HttpMethod.Put, relativeUrl);
+                    httpRequest.Content = new StringContent(JsonSerializer.Serialize(request.Config), Encoding.UTF8, "application/json");
+                    using var response = _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, _cancellationToken).Result;
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        var responseBody = response.Content.ReadAsStringAsync(_cancellationToken).Result;
+                        throw new HttpRequestException($"PUT {relativeUrl} returned " + $"{(int)response.StatusCode} {response.ReasonPhrase}. " + $"Response: {responseBody}");
+                    }
+                }
+                catch (OperationCanceledException) when (_cancellationToken.IsCancellationRequested)
+                {
+                    // Application is closing.
+                }
+                catch (Exception ex)
+                {
+                    _messageService.Publish(new UserMessage("Error", $"Error saving retrieval config: {ex.Message}", MessageType.Error));
+                }
+            }
+        }
+
+        private async Task<MessageBase> GetRetrievalConfigReceived(MessageBase message)
+        {
+            if (message is GetRetrievalConfigRequest request)
+            {
+                try
+                {
+                    var config = await _httpClient.GetFromJsonAsync<DocumentRetrievalConfig>($"api/documents/{request.DocumentId}/retrieval-config", _cancellationToken);
+                    return new GetRetrievalConfigResponse(config ?? null);
+                }
+                catch (Exception ex)
+                {
+                    _messageService.Publish(new UserMessage("Error", $"Error fetching retrieval config: {ex.Message}", MessageType.Error));
+                }
+            }
+
+            return new GetRetrievalConfigResponse(null);
         }
 
         private async void UpdateConversationModelSelectionReceived(MessageBase message)

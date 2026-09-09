@@ -28,17 +28,17 @@
                     <TextBlock Margin="0,0,0,4" Text="Provider" />
                     <ComboBox
                         x:Name="ProviderSelector"
+                        MinWidth="200"
                         Margin="0,0,0,12"
                         HorizontalAlignment="Left"
-                        MinWidth="200"
                         SelectionChanged="ProviderSelector_SelectionChanged" />
 
                     <TextBlock Margin="0,0,0,4" Text="Model" />
                     <ComboBox
                         x:Name="ModelSelector"
+                        MinWidth="200"
                         Margin="0,0,0,12"
-                        HorizontalAlignment="Left"
-                        MinWidth="200" />
+                        HorizontalAlignment="Left" />
 
                     <TextBlock Margin="0,0,0,4" Text="Questions per chunk" />
                     <ui:NumberBox

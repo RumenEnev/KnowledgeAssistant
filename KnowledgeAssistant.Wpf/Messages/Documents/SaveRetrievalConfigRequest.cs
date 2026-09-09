@@ -9,5 +9,6 @@ public record SaveRetrievalConfigRequest : MessageBase
     {
         Config = config;
     }
+
     public DocumentRetrievalConfig Config { get; }
 }
