@@ -398,10 +398,7 @@ namespace KnowledgeAssistant.Wpf.Services
                         Topics = request.Topics.ToList()
                     };
 
-                    using var response = await _httpClient.PostAsync("api/documents",
-                        new StringContent(JsonSerializer.Serialize(dto), Encoding.UTF8, "application/json"),
-                        _cancellationToken);
-
+                    using var response = await _httpClient.PostAsync("api/documents", new StringContent(JsonSerializer.Serialize(dto), Encoding.UTF8, "application/json"), _cancellationToken);
                     if (!response.IsSuccessStatusCode)
                     {
                         var error = await response.Content.ReadAsStringAsync(_cancellationToken);
@@ -509,7 +506,7 @@ namespace KnowledgeAssistant.Wpf.Services
             {
                 try
                 {
-                    var dtos = await _httpClient.GetFromJsonAsync<List<ModelContextWindowDto>>($"api/models/context-windows?provider={request.Provider}",  _cancellationToken);
+                    var dtos = await _httpClient.GetFromJsonAsync<List<ModelContextWindowDto>>($"api/models/context-windows?provider={request.Provider}", _cancellationToken);
                     var models = (dtos ?? new List<ModelContextWindowDto>())
                         .Select(d => new ModelContextWindowInfo(d.Id, d.Name, d.Size, d.ContextLength, d.Family, d.QuantizationLevel, d.ParameterSize, d.InternalUseOnly, d.CanCallTools, d.IsFavorite))
                         .ToList();

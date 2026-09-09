@@ -52,7 +52,11 @@ public partial class DocumentsWindow : Window, INotifyPropertyChanged, IMessageS
     public string? NewTitle
     {
         get => _newTitle;
-        set { _newTitle = value; OnPropertyChanged(nameof(NewTitle)); }
+        set
+        {
+            _newTitle = value;
+            OnPropertyChanged(nameof(NewTitle));
+        }
     }
 
     public string? NewText
@@ -69,7 +73,11 @@ public partial class DocumentsWindow : Window, INotifyPropertyChanged, IMessageS
     public string? StatusMessage
     {
         get => _statusMessage;
-        set { _statusMessage = value; OnPropertyChanged(nameof(StatusMessage)); }
+        set
+        {
+            _statusMessage = value;
+            OnPropertyChanged(nameof(StatusMessage));
+        }
     }
 
     public int? EditingDocumentId
@@ -136,12 +144,6 @@ public partial class DocumentsWindow : Window, INotifyPropertyChanged, IMessageS
 
             ChunkSize = _retrievalConfig.ChunkSize;
             ChunkOverlap = _retrievalConfig.ChunkOverlap;
-            CandidatePoolSize = _retrievalConfig.CandidatePoolSize;
-            CandidateFanout = _retrievalConfig.CandidateFanout;
-            MaxDistanceThreshold = _retrievalConfig.MaxDistanceThreshold;
-            RrfK = _retrievalConfig.RrfK;
-            TargetInjectionFraction = _retrievalConfig.TargetInjectionFraction;
-            MaxInjectionFraction = _retrievalConfig.MaxInjectionFraction;
         }
     }
 
@@ -155,42 +157,6 @@ public partial class DocumentsWindow : Window, INotifyPropertyChanged, IMessageS
     {
         get => _retrievalConfig?.ChunkOverlap ?? 0;
         set => UpdateConfig(c => c.ChunkOverlap = value);
-    }
-
-    public int CandidatePoolSize
-    {
-        get => _retrievalConfig?.CandidatePoolSize ?? 0;
-        set => UpdateConfig(c => c.CandidatePoolSize = value);
-    }
-
-    public int CandidateFanout
-    {
-        get => _retrievalConfig?.CandidateFanout ?? 0;
-        set => UpdateConfig(c => c.CandidateFanout = value);
-    }
-
-    public double MaxDistanceThreshold
-    {
-        get => _retrievalConfig?.MaxDistanceThreshold ?? 0;
-        set => UpdateConfig(c => c.MaxDistanceThreshold = value);
-    }
-
-    public int RrfK
-    {
-        get => _retrievalConfig?.RrfK ?? 0;
-        set => UpdateConfig(c => c.RrfK = value);
-    }
-
-    public double TargetInjectionFraction
-    {
-        get => _retrievalConfig?.TargetInjectionFraction ?? 0;
-        set => UpdateConfig(c => c.TargetInjectionFraction = value);
-    }
-
-    public double MaxInjectionFraction
-    {
-        get => _retrievalConfig?.MaxInjectionFraction ?? 0;
-        set => UpdateConfig(c => c.MaxInjectionFraction = value);
     }
 
     public bool CanSaveRetrievalConfig
@@ -466,7 +432,7 @@ public partial class DocumentsWindow : Window, INotifyPropertyChanged, IMessageS
                     : DocumentType.PlainText;
 
                 RetrievalConfig = DocumentRetrievalConfig.Default(0);
-                CanSaveRetrievalConfig = true;  
+                CanSaveRetrievalConfig = true;
             }
             catch (Exception ex)
             {
@@ -522,6 +488,7 @@ public partial class DocumentsWindow : Window, INotifyPropertyChanged, IMessageS
             return;
         }
 
+
         if (ChunkOverlap >= ChunkSize || ChunkOverlap < 0)
         {
             MessageBox.Show("Chunk overlap must be zero or greater, and smaller than chunk size.", "Retrieval Settings", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -535,9 +502,6 @@ public partial class DocumentsWindow : Window, INotifyPropertyChanged, IMessageS
 
     private void ResetRetrievalConfig_Click(object sender, RoutedEventArgs e)
     {
-        if (EditingDocumentId is int documentId)
-        {
-            RetrievalConfig = DocumentRetrievalConfig.Default(0);
-        }
+        RetrievalConfig = DocumentRetrievalConfig.Default(0);
     }
 }

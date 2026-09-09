@@ -229,7 +229,6 @@ export class DocumentsManagerComponent implements OnInit {
       const nameWithoutExtension = file.name.replace(/\.[^/.]+$/, '');
       this.title.set(nameWithoutExtension);
       // No real document yet - show defaults so the panel has something to display;
-      // Save/Reset stay disabled until the document is actually created (see canSaveRetrievalConfig).
       this.retrievalConfig.set({ documentId: 0, ...DEFAULT_RETRIEVAL_CONFIG });
     } catch (err) {
       this.notificationService.error(this.toMessage(err, 'Failed to read the file.'));
