@@ -29,600 +29,603 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace KnowledgeAssistant.Wpf.Services
+namespace KnowledgeAssistant.Wpf.Services;
+
+public class CommunicationsService : IMessageServiceSubscriber
 {
-    public class CommunicationsService : IMessageServiceSubscriber
+    private static readonly JsonSerializerOptions ToolsJsonOptions = new(JsonSerializerDefaults.Web)
     {
-        private static readonly JsonSerializerOptions ToolsJsonOptions = new(JsonSerializerDefaults.Web)
+        Converters = { new JsonStringEnumConverter() }
+    };
+
+    private readonly MessageService _messageService;
+    private readonly CancellationToken _cancellationToken = new CancellationToken();
+    private HttpClient _httpClient;
+
+    public CommunicationsService(MessageService messageService, IConfiguration configuration)
+    {
+        _messageService = messageService;
+        _httpClient = new HttpClient();
+
+        var baseUrl = configuration["Api:BaseUrl"] ?? "http://localhost:5299/";
+        _httpClient.BaseAddress = new Uri(baseUrl);
+
+        if (File.Exists("Settings.json"))
         {
-            Converters = { new JsonStringEnumConverter() }
-        };
-
-        private readonly MessageService _messageService;
-        private readonly CancellationToken _cancellationToken = new CancellationToken();
-        private HttpClient _httpClient;
-
-        public CommunicationsService(MessageService messageService, IConfiguration configuration)
-        {
-            _messageService = messageService;
-            _httpClient = new HttpClient();
-
-            var baseUrl = configuration["Api:BaseUrl"] ?? "http://localhost:5299/";
-            _httpClient.BaseAddress = new Uri(baseUrl);
-
-            if (File.Exists("Settings.json"))
-            {
-                var settings = File.ReadAllText("Settings.json");
-                var appConfig = JsonSerializer.Deserialize<ApplicationConfiguration>(settings);
-                if (appConfig != null && !string.IsNullOrWhiteSpace(appConfig.BaseUrl))
-                {
-                    _httpClient = new HttpClient();
-                    _httpClient.BaseAddress = new Uri(appConfig.BaseUrl);
-                }
-            }
-
-            _messageService.Subscribe<GenerateTitleRequest>(this, GenerateTitleReceived);
-            _messageService.Subscribe<GetAvailableModelsRequest>(this, GetAvailableModelsReceived);
-            _messageService.Subscribe<GetConversationsRequest>(this, GetConversationsReceived);
-            _messageService.Subscribe<GetConversationRequest>(this, GetConversationReceived);
-            _messageService.Subscribe<RefreshConversationRequest>(this, RefreshConversationReceived);
-            _messageService.Subscribe<UpdateConversationTitleRequest>(this, UpdateConversationTitleReceived);
-            _messageService.Subscribe<UpdateConversationTopicRequest>(this, UpdateConversationTopicReceived);
-            _messageService.SubscribeAsync<CreateConversationsRequest>(this, CreateConversationsReceived);
-            _messageService.Subscribe<DeleteConversationRequest>(this, DeleteConversationReceived);
-            _messageService.Subscribe<UpdateSelectedModelRequest>(this, UpdateSelectedModelReceived);
-            _messageService.Subscribe<GetSelectedModelRequest>(this, GetSelectedModelReceived);
-            _messageService.Subscribe<GetDocumentsRequest>(this, GetDocumentsReceived);
-            _messageService.Subscribe<GetTopicsRequest>(this, GetTopicsReceived);
-            _messageService.Subscribe<CreateTopicRequest>(this, CreateTopicReceived);
-            _messageService.Subscribe<UpdateTopicRequest>(this, UpdateTopicReceived);
-            _messageService.Subscribe<DeleteTopicRequest>(this, DeleteTopicReceived);
-            _messageService.Subscribe<AddDocumentRequest>(this, AddDocumentReceived);
-            _messageService.Subscribe<UpdateDocumentRequest>(this, UpdateDocumentReceived);
-            _messageService.Subscribe<DeleteDocumentRequest>(this, DeleteDocumentReceived);
-            _messageService.Subscribe<UpdateChunkingSettingsRequest>(this, UpdateChunkingSettingsReceived);
-            _messageService.Subscribe<GetModelContextWindowsRequest>(this, GetModelContextWindowsReceived);
-            _messageService.Subscribe<UpdateModelContextWindowRequest>(this, UpdateModelContextWindowReceived);
-            _messageService.Subscribe<UpdateApiUrlRequest>(this, UpdateApiUrlReceived);
-            _messageService.Subscribe<CreateRepositoryRequest>(this, CreateRepositoryReceived);
-            _messageService.Subscribe<UpdateRepositoryRequest>(this, UpdateRepositoryReceived);
-            _messageService.Subscribe<DeleteRepositoryRequest>(this, DeleteRepositoryReceived);
-            _messageService.Subscribe<CreateToolRequest>(this, CreateToolReceived);
-            _messageService.Subscribe<UpdateToolRequest>(this, UpdateToolReceived);
-            _messageService.Subscribe<DeleteToolRequest>(this, DeleteToolReceived);
-            _messageService.SubscribeAsync<GetToolsRequest>(this, GetToolsReceived);
-            _messageService.Subscribe<SaveDocumentationRequest>(this, SaveDocumentationReceived);
-            _messageService.Subscribe<SendPromptRequest>(this, SendPromptReceived);
-            _messageService.Subscribe<ToolExecutionCompletedRequest>(this, ToolExecutionCompletedReceived);
-            _messageService.Subscribe<ToolExecutionOutputIntermediateEvent>(this, ToolExecutionOutputIntermediateEventReceived);
-            _messageService.Subscribe<GetAvailableProvidersRequest>(this, GetAvailableProvidersReceived);
-            _messageService.Subscribe<UpdateSelectedProviderRequest>(this, UpdateSelectedProviderReceived);
-            _messageService.Subscribe<UpdateConversationModelSelectionRequest>(this, UpdateConversationModelSelectionReceived);
-            _messageService.Subscribe<SaveRetrievalConfigRequest>(this, SaveRetrievalConfigReceived);
-            _messageService.Subscribe<GetEmbeddingsModelsRequest>(this, GetEmbeddingsModelsReceived);
-
-            _messageService.SubscribeAsync<GetRepositoriesRequest>(this, GetRepositoriesReceived);
-            _messageService.SubscribeAsync<GetRetrievalConfigRequest>(this, GetRetrievalConfigReceived);
-        }
-
-        private async void GetEmbeddingsModelsReceived(MessageBase message)
-        {
-            if (message is GetEmbeddingsModelsRequest)
-            {
-                try
-                {
-                    var embeddingsModels = await _httpClient.GetFromJsonAsync<List<string>>($"api/models/embeddings", _cancellationToken);
-                    _messageService.Publish(new EmbeddingsLoadedEvent(embeddingsModels?.ToArray() ?? Array.Empty<string>()));
-                }
-                catch (Exception ex)
-                {
-                    _messageService.Publish(new UserMessage("Error", $"Error fetching embeddings models: {ex.Message}", MessageType.Error));
-                }
-            }
-        }
-
-        private void SaveRetrievalConfigReceived(MessageBase message)
-        {
-            if (message is SaveRetrievalConfigRequest request)
-            {
-                try
-                {
-                    var relativeUrl = $"api/documents/{request.Config.DocumentId}/retrieval-config";
-                    using var httpRequest = new HttpRequestMessage(HttpMethod.Put, relativeUrl);
-                    httpRequest.Content = new StringContent(JsonSerializer.Serialize(request.Config), Encoding.UTF8, "application/json");
-                    using var response = _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, _cancellationToken).Result;
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        var responseBody = response.Content.ReadAsStringAsync(_cancellationToken).Result;
-                        throw new HttpRequestException($"PUT {relativeUrl} returned " + $"{(int)response.StatusCode} {response.ReasonPhrase}. " + $"Response: {responseBody}");
-                    }
-                }
-                catch (OperationCanceledException) when (_cancellationToken.IsCancellationRequested)
-                {
-                    // Application is closing.
-                }
-                catch (Exception ex)
-                {
-                    _messageService.Publish(new UserMessage("Error", $"Error saving retrieval config: {ex.Message}", MessageType.Error));
-                }
-            }
-        }
-
-        private async Task<MessageBase> GetRetrievalConfigReceived(MessageBase message)
-        {
-            if (message is GetRetrievalConfigRequest request)
-            {
-                try
-                {
-                    var config = await _httpClient.GetFromJsonAsync<DocumentRetrievalConfig>($"api/documents/{request.DocumentId}/retrieval-config", _cancellationToken);
-                    return new GetRetrievalConfigResponse(config ?? null);
-                }
-                catch (Exception ex)
-                {
-                    _messageService.Publish(new UserMessage("Error", $"Error fetching retrieval config: {ex.Message}", MessageType.Error));
-                }
-            }
-
-            return new GetRetrievalConfigResponse(null);
-        }
-
-        private async void UpdateConversationModelSelectionReceived(MessageBase message)
-        {
-            if (message is UpdateConversationModelSelectionRequest request)
-            {
-                try
-                {
-                    var dto = new UpdateConversationModelSelectionDto
-                    {
-                        SelectedProvider = request.SelectedProvider,
-                        SelectedModel = request.SelectedModel
-                    };
-
-                    var relativeUrl = $"api/conversations/{request.ConversationId}/model-selection";
-                    using var httpRequest = new HttpRequestMessage(HttpMethod.Put, relativeUrl);
-                    httpRequest.Content = new StringContent(JsonSerializer.Serialize(dto), Encoding.UTF8, "application/json");
-                    using var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, _cancellationToken);
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        var responseBody = await response.Content.ReadAsStringAsync(_cancellationToken);
-                        throw new HttpRequestException($"PUT {relativeUrl} returned " + $"{(int)response.StatusCode} {response.ReasonPhrase}. " + $"Response: {responseBody}");
-                    }
-                }
-                catch (OperationCanceledException) when (_cancellationToken.IsCancellationRequested)
-                {
-                    // Application is closing.
-                }
-                catch (Exception ex)
-                {
-                    _messageService.Publish(new UserMessage("Error", $"Error saving conversation model selection: {ex.Message}", MessageType.Error));
-                }
-            }
-        }
-
-        private async void UpdateSelectedProviderReceived(MessageBase message)
-        {
-            if (message is UpdateSelectedProviderRequest request)
-            {
-
-                try
-                {
-                    var dto = new UpdateSelectedProviderDto
-                    {
-                        SelectedProvider = request.SelectedProvider
-                    };
-
-                    using var httpRequest = new HttpRequestMessage(HttpMethod.Put, "api/configuration/selected-provider");
-                    httpRequest.Content = new StringContent(JsonSerializer.Serialize(dto), Encoding.UTF8, "application/json");
-                    using var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, _cancellationToken);
-                    response.EnsureSuccessStatusCode();
-                }
-                catch (OperationCanceledException) when (_cancellationToken.IsCancellationRequested)
-                {
-                    // Application is closing.
-                }
-                catch (Exception ex)
-                {
-                    _messageService.Publish(new UserMessage("Error", $"Error saving selected provider: {ex.Message}", MessageType.Error));
-                }
-            }
-        }
-
-        private async void GetAvailableProvidersReceived(MessageBase message)
-        {
-            if (message is GetAvailableProvidersRequest)
-            {
-                try
-                {
-                    using var response = await _httpClient.GetAsync("api/models/providers", _cancellationToken);
-                    response.EnsureSuccessStatusCode();
-                    var providers = await response.Content.ReadFromJsonAsync<List<string>>(cancellationToken: _cancellationToken) ?? new List<string>();
-                    _messageService.Publish(new AvailableProvidersUpdatedEvent(providers));
-                }
-                catch (OperationCanceledException) when (_cancellationToken.IsCancellationRequested)
-                {
-                    // Application is closing.
-                }
-                catch (Exception ex)
-                {
-                    _messageService.Publish(new UserMessage("Error", $"Error loading model providers: {ex.Message}", MessageType.Error));
-                }
-            }
-        }
-
-        private async void ToolExecutionOutputIntermediateEventReceived(MessageBase message)
-        {
-            if (message is ToolExecutionOutputIntermediateEvent request)
-            {
-                var response = await _httpClient.PostAsJsonAsync($"api/chat/tool-calls/{request.ToolId}/intermediate", new { });
-                if (!response.IsSuccessStatusCode)
-                {
-                    var body = await response.Content.ReadAsStringAsync();
-                }
-            }
-        }
-
-        private async void ToolExecutionCompletedReceived(MessageBase message)
-        {
-            if (message is ToolExecutionCompletedRequest request)
-            {
-                var response = await _httpClient.PostAsJsonAsync($"api/chat/tool-calls/{request.ToolId}/result", request.Result);
-                if (!response.IsSuccessStatusCode)
-                {
-                    var body = await response.Content.ReadAsStringAsync();
-                }
-            }
-        }
-
-        private void UpdateApiUrlReceived(MessageBase message)
-        {
-            if (message is UpdateApiUrlRequest request)
+            var settings = File.ReadAllText("Settings.json");
+            var appConfig = JsonSerializer.Deserialize<ApplicationConfiguration>(settings);
+            if (appConfig != null && !string.IsNullOrWhiteSpace(appConfig.BaseUrl))
             {
                 _httpClient = new HttpClient();
-                _httpClient.BaseAddress = new Uri(request.Url);
-                File.WriteAllText($"Settings.json", JsonSerializer.Serialize(new ApplicationConfiguration()
-                {
-                    BaseUrl = request.Url
-                }));
-
-                _messageService.Publish(new UserMessage("Info", $"API URL updated to: {request.Url}", MessageType.ShortInfo));
+                _httpClient.BaseAddress = new Uri(appConfig.BaseUrl);
             }
         }
 
-        private async void GetDocumentsReceived(MessageBase message)
-        {
-            if (message is GetDocumentsRequest)
-            {
-                await LoadDocumentsAsync();
-            }
-        }
+        _messageService.Subscribe<GenerateTitleRequest>(this, GenerateTitleReceived);
+        _messageService.Subscribe<GetAvailableModelsRequest>(this, GetAvailableModelsReceived);
+        _messageService.Subscribe<GetConversationsRequest>(this, GetConversationsReceived);
+        _messageService.Subscribe<GetConversationRequest>(this, GetConversationReceived);
+        _messageService.Subscribe<RefreshConversationRequest>(this, RefreshConversationReceived);
+        _messageService.Subscribe<UpdateConversationTitleRequest>(this, UpdateConversationTitleReceived);
+        _messageService.Subscribe<UpdateConversationTopicRequest>(this, UpdateConversationTopicReceived);
+        _messageService.SubscribeAsync<CreateConversationsRequest>(this, CreateConversationsReceived);
+        _messageService.Subscribe<DeleteConversationRequest>(this, DeleteConversationReceived);
+        _messageService.Subscribe<UpdateSelectedModelRequest>(this, UpdateSelectedModelReceived);
+        _messageService.Subscribe<GetSelectedModelRequest>(this, GetSelectedModelReceived);
+        _messageService.Subscribe<GetDocumentsRequest>(this, GetDocumentsReceived);
+        _messageService.Subscribe<GetTopicsRequest>(this, GetTopicsReceived);
+        _messageService.Subscribe<CreateTopicRequest>(this, CreateTopicReceived);
+        _messageService.Subscribe<UpdateTopicRequest>(this, UpdateTopicReceived);
+        _messageService.Subscribe<DeleteTopicRequest>(this, DeleteTopicReceived);
+        _messageService.Subscribe<AddDocumentRequest>(this, AddDocumentReceived);
+        _messageService.Subscribe<UpdateDocumentRequest>(this, UpdateDocumentReceived);
+        _messageService.Subscribe<DeleteDocumentRequest>(this, DeleteDocumentReceived);
+        _messageService.Subscribe<UpdateChunkingSettingsRequest>(this, UpdateChunkingSettingsReceived);
+        _messageService.Subscribe<GetModelContextWindowsRequest>(this, GetModelContextWindowsReceived);
+        _messageService.Subscribe<UpdateModelContextWindowRequest>(this, UpdateModelContextWindowReceived);
+        _messageService.Subscribe<UpdateApiUrlRequest>(this, UpdateApiUrlReceived);
+        _messageService.Subscribe<CreateRepositoryRequest>(this, CreateRepositoryReceived);
+        _messageService.Subscribe<UpdateRepositoryRequest>(this, UpdateRepositoryReceived);
+        _messageService.Subscribe<DeleteRepositoryRequest>(this, DeleteRepositoryReceived);
+        _messageService.Subscribe<CreateToolRequest>(this, CreateToolReceived);
+        _messageService.Subscribe<UpdateToolRequest>(this, UpdateToolReceived);
+        _messageService.Subscribe<DeleteToolRequest>(this, DeleteToolReceived);
+        _messageService.SubscribeAsync<GetToolsRequest>(this, GetToolsReceived);
+        _messageService.Subscribe<SaveDocumentationRequest>(this, SaveDocumentationReceived);
+        _messageService.Subscribe<SendPromptRequest>(this, SendPromptReceived);
+        _messageService.Subscribe<ToolExecutionCompletedRequest>(this, ToolExecutionCompletedReceived);
+        _messageService.Subscribe<ToolExecutionOutputIntermediateEvent>(this, ToolExecutionOutputIntermediateEventReceived);
+        _messageService.Subscribe<GetAvailableProvidersRequest>(this, GetAvailableProvidersReceived);
+        _messageService.Subscribe<UpdateSelectedProviderRequest>(this, UpdateSelectedProviderReceived);
+        _messageService.Subscribe<UpdateConversationModelSelectionRequest>(this, UpdateConversationModelSelectionReceived);
+        _messageService.Subscribe<SaveRetrievalConfigRequest>(this, SaveRetrievalConfigReceived);
+        _messageService.Subscribe<GetEmbeddingsModelsRequest>(this, GetEmbeddingsModelsReceived);
 
-        private async Task LoadDocumentsAsync()
+        _messageService.SubscribeAsync<GetRepositoriesRequest>(this, GetRepositoriesReceived);
+    }
+
+    private async void GetEmbeddingsModelsReceived(MessageBase message)
+    {
+        if (message is GetEmbeddingsModelsRequest)
         {
             try
             {
-                var documents = await _httpClient.GetFromJsonAsync<List<Domain.Documents.Document>>("api/documents", _cancellationToken);
-                _messageService.Publish(new DocumentsUpdatedEvent(documents ?? Enumerable.Empty<Domain.Documents.Document>()));
+                var embeddingsModels = await _httpClient.GetFromJsonAsync<List<string>>($"api/models/embeddings", _cancellationToken);
+                var chunkingSettings = await _httpClient.GetFromJsonAsync<ChunkingSettingsDto>($"api/configuration/chunking-settings", _cancellationToken);
+                _messageService.Publish(new EmbeddingsLoadedEvent(embeddingsModels?.ToArray() ?? Array.Empty<string>(), chunkingSettings?.ChunkTargetSizeChars ?? 0, chunkingSettings?.ChunkOverlapChars ?? 0));
             }
             catch (Exception ex)
             {
-                _messageService.Publish(new UserMessage("Error", $"Error fetching documents: {ex.Message}", MessageType.Error));
+                _messageService.Publish(new UserMessage("Error", $"Error fetching embeddings models: {ex.Message}", MessageType.Error));
             }
         }
+    }
 
-        private async void GetTopicsReceived(MessageBase message)
+    private void SaveRetrievalConfigReceived(MessageBase message)
+    {
+        if (message is SaveRetrievalConfigRequest request)
         {
-            if (message is GetTopicsRequest)
+            try
             {
+                var relativeUrl = $"api/documents/{request.ModelName}/retrieval-config";
+                using var httpRequest = new HttpRequestMessage(HttpMethod.Put, relativeUrl);
+                httpRequest.Content = new StringContent(JsonSerializer.Serialize(new { request.ModelName, request.ChunkSize, request.ChunkOverlap }), Encoding.UTF8, "application/json");
+                using var response = _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, _cancellationToken).Result;
+                if (!response.IsSuccessStatusCode)
+                {
+                    var responseBody = response.Content.ReadAsStringAsync(_cancellationToken).Result;
+                    throw new HttpRequestException($"PUT {relativeUrl} returned " + $"{(int)response.StatusCode} {response.ReasonPhrase}. " + $"Response: {responseBody}");
+                }
+            }
+            catch (OperationCanceledException) when (_cancellationToken.IsCancellationRequested)
+            {
+                // Application is closing.
+            }
+            catch (Exception ex)
+            {
+                _messageService.Publish(new UserMessage("Error", $"Error saving retrieval config: {ex.Message}", MessageType.Error));
+            }
+        }
+    }
+
+    private async void UpdateConversationModelSelectionReceived(MessageBase message)
+    {
+        if (message is UpdateConversationModelSelectionRequest request)
+        {
+            try
+            {
+                var dto = new UpdateConversationModelSelectionDto
+                {
+                    SelectedProvider = request.SelectedProvider,
+                    SelectedModel = request.SelectedModel
+                };
+
+                var relativeUrl = $"api/conversations/{request.ConversationId}/model-selection";
+                using var httpRequest = new HttpRequestMessage(HttpMethod.Put, relativeUrl);
+                httpRequest.Content = new StringContent(JsonSerializer.Serialize(dto), Encoding.UTF8, "application/json");
+                using var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, _cancellationToken);
+                if (!response.IsSuccessStatusCode)
+                {
+                    var responseBody = await response.Content.ReadAsStringAsync(_cancellationToken);
+                    throw new HttpRequestException($"PUT {relativeUrl} returned " + $"{(int)response.StatusCode} {response.ReasonPhrase}. " + $"Response: {responseBody}");
+                }
+            }
+            catch (OperationCanceledException) when (_cancellationToken.IsCancellationRequested)
+            {
+                // Application is closing.
+            }
+            catch (Exception ex)
+            {
+                _messageService.Publish(new UserMessage("Error", $"Error saving conversation model selection: {ex.Message}", MessageType.Error));
+            }
+        }
+    }
+
+    private async void UpdateSelectedProviderReceived(MessageBase message)
+    {
+        if (message is UpdateSelectedProviderRequest request)
+        {
+
+            try
+            {
+                var dto = new UpdateSelectedProviderDto
+                {
+                    SelectedProvider = request.SelectedProvider
+                };
+
+                using var httpRequest = new HttpRequestMessage(HttpMethod.Put, "api/configuration/selected-provider");
+                httpRequest.Content = new StringContent(JsonSerializer.Serialize(dto), Encoding.UTF8, "application/json");
+                using var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, _cancellationToken);
+                response.EnsureSuccessStatusCode();
+            }
+            catch (OperationCanceledException) when (_cancellationToken.IsCancellationRequested)
+            {
+                // Application is closing.
+            }
+            catch (Exception ex)
+            {
+                _messageService.Publish(new UserMessage("Error", $"Error saving selected provider: {ex.Message}", MessageType.Error));
+            }
+        }
+    }
+
+    private async void GetAvailableProvidersReceived(MessageBase message)
+    {
+        if (message is GetAvailableProvidersRequest)
+        {
+            try
+            {
+                using var response = await _httpClient.GetAsync("api/models/providers", _cancellationToken);
+                response.EnsureSuccessStatusCode();
+                var providers = await response.Content.ReadFromJsonAsync<List<string>>(cancellationToken: _cancellationToken) ?? new List<string>();
+                _messageService.Publish(new AvailableProvidersUpdatedEvent(providers));
+            }
+            catch (OperationCanceledException) when (_cancellationToken.IsCancellationRequested)
+            {
+                // Application is closing.
+            }
+            catch (Exception ex)
+            {
+                _messageService.Publish(new UserMessage("Error", $"Error loading model providers: {ex.Message}", MessageType.Error));
+            }
+        }
+    }
+
+    private async void ToolExecutionOutputIntermediateEventReceived(MessageBase message)
+    {
+        if (message is ToolExecutionOutputIntermediateEvent request)
+        {
+            var response = await _httpClient.PostAsJsonAsync($"api/chat/tool-calls/{request.ToolId}/intermediate", new { });
+            if (!response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync();
+            }
+        }
+    }
+
+    private async void ToolExecutionCompletedReceived(MessageBase message)
+    {
+        if (message is ToolExecutionCompletedRequest request)
+        {
+            var response = await _httpClient.PostAsJsonAsync($"api/chat/tool-calls/{request.ToolId}/result", request.Result);
+            if (!response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync();
+            }
+        }
+    }
+
+    private void UpdateApiUrlReceived(MessageBase message)
+    {
+        if (message is UpdateApiUrlRequest request)
+        {
+            _httpClient = new HttpClient();
+            _httpClient.BaseAddress = new Uri(request.Url);
+            File.WriteAllText($"Settings.json", JsonSerializer.Serialize(new ApplicationConfiguration()
+            {
+                BaseUrl = request.Url
+            }));
+
+            _messageService.Publish(new UserMessage("Info", $"API URL updated to: {request.Url}", MessageType.ShortInfo));
+        }
+    }
+
+    private async void GetDocumentsReceived(MessageBase message)
+    {
+        if (message is GetDocumentsRequest)
+        {
+            await LoadDocumentsAsync();
+        }
+    }
+
+    private async Task LoadDocumentsAsync()
+    {
+        try
+        {
+            var documents = await _httpClient.GetFromJsonAsync<List<Domain.Documents.Document>>("api/documents", _cancellationToken);
+            _messageService.Publish(new DocumentsUpdatedEvent(documents ?? Enumerable.Empty<Domain.Documents.Document>()));
+        }
+        catch (Exception ex)
+        {
+            _messageService.Publish(new UserMessage("Error", $"Error fetching documents: {ex.Message}", MessageType.Error));
+        }
+    }
+
+    private async void GetTopicsReceived(MessageBase message)
+    {
+        if (message is GetTopicsRequest)
+        {
+            await LoadTopicsAsync();
+        }
+    }
+
+    private async Task LoadTopicsAsync()
+    {
+        try
+        {
+            var topics = await _httpClient.GetFromJsonAsync<List<Topic>>("api/topics", _cancellationToken);
+            _messageService.Publish(new TopicsUpdatedEvent(topics ?? Enumerable.Empty<Topic>()));
+        }
+        catch (Exception ex)
+        {
+            _messageService.Publish(new UserMessage("Error", $"Error fetching topics: {ex.Message}", MessageType.Error));
+        }
+    }
+
+    private async void CreateTopicReceived(MessageBase message)
+    {
+        if (message is CreateTopicRequest request)
+        {
+            try
+            {
+                var dto = new TopicRequestDto { Name = request.Name };
+                var response = await _httpClient.PostAsJsonAsync("api/topics", dto, _cancellationToken);
+                if (!response.IsSuccessStatusCode)
+                {
+                    var error = await response.Content.ReadAsStringAsync(_cancellationToken);
+                    _messageService.Publish(new UserMessage("Add Topic Failed", error, MessageType.Error));
+                    return;
+                }
+
                 await LoadTopicsAsync();
             }
+            catch (Exception ex)
+            {
+                _messageService.Publish(new UserMessage("Add Topic Failed", $"Error creating topic: {ex.Message}", MessageType.Error));
+            }
         }
+    }
 
-        private async Task LoadTopicsAsync()
+    private async void UpdateTopicReceived(MessageBase message)
+    {
+        if (message is UpdateTopicRequest request)
         {
             try
             {
-                var topics = await _httpClient.GetFromJsonAsync<List<Topic>>("api/topics", _cancellationToken);
-                _messageService.Publish(new TopicsUpdatedEvent(topics ?? Enumerable.Empty<Topic>()));
+                var dto = new TopicRequestDto { Name = request.Name, ParentId = request.ParentId };
+                var response = await _httpClient.PutAsJsonAsync($"api/topics/{request.TopicId}", dto, _cancellationToken);
+                if (!response.IsSuccessStatusCode)
+                {
+                    var error = await response.Content.ReadAsStringAsync(_cancellationToken);
+                    _messageService.Publish(new UserMessage("Update Topic Failed", error, MessageType.Error));
+                    return;
+                }
+
+                await LoadTopicsAsync();
             }
             catch (Exception ex)
             {
-                _messageService.Publish(new UserMessage("Error", $"Error fetching topics: {ex.Message}", MessageType.Error));
+                _messageService.Publish(new UserMessage("Update Topic Failed", $"Error updating topic: {ex.Message}", MessageType.Error));
             }
         }
+    }
 
-        private async void CreateTopicReceived(MessageBase message)
+    private async void DeleteTopicReceived(MessageBase message)
+    {
+        if (message is DeleteTopicRequest request)
         {
-            if (message is CreateTopicRequest request)
+            try
             {
-                try
+                var response = await _httpClient.DeleteAsync($"api/topics/{request.TopicId}", _cancellationToken);
+                if (!response.IsSuccessStatusCode)
                 {
-                    var dto = new TopicRequestDto { Name = request.Name };
-                    var response = await _httpClient.PostAsJsonAsync("api/topics", dto, _cancellationToken);
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        var error = await response.Content.ReadAsStringAsync(_cancellationToken);
-                        _messageService.Publish(new UserMessage("Add Topic Failed", error, MessageType.Error));
-                        return;
-                    }
+                    var error = await response.Content.ReadAsStringAsync(_cancellationToken);
+                    _messageService.Publish(new UserMessage("Delete Topic Failed", error, MessageType.Error));
+                    return;
+                }
 
-                    await LoadTopicsAsync();
-                }
-                catch (Exception ex)
-                {
-                    _messageService.Publish(new UserMessage("Add Topic Failed", $"Error creating topic: {ex.Message}", MessageType.Error));
-                }
+                await LoadTopicsAsync();
+            }
+            catch (Exception ex)
+            {
+                _messageService.Publish(new UserMessage("Delete Topic Failed", $"Error deleting topic: {ex.Message}", MessageType.Error));
             }
         }
+    }
 
-        private async void UpdateTopicReceived(MessageBase message)
+    private async void AddDocumentReceived(MessageBase message)
+    {
+        if (message is AddDocumentRequest request)
         {
-            if (message is UpdateTopicRequest request)
+            try
             {
-                try
+                var dto = new IngestTextRequestDto
                 {
-                    var dto = new TopicRequestDto { Name = request.Name, ParentId = request.ParentId };
-                    var response = await _httpClient.PutAsJsonAsync($"api/topics/{request.TopicId}", dto, _cancellationToken);
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        var error = await response.Content.ReadAsStringAsync(_cancellationToken);
-                        _messageService.Publish(new UserMessage("Update Topic Failed", error, MessageType.Error));
-                        return;
-                    }
+                    Title = request.Title,
+                    Text = request.Text,
+                    DocumentType = request.DocumentType,
+                    Topics = request.Topics.ToList()
+                };
 
-                    await LoadTopicsAsync();
-                }
-                catch (Exception ex)
+                using var response = await _httpClient.PostAsync("api/documents", new StringContent(JsonSerializer.Serialize(dto), Encoding.UTF8, "application/json"), _cancellationToken);
+                if (!response.IsSuccessStatusCode)
                 {
-                    _messageService.Publish(new UserMessage("Update Topic Failed", $"Error updating topic: {ex.Message}", MessageType.Error));
+                    var error = await response.Content.ReadAsStringAsync(_cancellationToken);
+                    _messageService.Publish(new UserMessage("Add Document Failed", error, MessageType.Error));
+                    return;
                 }
+
+                var result = await response.Content.ReadFromJsonAsync<AddDocumentResultDto>(_cancellationToken);
+                _messageService.Publish(new DocumentAddedEvent(result?.DocumentId ?? 0, result?.ChunksCount ?? 0));
+                await LoadDocumentsAsync();
+            }
+            catch (Exception ex)
+            {
+                _messageService.Publish(new UserMessage("Add Document Failed", ex.Message, MessageType.Error));
             }
         }
+    }
 
-        private async void DeleteTopicReceived(MessageBase message)
+    private async void UpdateDocumentReceived(MessageBase message)
+    {
+        if (message is UpdateDocumentRequest request)
         {
-            if (message is DeleteTopicRequest request)
+            try
             {
-                try
+                var dto = new IngestTextRequestDto
                 {
-                    var response = await _httpClient.DeleteAsync($"api/topics/{request.TopicId}", _cancellationToken);
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        var error = await response.Content.ReadAsStringAsync(_cancellationToken);
-                        _messageService.Publish(new UserMessage("Delete Topic Failed", error, MessageType.Error));
-                        return;
-                    }
+                    Title = request.Title,
+                    Text = request.Text,
+                    DocumentType = request.DocumentType,
+                    Topics = request.Topics.ToList()
+                };
 
-                    await LoadTopicsAsync();
-                }
-                catch (Exception ex)
+                using var response = await _httpClient.PutAsync($"api/documents/{request.DocumentId}",
+                    new StringContent(JsonSerializer.Serialize(dto), Encoding.UTF8, "application/json"),
+                    _cancellationToken);
+
+                if (!response.IsSuccessStatusCode)
                 {
-                    _messageService.Publish(new UserMessage("Delete Topic Failed", $"Error deleting topic: {ex.Message}", MessageType.Error));
+                    var error = await response.Content.ReadAsStringAsync(_cancellationToken);
+                    _messageService.Publish(new UserMessage("Update Document Failed", error, MessageType.Error));
+                    return;
                 }
+
+                _messageService.Publish(new DocumentUpdatedEvent(request.DocumentId));
+                await LoadDocumentsAsync();
+            }
+            catch (Exception ex)
+            {
+                _messageService.Publish(new UserMessage("Update Document Failed", ex.Message, MessageType.Error));
             }
         }
+    }
 
-        private async void AddDocumentReceived(MessageBase message)
+    private async void DeleteDocumentReceived(MessageBase message)
+    {
+        if (message is DeleteDocumentRequest request)
         {
-            if (message is AddDocumentRequest request)
+            try
             {
-                try
-                {
-                    var dto = new IngestTextRequestDto
-                    {
-                        Title = request.Title,
-                        Text = request.Text,
-                        DocumentType = request.DocumentType,
-                        Topics = request.Topics.ToList()
-                    };
-
-                    using var response = await _httpClient.PostAsync("api/documents", new StringContent(JsonSerializer.Serialize(dto), Encoding.UTF8, "application/json"), _cancellationToken);
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        var error = await response.Content.ReadAsStringAsync(_cancellationToken);
-                        _messageService.Publish(new UserMessage("Add Document Failed", error, MessageType.Error));
-                        return;
-                    }
-
-                    var result = await response.Content.ReadFromJsonAsync<AddDocumentResultDto>(_cancellationToken);
-                    _messageService.Publish(new DocumentAddedEvent(result?.DocumentId ?? 0, result?.ChunksCount ?? 0));
-                    await LoadDocumentsAsync();
-                }
-                catch (Exception ex)
-                {
-                    _messageService.Publish(new UserMessage("Add Document Failed", ex.Message, MessageType.Error));
-                }
-            }
-        }
-
-        private async void UpdateDocumentReceived(MessageBase message)
-        {
-            if (message is UpdateDocumentRequest request)
-            {
-                try
-                {
-                    var dto = new IngestTextRequestDto
-                    {
-                        Title = request.Title,
-                        Text = request.Text,
-                        DocumentType = request.DocumentType,
-                        Topics = request.Topics.ToList()
-                    };
-
-                    using var response = await _httpClient.PutAsync($"api/documents/{request.DocumentId}",
-                        new StringContent(JsonSerializer.Serialize(dto), Encoding.UTF8, "application/json"),
-                        _cancellationToken);
-
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        var error = await response.Content.ReadAsStringAsync(_cancellationToken);
-                        _messageService.Publish(new UserMessage("Update Document Failed", error, MessageType.Error));
-                        return;
-                    }
-
-                    _messageService.Publish(new DocumentUpdatedEvent(request.DocumentId));
-                    await LoadDocumentsAsync();
-                }
-                catch (Exception ex)
-                {
-                    _messageService.Publish(new UserMessage("Update Document Failed", ex.Message, MessageType.Error));
-                }
-            }
-        }
-
-        private async void DeleteDocumentReceived(MessageBase message)
-        {
-            if (message is DeleteDocumentRequest request)
-            {
-                try
-                {
-                    using var response = await _httpClient.DeleteAsync($"api/documents/{request.DocumentId}", _cancellationToken);
-                    response.EnsureSuccessStatusCode();
-                    _messageService.Publish(new DocumentDeletedEvent(request.DocumentId));
-                }
-                catch (Exception ex)
-                {
-                    _messageService.Publish(new UserMessage("Delete Document Failed", ex.Message, MessageType.Error));
-                }
-            }
-        }
-
-        private async void UpdateChunkingSettingsReceived(MessageBase message)
-        {
-            if (message is UpdateChunkingSettingsRequest request)
-            {
-                try
-                {
-                    var dto = new ChunkingSettingsDto
-                    {
-                        ChunkTargetSizeChars = request.ChunkTargetSizeChars,
-                        ChunkOverlapChars = request.ChunkOverlapChars
-                    };
-
-                    using var response = await _httpClient.PutAsync(
-                        "api/configuration/chunking-settings",
-                        new StringContent(JsonSerializer.Serialize(dto), Encoding.UTF8, "application/json"),
-                        _cancellationToken);
-
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        var error = await response.Content.ReadAsStringAsync(_cancellationToken);
-                        _messageService.Publish(new UserMessage("Save Chunking Settings Failed", error, MessageType.Error));
-                        return;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _messageService.Publish(new UserMessage("Save Chunking Settings Failed", ex.Message, MessageType.Error));
-                }
-            }
-        }
-
-        private async void GetModelContextWindowsReceived(MessageBase message)
-        {
-            if (message is GetModelContextWindowsRequest request)
-            {
-                try
-                {
-                    var dtos = await _httpClient.GetFromJsonAsync<List<ModelContextWindowDto>>($"api/models/context-windows?provider={request.Provider}", _cancellationToken);
-                    var models = (dtos ?? new List<ModelContextWindowDto>())
-                        .Select(d => new ModelContextWindowInfo(d.Id, d.Name, d.Size, d.ContextLength, d.Family, d.QuantizationLevel, d.ParameterSize, d.InternalUseOnly, d.CanCallTools, d.IsFavorite))
-                        .ToList();
-
-                    _messageService.Publish(new ModelContextWindowsUpdatedEvent(models));
-                }
-                catch (Exception ex)
-                {
-                    _messageService.Publish(new UserMessage("Error", $"Error fetching model context windows: {ex.Message}", MessageType.Error));
-                }
-            }
-        }
-
-        private async void UpdateModelContextWindowReceived(MessageBase message)
-        {
-            if (message is UpdateModelContextWindowRequest request)
-            {
-                try
-                {
-                    var dto = new UpdateModelContextWindowDto
-                    {
-                        InternalUseOnly = request.InternalUseOnly,
-                        CanCallTools = request.CanCallTools,
-                        IsFavorite = request.IsFavorite
-                    };
-
-                    using var response = await _httpClient.PutAsJsonAsync($"api/models/{request.Id}/context-window", dto, _cancellationToken);
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        var error = await ReadErrorMessageAsync(response);
-                        _messageService.Publish(new ModelContextWindowSaveResultEvent(request.Id, false, error));
-                        return;
-                    }
-
-                    _messageService.Publish(new ModelContextWindowSaveResultEvent(request.Id, true, null));
-                }
-                catch (Exception ex)
-                {
-                    _messageService.Publish(new ModelContextWindowSaveResultEvent(request.Id, false, ex.Message));
-                }
-            }
-        }
-
-        private async void GetSelectedModelReceived(MessageBase message)
-        {
-            if (message is GetSelectedModelRequest)
-            {
-                try
-                {
-                    var dto = await _httpClient.GetFromJsonAsync<SelectedModelDto>("api/configuration/selected-model", _cancellationToken);
-                    _messageService.Publish(new SelectedModelUpdatedEvent(dto?.SelectedModel));
-                }
-                catch (Exception ex)
-                {
-                    _messageService.Publish(new UserMessage("Error", $"Error fetching selected model: {ex.Message}", MessageType.Error));
-                }
-            }
-        }
-
-        private async void UpdateSelectedModelReceived(MessageBase message)
-        {
-            if (message is UpdateSelectedModelRequest request)
-            {
-                try
-                {
-                    var httpRequest = new HttpRequestMessage(HttpMethod.Put, "api/configuration/selected-model");
-                    var dto = new UpdateSelectedModelDto { SelectedModel = request.SelectedModel };
-                    httpRequest.Content = new StringContent(JsonSerializer.Serialize(dto), Encoding.UTF8, "application/json");
-
-                    using var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, _cancellationToken);
-                    response.EnsureSuccessStatusCode();
-                }
-                catch (Exception ex)
-                {
-                    _messageService.Publish(new UserMessage("Error", $"Error saving selected model: {ex.Message}", MessageType.Error));
-                }
-            }
-        }
-
-        private async void DeleteConversationReceived(MessageBase message)
-        {
-            if (message is DeleteConversationRequest request)
-            {
-                var httpRequest = new HttpRequestMessage(HttpMethod.Delete, $"api/conversations/{request.ConversationId}");
-                var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, _cancellationToken);
+                using var response = await _httpClient.DeleteAsync($"api/documents/{request.DocumentId}", _cancellationToken);
                 response.EnsureSuccessStatusCode();
-                var deletedConversationId = request.ConversationId;
-                if (deletedConversationId != Guid.Empty)
-                {
-                    _messageService.Publish(new ConversationDeletedEvent(deletedConversationId));
-                }
+                _messageService.Publish(new DocumentDeletedEvent(request.DocumentId));
+            }
+            catch (Exception ex)
+            {
+                _messageService.Publish(new UserMessage("Delete Document Failed", ex.Message, MessageType.Error));
             }
         }
+    }
 
-        private async void UpdateConversationTitleReceived(MessageBase message)
+    private async void UpdateChunkingSettingsReceived(MessageBase message)
+    {
+        if (message is UpdateChunkingSettingsRequest request)
         {
-            if (message is UpdateConversationTitleRequest request)
+            try
             {
-                var httpRequest = new HttpRequestMessage(HttpMethod.Patch, $"api/conversations/{request.ConversationId}/title?newTitle={Uri.EscapeDataString(request.NewTitle)}");
+                var dto = new ChunkingSettingsDto
+                {
+                    EmbeddingModelName = request.EmbeddingModelName,
+                    ChunkTargetSizeChars = request.ChunkTargetSizeChars,
+                    ChunkOverlapChars = request.ChunkOverlapChars
+                };
+
+                using var response = await _httpClient.PutAsync("api/configuration/chunking-settings", new StringContent(JsonSerializer.Serialize(dto), Encoding.UTF8, "application/json"), _cancellationToken);
+                if (!response.IsSuccessStatusCode)
+                {
+                    var error = await response.Content.ReadAsStringAsync(_cancellationToken);
+                    _messageService.Publish(new UserMessage("Save Chunking Settings Failed", error, MessageType.Error));
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                _messageService.Publish(new UserMessage("Save Chunking Settings Failed", ex.Message, MessageType.Error));
+            }
+        }
+    }
+
+    private async void GetModelContextWindowsReceived(MessageBase message)
+    {
+        if (message is GetModelContextWindowsRequest request)
+        {
+            try
+            {
+                var dtos = await _httpClient.GetFromJsonAsync<List<ModelContextWindowDto>>($"api/models/context-windows?provider={request.Provider}", _cancellationToken);
+                var models = (dtos ?? new List<ModelContextWindowDto>())
+                    .Select(d => new ModelContextWindowInfo(d.Id, d.Name, d.Size, d.ContextLength, d.Family, d.QuantizationLevel, d.ParameterSize, d.InternalUseOnly, d.CanCallTools, d.IsFavorite))
+                    .ToList();
+
+                _messageService.Publish(new ModelContextWindowsUpdatedEvent(models));
+            }
+            catch (Exception ex)
+            {
+                _messageService.Publish(new UserMessage("Error", $"Error fetching model context windows: {ex.Message}", MessageType.Error));
+            }
+        }
+    }
+
+    private async void UpdateModelContextWindowReceived(MessageBase message)
+    {
+        if (message is UpdateModelContextWindowRequest request)
+        {
+            try
+            {
+                var dto = new UpdateModelContextWindowDto
+                {
+                    InternalUseOnly = request.InternalUseOnly,
+                    CanCallTools = request.CanCallTools,
+                    IsFavorite = request.IsFavorite
+                };
+
+                using var response = await _httpClient.PutAsJsonAsync($"api/models/{request.Id}/context-window", dto, _cancellationToken);
+                if (!response.IsSuccessStatusCode)
+                {
+                    var error = await ReadErrorMessageAsync(response);
+                    _messageService.Publish(new ModelContextWindowSaveResultEvent(request.Id, false, error));
+                    return;
+                }
+
+                _messageService.Publish(new ModelContextWindowSaveResultEvent(request.Id, true, null));
+            }
+            catch (Exception ex)
+            {
+                _messageService.Publish(new ModelContextWindowSaveResultEvent(request.Id, false, ex.Message));
+            }
+        }
+    }
+
+    private async void GetSelectedModelReceived(MessageBase message)
+    {
+        if (message is GetSelectedModelRequest)
+        {
+            try
+            {
+                var dto = await _httpClient.GetFromJsonAsync<SelectedModelDto>("api/configuration/selected-model", _cancellationToken);
+                _messageService.Publish(new SelectedModelUpdatedEvent(dto?.SelectedModel));
+            }
+            catch (Exception ex)
+            {
+                _messageService.Publish(new UserMessage("Error", $"Error fetching selected model: {ex.Message}", MessageType.Error));
+            }
+        }
+    }
+
+    private async void UpdateSelectedModelReceived(MessageBase message)
+    {
+        if (message is UpdateSelectedModelRequest request)
+        {
+            try
+            {
+                var httpRequest = new HttpRequestMessage(HttpMethod.Put, "api/configuration/selected-model");
+                var dto = new UpdateSelectedModelDto { SelectedModel = request.SelectedModel };
+                httpRequest.Content = new StringContent(JsonSerializer.Serialize(dto), Encoding.UTF8, "application/json");
+
+                using var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, _cancellationToken);
+                response.EnsureSuccessStatusCode();
+            }
+            catch (Exception ex)
+            {
+                _messageService.Publish(new UserMessage("Error", $"Error saving selected model: {ex.Message}", MessageType.Error));
+            }
+        }
+    }
+
+    private async void DeleteConversationReceived(MessageBase message)
+    {
+        if (message is DeleteConversationRequest request)
+        {
+            var httpRequest = new HttpRequestMessage(HttpMethod.Delete, $"api/conversations/{request.ConversationId}");
+            var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, _cancellationToken);
+            response.EnsureSuccessStatusCode();
+            var deletedConversationId = request.ConversationId;
+            if (deletedConversationId != Guid.Empty)
+            {
+                _messageService.Publish(new ConversationDeletedEvent(deletedConversationId));
+            }
+        }
+    }
+
+    private async void UpdateConversationTitleReceived(MessageBase message)
+    {
+        if (message is UpdateConversationTitleRequest request)
+        {
+            var httpRequest = new HttpRequestMessage(HttpMethod.Patch, $"api/conversations/{request.ConversationId}/title?newTitle={Uri.EscapeDataString(request.NewTitle)}");
+            var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, _cancellationToken);
+            response.EnsureSuccessStatusCode();
+
+            var conversation = await response.Content.ReadFromJsonAsync<ConversationDto>(_cancellationToken);
+            if (conversation != null)
+            {
+                _messageService.Publish(new ConversationUpdatedEvent(new Conversation
+                {
+                    Id = conversation.Id,
+                    Title = conversation.Title,
+                    Provider = ModelProviderNames.Unknown
+                }));
+            }
+        }
+    }
+
+    private async void UpdateConversationTopicReceived(MessageBase message)
+    {
+        if (message is UpdateConversationTopicRequest request)
+        {
+            var query = request.TopicId.HasValue ? $"?topicId={request.TopicId}" : string.Empty;
+            var httpRequest = new HttpRequestMessage(HttpMethod.Patch, $"api/conversations/{request.ConversationId}/topic{query}");
+            try
+            {
                 var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, _cancellationToken);
                 response.EnsureSuccessStatusCode();
 
@@ -633,563 +636,538 @@ namespace KnowledgeAssistant.Wpf.Services
                     {
                         Id = conversation.Id,
                         Title = conversation.Title,
+                        TopicId = conversation.TopicId,
+                        Topic = conversation.Topic,
                         Provider = ModelProviderNames.Unknown
                     }));
                 }
             }
-        }
-
-        private async void UpdateConversationTopicReceived(MessageBase message)
-        {
-            if (message is UpdateConversationTopicRequest request)
+            catch (Exception ex)
             {
-                var query = request.TopicId.HasValue ? $"?topicId={request.TopicId}" : string.Empty;
-                var httpRequest = new HttpRequestMessage(HttpMethod.Patch, $"api/conversations/{request.ConversationId}/topic{query}");
-                try
-                {
-                    var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, _cancellationToken);
-                    response.EnsureSuccessStatusCode();
-
-                    var conversation = await response.Content.ReadFromJsonAsync<ConversationDto>(_cancellationToken);
-                    if (conversation != null)
-                    {
-                        _messageService.Publish(new ConversationUpdatedEvent(new Conversation
-                        {
-                            Id = conversation.Id,
-                            Title = conversation.Title,
-                            TopicId = conversation.TopicId,
-                            Topic = conversation.Topic,
-                            Provider = ModelProviderNames.Unknown
-                        }));
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _messageService.Publish(new UserMessage("Error", $"Error setting the conversation topic: {ex.Message}", MessageType.Error));
-                }
+                _messageService.Publish(new UserMessage("Error", $"Error setting the conversation topic: {ex.Message}", MessageType.Error));
             }
         }
+    }
 
-        private async void GetConversationReceived(MessageBase message)
+    private async void GetConversationReceived(MessageBase message)
+    {
+        if (message is GetConversationRequest request)
         {
-            if (message is GetConversationRequest request)
+            try
             {
-                try
+                var conversation = await _httpClient.GetFromJsonAsync<ConversationDto>($"api/conversations/{request.ConversationId}", _cancellationToken);
+                if (conversation != null)
                 {
-                    var conversation = await _httpClient.GetFromJsonAsync<ConversationDto>($"api/conversations/{request.ConversationId}", _cancellationToken);
-                    if (conversation != null)
-                    {
-                        _messageService.Publish(new ConversationLoadedEvent(conversation));
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _messageService.Publish(new UserMessage("Error", $"Error fetching conversation: {ex.Message}", MessageType.Information));
+                    _messageService.Publish(new ConversationLoadedEvent(conversation));
                 }
             }
-        }
-
-        private async void RefreshConversationReceived(MessageBase message)
-        {
-            if (message is RefreshConversationRequest request)
+            catch (Exception ex)
             {
-                try
-                {
-                    var conversation = await _httpClient.GetFromJsonAsync<ConversationDto>($"api/conversations/{request.ConversationId}", _cancellationToken);
-                    if (conversation != null)
-                    {
-                        _messageService.Publish(new ConversationUpdatedEvent(new Conversation
-                        {
-                            Id = conversation.Id,
-                            Title = conversation.Title,
-                            TopicId = conversation.TopicId,
-                            Topic = conversation.Topic,
-                            Provider = ModelProviderNames.Unknown
-                        }));
-                    }
-                }
-                catch
-                {
-                    // Best-effort refresh; ignore failures so the chat flow is not disrupted.
-                }
+                _messageService.Publish(new UserMessage("Error", $"Error fetching conversation: {ex.Message}", MessageType.Information));
             }
         }
+    }
 
-        private async void GetConversationsReceived(MessageBase message)
+    private async void RefreshConversationReceived(MessageBase message)
+    {
+        if (message is RefreshConversationRequest request)
         {
-            if (message is GetConversationsRequest)
+            try
             {
-                try
+                var conversation = await _httpClient.GetFromJsonAsync<ConversationDto>($"api/conversations/{request.ConversationId}", _cancellationToken);
+                if (conversation != null)
                 {
-                    var conversations = await _httpClient.GetFromJsonAsync<List<ConversationDto>>("api/conversations", _cancellationToken);
-                    _messageService.Publish(new ConversationsUpdatedEvent(conversations?.Select(c => new Conversation
+                    _messageService.Publish(new ConversationUpdatedEvent(new Conversation
                     {
-                        Id = c.Id,
-                        Title = c.Title,
-                        TopicId = c.TopicId,
-                        Topic = c.Topic,
+                        Id = conversation.Id,
+                        Title = conversation.Title,
+                        TopicId = conversation.TopicId,
+                        Topic = conversation.Topic,
                         Provider = ModelProviderNames.Unknown
-                    }) ?? Enumerable.Empty<Conversation>()));
-                }
-                catch (Exception ex)
-                {
-                    _messageService.Publish(new UserMessage("Error", $"Error fetching conversations: {ex.Message}", MessageType.Information));
+                    }));
                 }
             }
-        }
-
-        private async Task<MessageBase> CreateConversationsReceived(MessageBase message)
-        {
-            if (message is CreateConversationsRequest request)
+            catch
             {
-                try
-                {
-                    var payload = new CreateConversationDto
-                    {
-                        Provider = request.Provider,
-                        Model = request.Model
-                    };
-
-                    var response = await _httpClient.PostAsync("api/conversations", new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json"), _cancellationToken);
-                    response.EnsureSuccessStatusCode();
-
-                    var conversation = await response.Content.ReadFromJsonAsync<ConversationDto>(_cancellationToken);
-                    return new CreateConversationsResponse(conversation ?? new ConversationDto() { Id = Guid.Empty });
-                }
-                catch (Exception ex)
-                {
-                    _messageService.Publish(new UserMessage("Error", $"Error creating a new conversation: {ex.Message}", MessageType.Information));
-                }
-            }
-
-            return new CreateConversationsResponse(new ConversationDto() { Id = Guid.Empty });
-        }
-
-        private async void GetAvailableModelsReceived(MessageBase message)
-        {
-            if (message is GetAvailableModelsRequest request)
-            {
-                try
-                {
-                    var provider = Uri.EscapeDataString(request.Provider);
-                    using var response = await _httpClient.GetAsync($"api/models?provider={provider}", _cancellationToken);
-                    response.EnsureSuccessStatusCode();
-                    var models = await response.Content.ReadFromJsonAsync<List<AvailableModelInfo>>(cancellationToken: _cancellationToken) ?? new List<AvailableModelInfo>();
-                    _messageService.Publish(new AvailableModelsUpdatedEvent(request.Provider, models));
-                }
-                catch (OperationCanceledException) when (_cancellationToken.IsCancellationRequested)
-                {
-                    // Application is closing.
-                }
-                catch (Exception ex)
-                {
-                    _messageService.Publish(new UserMessage("Error", $"Error loading models from " + $"'{request.Provider}': {ex.Message}", MessageType.Error));
-                }
+                // Best-effort refresh; ignore failures so the chat flow is not disrupted.
             }
         }
+    }
 
-        private async void GenerateTitleReceived(MessageBase message)
+    private async void GetConversationsReceived(MessageBase message)
+    {
+        if (message is GetConversationsRequest)
         {
-            if (message is GenerateTitleRequest request)
+            try
             {
-                var httpRequest = new HttpRequestMessage(HttpMethod.Post, "api/chat/title");
-                var dto = new ChatRequestDto
+                var conversations = await _httpClient.GetFromJsonAsync<List<ConversationDto>>("api/conversations", _cancellationToken);
+                _messageService.Publish(new ConversationsUpdatedEvent(conversations?.Select(c => new Conversation
                 {
-                    ConversationId = request.ConversationId,
-                    Role = "user",
-                    Message = request.UserPrompt,
+                    Id = c.Id,
+                    Title = c.Title,
+                    TopicId = c.TopicId,
+                    Topic = c.Topic,
+                    Provider = ModelProviderNames.Unknown
+                }) ?? Enumerable.Empty<Conversation>()));
+            }
+            catch (Exception ex)
+            {
+                _messageService.Publish(new UserMessage("Error", $"Error fetching conversations: {ex.Message}", MessageType.Information));
+            }
+        }
+    }
+
+    private async Task<MessageBase> CreateConversationsReceived(MessageBase message)
+    {
+        if (message is CreateConversationsRequest request)
+        {
+            try
+            {
+                var payload = new CreateConversationDto
+                {
                     Provider = request.Provider,
-                    Model = request.Model,
-                    Source = MessageSource.Desktop
+                    Model = request.Model
                 };
 
-                httpRequest.Content = new StringContent(JsonSerializer.Serialize(dto), Encoding.UTF8, "application/json");
+                var response = await _httpClient.PostAsync("api/conversations", new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json"), _cancellationToken);
+                response.EnsureSuccessStatusCode();
+
+                var conversation = await response.Content.ReadFromJsonAsync<ConversationDto>(_cancellationToken);
+                return new CreateConversationsResponse(conversation ?? new ConversationDto() { Id = Guid.Empty });
+            }
+            catch (Exception ex)
+            {
+                _messageService.Publish(new UserMessage("Error", $"Error creating a new conversation: {ex.Message}", MessageType.Information));
+            }
+        }
+
+        return new CreateConversationsResponse(new ConversationDto() { Id = Guid.Empty });
+    }
+
+    private async void GetAvailableModelsReceived(MessageBase message)
+    {
+        if (message is GetAvailableModelsRequest request)
+        {
+            try
+            {
+                var provider = Uri.EscapeDataString(request.Provider);
+                using var response = await _httpClient.GetAsync($"api/models?provider={provider}", _cancellationToken);
+                response.EnsureSuccessStatusCode();
+                var models = await response.Content.ReadFromJsonAsync<List<AvailableModelInfo>>(cancellationToken: _cancellationToken) ?? new List<AvailableModelInfo>();
+                _messageService.Publish(new AvailableModelsUpdatedEvent(request.Provider, models));
+            }
+            catch (OperationCanceledException) when (_cancellationToken.IsCancellationRequested)
+            {
+                // Application is closing.
+            }
+            catch (Exception ex)
+            {
+                _messageService.Publish(new UserMessage("Error", $"Error loading models from " + $"'{request.Provider}': {ex.Message}", MessageType.Error));
+            }
+        }
+    }
+
+    private async void GenerateTitleReceived(MessageBase message)
+    {
+        if (message is GenerateTitleRequest request)
+        {
+            var httpRequest = new HttpRequestMessage(HttpMethod.Post, "api/chat/title");
+            var dto = new ChatRequestDto
+            {
+                ConversationId = request.ConversationId,
+                Role = "user",
+                Message = request.UserPrompt,
+                Provider = request.Provider,
+                Model = request.Model,
+                Source = MessageSource.Desktop
+            };
+
+            httpRequest.Content = new StringContent(JsonSerializer.Serialize(dto), Encoding.UTF8, "application/json");
+            using var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, _cancellationToken);
+            response.EnsureSuccessStatusCode();
+
+            var responseDto = await response.Content.ReadFromJsonAsync<ConversationDto>(_cancellationToken);
+            if (!string.IsNullOrWhiteSpace(responseDto?.Title))
+            {
+                await UpdateTitle(responseDto.Title, request.ConversationId);
+            }
+            ;
+
+            _messageService.Publish(new TitleGeneratedEvent(responseDto?.Title ?? string.Empty, request.ConversationId));
+        }
+    }
+
+    private async Task UpdateTitle(string newTitle, Guid conversationId)
+    {
+        var httpRequest = new HttpRequestMessage(HttpMethod.Patch, $"api/conversations/{conversationId}/title?newTitle={Uri.EscapeDataString(newTitle)}");
+        using var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, _cancellationToken);
+        response.EnsureSuccessStatusCode();
+    }
+
+    private async void SendPromptReceived(MessageBase message)
+    {
+        if (message is SendPromptRequest request)
+        {
+            var httpRequest = new HttpRequestMessage(HttpMethod.Post, "api/chat");
+            var dto = new ChatRequestDto
+            {
+                Role = request.Role,
+                Message = request.Prompt,
+                Provider = request.Provider,
+                Model = request.Model,
+                ConversationId = request.ConversationId,
+                SystemPromt = request.SystemPrompt,
+                Source = MessageSource.Desktop
+            };
+
+            var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            httpRequest.Content = new StringContent(JsonSerializer.Serialize(dto), Encoding.UTF8, "application/json");
+            try
+            {
                 using var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, _cancellationToken);
                 response.EnsureSuccessStatusCode();
 
-                var responseDto = await response.Content.ReadFromJsonAsync<ConversationDto>(_cancellationToken);
-                if (!string.IsNullOrWhiteSpace(responseDto?.Title))
+                await using var stream = await response.Content.ReadAsStreamAsync(_cancellationToken);
+                using var reader = new StreamReader(stream);
+                string? currentEvent = null;
+                Guid? conversationId = null;
+                while (!reader.EndOfStream && !_cancellationToken.IsCancellationRequested)
                 {
-                    await UpdateTitle(responseDto.Title, request.ConversationId);
-                }
-                ;
-
-                _messageService.Publish(new TitleGeneratedEvent(responseDto?.Title ?? string.Empty, request.ConversationId));
-            }
-        }
-
-        private async Task UpdateTitle(string newTitle, Guid conversationId)
-        {
-            var httpRequest = new HttpRequestMessage(HttpMethod.Patch, $"api/conversations/{conversationId}/title?newTitle={Uri.EscapeDataString(newTitle)}");
-            using var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, _cancellationToken);
-            response.EnsureSuccessStatusCode();
-        }
-
-        private async void SendPromptReceived(MessageBase message)
-        {
-            if (message is SendPromptRequest request)
-            {
-                var httpRequest = new HttpRequestMessage(HttpMethod.Post, "api/chat");
-                var dto = new ChatRequestDto
-                {
-                    Role = request.Role,
-                    Message = request.Prompt,
-                    Provider = request.Provider,
-                    Model = request.Model,
-                    ConversationId = request.ConversationId,
-                    SystemPromt = request.SystemPrompt,
-                    Source = MessageSource.Desktop
-                };
-
-                var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                httpRequest.Content = new StringContent(JsonSerializer.Serialize(dto), Encoding.UTF8, "application/json");
-                try
-                {
-                    using var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, _cancellationToken);
-                    response.EnsureSuccessStatusCode();
-
-                    await using var stream = await response.Content.ReadAsStreamAsync(_cancellationToken);
-                    using var reader = new StreamReader(stream);
-                    string? currentEvent = null;
-                    Guid? conversationId = null;
-                    while (!reader.EndOfStream && !_cancellationToken.IsCancellationRequested)
+                    var line = await reader.ReadLineAsync();
+                    if (string.IsNullOrWhiteSpace(line))
                     {
-                        var line = await reader.ReadLineAsync();
-                        if (string.IsNullOrWhiteSpace(line))
+                        continue;
+                    }
+
+                    if (line.StartsWith("event: "))
+                    {
+                        currentEvent = line["event: ".Length..];
+                        continue;
+                    }
+
+                    if (line.StartsWith("data: "))
+                    {
+                        var data = line["data: ".Length..];
+                        ChatResponseChunkDto? chunk;
+                        switch (currentEvent)
                         {
-                            continue;
-                        }
-
-                        if (line.StartsWith("event: "))
-                        {
-                            currentEvent = line["event: ".Length..];
-                            continue;
-                        }
-
-                        if (line.StartsWith("data: "))
-                        {
-                            var data = line["data: ".Length..];
-                            ChatResponseChunkDto? chunk;
-                            switch (currentEvent)
-                            {
-                                case SseEvents.ConversationUpdated:
-                                    chunk = JsonSerializer.Deserialize<ChatResponseChunkDto>(data, jsonOptions);
-                                    conversationId = chunk?.ConversationId;
-                                    break;
-                                case SseEvents.Token:
-                                    chunk = JsonSerializer.Deserialize<ChatResponseChunkDto>(data, jsonOptions);
-                                    _messageService.Publish(new ChunkReceivedEvent(chunk?.Content ?? string.Empty));
-                                    break;
-                                case SseEvents.Done:
-                                    var metadata = JsonSerializer.Deserialize<MessageDoneDto>(data, jsonOptions);
-                                    _messageService.Publish(new ChatCompletedEvent(metadata?.PromptTokens ?? 0, metadata?.ResponseTokens ?? 0));
-                                    break;
-                                case SseEvents.Error:
-                                    var error = JsonSerializer.Deserialize<ErrorEventDto>(data, jsonOptions);
-                                    _messageService.Publish(new UserMessage("Error", error?.Message ?? "An error occurred while generating the response.", MessageType.Error));
-                                    _messageService.Publish(new ChatCompletedEvent(0, 0));
-                                    break;
-                                case SseEvents.ToolCall:
-                                    var toolCallDto = JsonSerializer.Deserialize<ToolCallDto>(data, jsonOptions);
-                                    _messageService.Publish(new UserMessage("Info", $"Executing tool {toolCallDto?.ToolName}", MessageType.ShortInfo));
-                                    switch (toolCallDto?.ToolName)
-                                    {
-                                        case "extract_tables_from_url": ExtractTablesFromUrl(toolCallDto); break;
-                                        case "document_source_file": await DocumentSourceFile(toolCallDto); break;
-                                    }
+                            case SseEvents.ConversationUpdated:
+                                chunk = JsonSerializer.Deserialize<ChatResponseChunkDto>(data, jsonOptions);
+                                conversationId = chunk?.ConversationId;
+                                break;
+                            case SseEvents.Token:
+                                chunk = JsonSerializer.Deserialize<ChatResponseChunkDto>(data, jsonOptions);
+                                _messageService.Publish(new ChunkReceivedEvent(chunk?.Content ?? string.Empty));
+                                break;
+                            case SseEvents.Done:
+                                var metadata = JsonSerializer.Deserialize<MessageDoneDto>(data, jsonOptions);
+                                _messageService.Publish(new ChatCompletedEvent(metadata?.PromptTokens ?? 0, metadata?.ResponseTokens ?? 0));
+                                break;
+                            case SseEvents.Error:
+                                var error = JsonSerializer.Deserialize<ErrorEventDto>(data, jsonOptions);
+                                _messageService.Publish(new UserMessage("Error", error?.Message ?? "An error occurred while generating the response.", MessageType.Error));
+                                _messageService.Publish(new ChatCompletedEvent(0, 0));
+                                break;
+                            case SseEvents.ToolCall:
+                                var toolCallDto = JsonSerializer.Deserialize<ToolCallDto>(data, jsonOptions);
+                                _messageService.Publish(new UserMessage("Info", $"Executing tool {toolCallDto?.ToolName}", MessageType.ShortInfo));
+                                switch (toolCallDto?.ToolName)
+                                {
+                                    case "extract_tables_from_url": ExtractTablesFromUrl(toolCallDto); break;
+                                    case "document_source_file": await DocumentSourceFile(toolCallDto); break;
+                                }
 
 
-                                    break;
-                                case SseEvents.Progress:
-                                    var progress = JsonSerializer.Deserialize<ProgressEventDto>(data, jsonOptions);
-                                    if (!string.IsNullOrWhiteSpace(progress?.Message))
-                                    {
-                                        _messageService.Publish(new UserMessage("Info", progress.Message, MessageType.ShortInfo));
-                                    }
-                                    break;
-                                    //    case SseEvents.MessageCompleted: _messageService.Publish(new ChatCompletedEvent(conversationId)); break;
-                            }
+                                break;
+                            case SseEvents.Progress:
+                                var progress = JsonSerializer.Deserialize<ProgressEventDto>(data, jsonOptions);
+                                if (!string.IsNullOrWhiteSpace(progress?.Message))
+                                {
+                                    _messageService.Publish(new UserMessage("Info", progress.Message, MessageType.ShortInfo));
+                                }
+                                break;
+                                //    case SseEvents.MessageCompleted: _messageService.Publish(new ChatCompletedEvent(conversationId)); break;
                         }
                     }
                 }
-                catch (Exception ex)
-                {
-                    _messageService.Publish(new UserMessage("Error", $"Error sending message: {ex.Message}", MessageType.Error));
-                    _messageService.Publish(new ChatCompletedEvent(0, 0));
-                }
             }
-        }
-
-        private void ExtractTablesFromUrl(ToolCallDto dto)
-        {
-            var arguments = new List<string>() { dto.Arguments.GetProperty("url").GetString() ?? string.Empty };
-            _messageService.Publish(new ExecuteToolRequest(dto.ToolCallId, dto.ToolName, dto.ToolPath, JsonSerializer.Serialize(arguments)));
-        }
-
-        private async Task DocumentSourceFile(ToolCallDto dto)
-        {
-            var repositories = await _httpClient.GetFromJsonAsync<List<RepositoryDto>>("api/repositories", _cancellationToken);
-            string? fileName = dto.Arguments.TryGetProperty("fileName", out var fileNameProp) == true
-                ? fileNameProp.GetString()
-                : null;
-
-            var folders = repositories?.Select(repo => repo.RootPath);
-            var arguments = new List<string>() { fileName ?? string.Empty };
-            arguments.AddRange(folders ?? Enumerable.Empty<string>());
-
-            _messageService.Publish(new ExecuteToolRequest(dto.ToolCallId, dto.ToolName, dto.ToolPath, JsonSerializer.Serialize(arguments)));
-        }
-
-        private async Task<MessageBase> GetRepositoriesReceived(MessageBase message)
-        {
-            if (message is GetRepositoriesRequest)
+            catch (Exception ex)
             {
-                try
-                {
-                    var repositories = await _httpClient.GetFromJsonAsync<List<RepositoryDto>>("api/repositories", _cancellationToken);
-                    return new RepositoriesReceivedEvent(repositories ?? Enumerable.Empty<RepositoryDto>());
-                }
-                catch (Exception ex)
-                {
-                    return new RepositoriesReceivedEvent(Enumerable.Empty<RepositoryDto>(), $"Error fetching repositories: {ex.Message}");
-                }
-            }
-
-            return new RepositoriesReceivedEvent(Enumerable.Empty<RepositoryDto>(), $"Wrong message type");
-        }
-
-        private async void CreateRepositoryReceived(MessageBase message)
-        {
-            if (message is CreateRepositoryRequest request)
-            {
-                try
-                {
-                    var dto = new CreateRepositoryDto(request.Name, request.RootPath, request.Description);
-                    using var response = await _httpClient.PostAsJsonAsync("api/repositories", dto, _cancellationToken);
-
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        var error = await ReadErrorMessageAsync(response);
-                        return;
-                    }
-
-                    var created = await response.Content.ReadFromJsonAsync<RepositoryDto>(cancellationToken: _cancellationToken);
-                    if (created != null)
-                    {
-                        _messageService.Publish(new RepositoryCreatedEvent(created));
-                    }
-                }
-                catch (Exception ex)
-                {
-                    // _messageService.Publish(new RepositoryOperationFailedEvent("Create", $"Error creating repository: {ex.Message}"));
-                }
+                _messageService.Publish(new UserMessage("Error", $"Error sending message: {ex.Message}", MessageType.Error));
+                _messageService.Publish(new ChatCompletedEvent(0, 0));
             }
         }
+    }
 
-        private async void UpdateRepositoryReceived(MessageBase message)
+    private void ExtractTablesFromUrl(ToolCallDto dto)
+    {
+        var arguments = new List<string>() { dto.Arguments.GetProperty("url").GetString() ?? string.Empty };
+        _messageService.Publish(new ExecuteToolRequest(dto.ToolCallId, dto.ToolName, dto.ToolPath, JsonSerializer.Serialize(arguments)));
+    }
+
+    private async Task DocumentSourceFile(ToolCallDto dto)
+    {
+        var repositories = await _httpClient.GetFromJsonAsync<List<RepositoryDto>>("api/repositories", _cancellationToken);
+        string? fileName = dto.Arguments.TryGetProperty("fileName", out var fileNameProp) == true
+            ? fileNameProp.GetString()
+            : null;
+
+        var folders = repositories?.Select(repo => repo.RootPath);
+        var arguments = new List<string>() { fileName ?? string.Empty };
+        arguments.AddRange(folders ?? Enumerable.Empty<string>());
+
+        _messageService.Publish(new ExecuteToolRequest(dto.ToolCallId, dto.ToolName, dto.ToolPath, JsonSerializer.Serialize(arguments)));
+    }
+
+    private async Task<MessageBase> GetRepositoriesReceived(MessageBase message)
+    {
+        if (message is GetRepositoriesRequest)
         {
-            if (message is UpdateRepositoryRequest request)
-            {
-                try
-                {
-                    var dto = new UpdateRepositoryDto(request.Name, request.RootPath, request.Description);
-                    using var response = await _httpClient.PutAsJsonAsync($"api/repositories/{request.Id}", dto, _cancellationToken);
-
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        var error = await ReadErrorMessageAsync(response);
-                        //    _messageService.Publish(new RepositoryOperationFailedEvent("Update", error));
-                        return;
-                    }
-
-                    _messageService.Publish(new RepositoryUpdatedEvent(request.Id));
-                }
-                catch (Exception ex)
-                {
-                    // _messageService.Publish(new RepositoryOperationFailedEvent("Update", $"Error updating repository: {ex.Message}"));
-                }
-            }
-        }
-
-        private async void DeleteRepositoryReceived(MessageBase message)
-        {
-            if (message is DeleteRepositoryRequest request)
-            {
-                try
-                {
-                    using var response = await _httpClient.DeleteAsync($"api/repositories/{request.Id}", _cancellationToken);
-
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        var error = await ReadErrorMessageAsync(response);
-                        // _messageService.Publish(new RepositoryOperationFailedEvent("Delete", error));
-                        return;
-                    }
-
-                    _messageService.Publish(new RepositoryDeletedEvent(request.Id));
-                }
-                catch (Exception ex)
-                {
-                    // _messageService.Publish(new RepositoryOperationFailedEvent("Delete", $"Error deleting repository: {ex.Message}"));
-                }
-            }
-        }
-
-        private async Task<MessageBase> GetToolsReceived(MessageBase message)
-        {
-            if (message is GetToolsRequest)
-            {
-                try
-                {
-                    var tools = await _httpClient.GetFromJsonAsync<List<ToolDto>>($"api/tools?source={MessageSource.Desktop}", ToolsJsonOptions, _cancellationToken);
-                    return new ToolsReceivedEvent(tools ?? Enumerable.Empty<ToolDto>());
-                }
-                catch (Exception ex)
-                {
-                    return new ToolsReceivedEvent(Enumerable.Empty<ToolDto>(), $"Error fetching tools: {ex.Message}");
-                }
-            }
-
-            return new ToolsReceivedEvent(Enumerable.Empty<ToolDto>(), $"Wrong message type");
-        }
-
-        private async void CreateToolReceived(MessageBase message)
-        {
-            if (message is CreateToolRequest request)
-            {
-                try
-                {
-                    var dto = new CreateToolDto(request.Name, request.Description, request.ParametersJsonSchema, request.IsEnabled, request.Scope, request.Path);
-                    using var response = await _httpClient.PostAsJsonAsync("api/tools", dto, ToolsJsonOptions, _cancellationToken);
-
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        var error = await ReadErrorMessageAsync(response);
-                        _messageService.Publish(new UserMessage("Error", $"Error creating tool: {error}", MessageType.Error));
-                        return;
-                    }
-
-                    var created = await response.Content.ReadFromJsonAsync<ToolDto>(ToolsJsonOptions, cancellationToken: _cancellationToken);
-                    if (created != null)
-                    {
-                        _messageService.Publish(new ToolCreatedEvent(created));
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _messageService.Publish(new UserMessage("Error", $"Error creating tool: {ex.Message}", MessageType.Error));
-                }
-            }
-        }
-
-        private async void UpdateToolReceived(MessageBase message)
-        {
-            if (message is UpdateToolRequest request)
-            {
-                try
-                {
-                    var dto = new UpdateToolDto(request.Name, request.Description, request.ParametersJsonSchema, request.IsEnabled, request.Scope, request.Path);
-                    using var response = await _httpClient.PutAsJsonAsync($"api/tools/{request.Id}", dto, ToolsJsonOptions, _cancellationToken);
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        var error = await ReadErrorMessageAsync(response);
-                        _messageService.Publish(new UserMessage("Error", $"Error updating tool: {error}", MessageType.Error));
-                        return;
-                    }
-
-                    _messageService.Publish(new ToolUpdatedEvent(request.Id));
-                }
-                catch (Exception ex)
-                {
-                    _messageService.Publish(new UserMessage("Error", $"Error updating tool: {ex.Message}", MessageType.Error));
-                }
-            }
-        }
-
-        private async void DeleteToolReceived(MessageBase message)
-        {
-            if (message is DeleteToolRequest request)
-            {
-                try
-                {
-                    using var response = await _httpClient.DeleteAsync($"api/tools/{request.Id}", _cancellationToken);
-
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        var error = await ReadErrorMessageAsync(response);
-                        _messageService.Publish(new UserMessage("Error", $"Error deleting tool: {error}", MessageType.Error));
-                        return;
-                    }
-
-                    _messageService.Publish(new ToolDeletedEvent(request.Id));
-                }
-                catch (Exception ex)
-                {
-                    _messageService.Publish(new UserMessage("Error", $"Error deleting tool: {ex.Message}", MessageType.Error));
-                }
-            }
-        }
-
-        private async void SaveDocumentationReceived(MessageBase message)
-        {
-            if (message is SaveDocumentationRequest request)
-            {
-                try
-                {
-                    _messageService.Publish(new UserMessage("Info", $"Saving documentation for '{request.RelativeFilePath}' and ingesting it into the RAG index...", MessageType.ShortInfo));
-
-                    var dto = new SaveDocumentationRequestDto
-                    {
-                        RepositoryId = request.RepositoryId,
-                        RelativeFilePath = request.RelativeFilePath,
-                        Title = request.Title,
-                        Markdown = request.Markdown
-                    };
-
-                    using var response = await _httpClient.PostAsJsonAsync("api/documentation/save", dto, _cancellationToken);
-
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        var error = await ReadErrorMessageAsync(response);
-                        _messageService.Publish(new UserMessage("Info", $"Failed to save documentation: {error}", MessageType.ShortInfo));
-                        _messageService.Publish(new DocumentationSaveFailedEvent(request.CorrelationId, error));
-                        return;
-                    }
-
-                    var result = await response.Content.ReadFromJsonAsync<SaveDocumentationResultDto>(_cancellationToken);
-                    _messageService.Publish(new UserMessage("Info", $"Documentation saved to {result?.SavedFilePath} and ingested into the RAG index.", MessageType.ShortInfo));
-                    _messageService.Publish(new DocumentationSavedEvent(request.CorrelationId, result?.DocumentId ?? 0, result?.SavedFilePath ?? string.Empty));
-                }
-                catch (Exception ex)
-                {
-                    _messageService.Publish(new UserMessage("Info", $"Error saving documentation: {ex.Message}", MessageType.ShortInfo));
-                    _messageService.Publish(new DocumentationSaveFailedEvent(request.CorrelationId, $"Error saving documentation: {ex.Message}"));
-                }
-            }
-        }
-
-        private static async Task<string> ReadErrorMessageAsync(HttpResponseMessage response)
-        {
-            var raw = await response.Content.ReadAsStringAsync();
-            if (string.IsNullOrWhiteSpace(raw))
-            {
-                return $"Request failed with status code {(int)response.StatusCode}.";
-            }
-
             try
             {
-                using var doc = JsonDocument.Parse(raw);
-                if (doc.RootElement.TryGetProperty("error", out var errorProperty))
+                var repositories = await _httpClient.GetFromJsonAsync<List<RepositoryDto>>("api/repositories", _cancellationToken);
+                return new RepositoriesReceivedEvent(repositories ?? Enumerable.Empty<RepositoryDto>());
+            }
+            catch (Exception ex)
+            {
+                return new RepositoriesReceivedEvent(Enumerable.Empty<RepositoryDto>(), $"Error fetching repositories: {ex.Message}");
+            }
+        }
+
+        return new RepositoriesReceivedEvent(Enumerable.Empty<RepositoryDto>(), $"Wrong message type");
+    }
+
+    private async void CreateRepositoryReceived(MessageBase message)
+    {
+        if (message is CreateRepositoryRequest request)
+        {
+            try
+            {
+                var dto = new CreateRepositoryDto(request.Name, request.RootPath, request.Description);
+                using var response = await _httpClient.PostAsJsonAsync("api/repositories", dto, _cancellationToken);
+
+                if (!response.IsSuccessStatusCode)
                 {
-                    return errorProperty.GetString() ?? raw;
+                    var error = await ReadErrorMessageAsync(response);
+                    return;
+                }
+
+                var created = await response.Content.ReadFromJsonAsync<RepositoryDto>(cancellationToken: _cancellationToken);
+                if (created != null)
+                {
+                    _messageService.Publish(new RepositoryCreatedEvent(created));
                 }
             }
-            catch (JsonException)
+            catch (Exception ex)
             {
-                // Not a JSON error payload - fall back to the raw content below.
+                // _messageService.Publish(new RepositoryOperationFailedEvent("Create", $"Error creating repository: {ex.Message}"));
             }
-
-            return raw;
         }
+    }
+
+    private async void UpdateRepositoryReceived(MessageBase message)
+    {
+        if (message is UpdateRepositoryRequest request)
+        {
+            try
+            {
+                var dto = new UpdateRepositoryDto(request.Name, request.RootPath, request.Description);
+                using var response = await _httpClient.PutAsJsonAsync($"api/repositories/{request.Id}", dto, _cancellationToken);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var error = await ReadErrorMessageAsync(response);
+                    //    _messageService.Publish(new RepositoryOperationFailedEvent("Update", error));
+                    return;
+                }
+
+                _messageService.Publish(new RepositoryUpdatedEvent(request.Id));
+            }
+            catch (Exception ex)
+            {
+                // _messageService.Publish(new RepositoryOperationFailedEvent("Update", $"Error updating repository: {ex.Message}"));
+            }
+        }
+    }
+
+    private async void DeleteRepositoryReceived(MessageBase message)
+    {
+        if (message is DeleteRepositoryRequest request)
+        {
+            try
+            {
+                using var response = await _httpClient.DeleteAsync($"api/repositories/{request.Id}", _cancellationToken);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var error = await ReadErrorMessageAsync(response);
+                    // _messageService.Publish(new RepositoryOperationFailedEvent("Delete", error));
+                    return;
+                }
+
+                _messageService.Publish(new RepositoryDeletedEvent(request.Id));
+            }
+            catch (Exception ex)
+            {
+                // _messageService.Publish(new RepositoryOperationFailedEvent("Delete", $"Error deleting repository: {ex.Message}"));
+            }
+        }
+    }
+
+    private async Task<MessageBase> GetToolsReceived(MessageBase message)
+    {
+        if (message is GetToolsRequest)
+        {
+            try
+            {
+                var tools = await _httpClient.GetFromJsonAsync<List<ToolDto>>($"api/tools?source={MessageSource.Desktop}", ToolsJsonOptions, _cancellationToken);
+                return new ToolsReceivedEvent(tools ?? Enumerable.Empty<ToolDto>());
+            }
+            catch (Exception ex)
+            {
+                return new ToolsReceivedEvent(Enumerable.Empty<ToolDto>(), $"Error fetching tools: {ex.Message}");
+            }
+        }
+
+        return new ToolsReceivedEvent(Enumerable.Empty<ToolDto>(), $"Wrong message type");
+    }
+
+    private async void CreateToolReceived(MessageBase message)
+    {
+        if (message is CreateToolRequest request)
+        {
+            try
+            {
+                var dto = new CreateToolDto(request.Name, request.Description, request.ParametersJsonSchema, request.IsEnabled, request.Scope, request.Path);
+                using var response = await _httpClient.PostAsJsonAsync("api/tools", dto, ToolsJsonOptions, _cancellationToken);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var error = await ReadErrorMessageAsync(response);
+                    _messageService.Publish(new UserMessage("Error", $"Error creating tool: {error}", MessageType.Error));
+                    return;
+                }
+
+                var created = await response.Content.ReadFromJsonAsync<ToolDto>(ToolsJsonOptions, cancellationToken: _cancellationToken);
+                if (created != null)
+                {
+                    _messageService.Publish(new ToolCreatedEvent(created));
+                }
+            }
+            catch (Exception ex)
+            {
+                _messageService.Publish(new UserMessage("Error", $"Error creating tool: {ex.Message}", MessageType.Error));
+            }
+        }
+    }
+
+    private async void UpdateToolReceived(MessageBase message)
+    {
+        if (message is UpdateToolRequest request)
+        {
+            try
+            {
+                var dto = new UpdateToolDto(request.Name, request.Description, request.ParametersJsonSchema, request.IsEnabled, request.Scope, request.Path);
+                using var response = await _httpClient.PutAsJsonAsync($"api/tools/{request.Id}", dto, ToolsJsonOptions, _cancellationToken);
+                if (!response.IsSuccessStatusCode)
+                {
+                    var error = await ReadErrorMessageAsync(response);
+                    _messageService.Publish(new UserMessage("Error", $"Error updating tool: {error}", MessageType.Error));
+                    return;
+                }
+
+                _messageService.Publish(new ToolUpdatedEvent(request.Id));
+            }
+            catch (Exception ex)
+            {
+                _messageService.Publish(new UserMessage("Error", $"Error updating tool: {ex.Message}", MessageType.Error));
+            }
+        }
+    }
+
+    private async void DeleteToolReceived(MessageBase message)
+    {
+        if (message is DeleteToolRequest request)
+        {
+            try
+            {
+                using var response = await _httpClient.DeleteAsync($"api/tools/{request.Id}", _cancellationToken);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var error = await ReadErrorMessageAsync(response);
+                    _messageService.Publish(new UserMessage("Error", $"Error deleting tool: {error}", MessageType.Error));
+                    return;
+                }
+
+                _messageService.Publish(new ToolDeletedEvent(request.Id));
+            }
+            catch (Exception ex)
+            {
+                _messageService.Publish(new UserMessage("Error", $"Error deleting tool: {ex.Message}", MessageType.Error));
+            }
+        }
+    }
+
+    private async void SaveDocumentationReceived(MessageBase message)
+    {
+        if (message is SaveDocumentationRequest request)
+        {
+            try
+            {
+                _messageService.Publish(new UserMessage("Info", $"Saving documentation for '{request.RelativeFilePath}' and ingesting it into the RAG index...", MessageType.ShortInfo));
+
+                var dto = new SaveDocumentationRequestDto
+                {
+                    RepositoryId = request.RepositoryId,
+                    RelativeFilePath = request.RelativeFilePath,
+                    Title = request.Title,
+                    Markdown = request.Markdown
+                };
+
+                using var response = await _httpClient.PostAsJsonAsync("api/documentation/save", dto, _cancellationToken);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var error = await ReadErrorMessageAsync(response);
+                    _messageService.Publish(new UserMessage("Info", $"Failed to save documentation: {error}", MessageType.ShortInfo));
+                    _messageService.Publish(new DocumentationSaveFailedEvent(request.CorrelationId, error));
+                    return;
+                }
+
+                var result = await response.Content.ReadFromJsonAsync<SaveDocumentationResultDto>(_cancellationToken);
+                _messageService.Publish(new UserMessage("Info", $"Documentation saved to {result?.SavedFilePath} and ingested into the RAG index.", MessageType.ShortInfo));
+                _messageService.Publish(new DocumentationSavedEvent(request.CorrelationId, result?.DocumentId ?? 0, result?.SavedFilePath ?? string.Empty));
+            }
+            catch (Exception ex)
+            {
+                _messageService.Publish(new UserMessage("Info", $"Error saving documentation: {ex.Message}", MessageType.ShortInfo));
+                _messageService.Publish(new DocumentationSaveFailedEvent(request.CorrelationId, $"Error saving documentation: {ex.Message}"));
+            }
+        }
+    }
+
+    private static async Task<string> ReadErrorMessageAsync(HttpResponseMessage response)
+    {
+        var raw = await response.Content.ReadAsStringAsync();
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return $"Request failed with status code {(int)response.StatusCode}.";
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(raw);
+            if (doc.RootElement.TryGetProperty("error", out var errorProperty))
+            {
+                return errorProperty.GetString() ?? raw;
+            }
+        }
+        catch (JsonException)
+        {
+            // Not a JSON error payload - fall back to the raw content below.
+        }
+
+        return raw;
     }
 }

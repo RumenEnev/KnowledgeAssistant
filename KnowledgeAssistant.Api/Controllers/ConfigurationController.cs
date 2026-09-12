@@ -9,20 +9,23 @@ namespace KnowledgeAssistant.Api.Controllers;
 public sealed class ConfigurationController : ControllerBase
 {
     private readonly IConfigurationRepository _repository;
+    private readonly IModelRepository _modelRepository;
 
-    public ConfigurationController(IConfigurationRepository repository)
+    public ConfigurationController(IConfigurationRepository repository, IModelRepository modelRepository)
     {
         _repository = repository;
+        _modelRepository = modelRepository;
     }
 
     [HttpGet("chunking-settings")]
     public async Task<ActionResult<ChunkingSettingsDto>> GetChunkingSettings(CancellationToken cancellationToken)
     {
-        var (chunkTargetSizeChars, chunkOverlapChars) = await _repository.GetChunkingSettingsAsync(cancellationToken);
+        var chunkingSettings = await _repository.GetChunkingSettingsAsync(cancellationToken);
         return Ok(new ChunkingSettingsDto
         {
-            ChunkTargetSizeChars = chunkTargetSizeChars,
-            ChunkOverlapChars = chunkOverlapChars
+            EmbeddingModelName = chunkingSettings.EmbeddingModelName,
+            ChunkTargetSizeChars = chunkingSettings.ChunkTargetSizeChars,
+            ChunkOverlapChars = chunkingSettings.ChunkOverlapChars
         });
     }
 
@@ -39,6 +42,7 @@ public sealed class ConfigurationController : ControllerBase
             return BadRequest("ChunkOverlapChars must be smaller than ChunkTargetSizeChars.");
         }
 
+        var modelId = await _modelRepository.GetOrCreateModelIdAsync(request.EmbeddingModelName, cancellationToken);
         await _repository.UpsertChunkingSettingsAsync(request.ChunkTargetSizeChars, request.ChunkOverlapChars, cancellationToken);
         return NoContent();
     }

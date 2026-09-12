@@ -1,17 +1,19 @@
 ﻿using MessageServices;
 
-namespace KnowledgeAssistant.Wpf.Messages.Documents
+namespace KnowledgeAssistant.Wpf.Messages.Documents;
+
+public record UpdateChunkingSettingsRequest : MessageBase
 {
-    public record UpdateChunkingSettingsRequest : MessageBase
+    public UpdateChunkingSettingsRequest(string embeddingModelName, int chunkTargetSizeChars, int chunkOverlapChars)
     {
-        public UpdateChunkingSettingsRequest(int chunkTargetSizeChars, int chunkOverlapChars)
-        {
-            ChunkTargetSizeChars = chunkTargetSizeChars;
-            ChunkOverlapChars = chunkOverlapChars;
-        }
-
-        public int ChunkTargetSizeChars { get; }
-
-        public int ChunkOverlapChars { get; }
+        EmbeddingModelName = embeddingModelName;
+        ChunkTargetSizeChars = chunkTargetSizeChars;
+        ChunkOverlapChars = chunkOverlapChars;
     }
+
+    public string EmbeddingModelName { get; }
+
+    public int ChunkTargetSizeChars { get; }
+
+    public int ChunkOverlapChars { get; }
 }

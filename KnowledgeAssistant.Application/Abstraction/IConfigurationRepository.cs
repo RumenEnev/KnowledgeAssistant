@@ -1,4 +1,5 @@
-﻿using KnowledgeAssistant.Domain;
+﻿using KnowledgeAssistant.Contracts.Dto;
+using KnowledgeAssistant.Domain;
 
 namespace KnowledgeAssistant.Application.Abstraction
 {
@@ -8,7 +9,7 @@ namespace KnowledgeAssistant.Application.Abstraction
 
         Task<string?> GetSelectedModelAsync(CancellationToken cancellationToken);
 
-        Task<(int ChunkTargetSizeChars, int ChunkOverlapChars)> GetChunkingSettingsAsync(CancellationToken cancellationToken);
+        Task<ChunkingSettingsDto> GetChunkingSettingsAsync(CancellationToken cancellationToken);
 
         Task UpsertChunkingSettingsAsync(int chunkTargetSizeChars, int chunkOverlapChars, CancellationToken cancellationToken);
 

@@ -1,5 +1,5 @@
 using KnowledgeAssistant.Application.Abstraction;
-using KnowledgeAssistant.Domain;
+using KnowledgeAssistant.Domain.Entities;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
 

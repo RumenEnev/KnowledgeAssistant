@@ -94,10 +94,10 @@ public class DocumentsHandlingService
     private async Task<int> ReplaceChunksAsync(int documentId, string originalText, DocumentType documentType, CancellationToken cancellationToken)
     {
         await _documentRepository.DeleteChunksByDocumentAsync(documentId, cancellationToken);
-        var (targetChunkSizeChars, overlapChars) = await _configurationRepository.GetChunkingSettingsAsync(cancellationToken);
+        var chunkingSettings = await _configurationRepository.GetChunkingSettingsAsync(cancellationToken);
         var chunks = documentType == DocumentType.Markdown
-            ? ChunkMarkdownByHeaders(originalText, targetChunkSizeChars, overlapChars)
-            : ChunkByParagraphWithOverlap(originalText, targetChunkSizeChars, overlapChars);
+            ? ChunkMarkdownByHeaders(originalText, chunkingSettings.ChunkTargetSizeChars, chunkingSettings.ChunkOverlapChars)
+            : ChunkByParagraphWithOverlap(originalText, chunkingSettings.ChunkTargetSizeChars, chunkingSettings.ChunkOverlapChars);
 
         for (int i = 0; i < chunks.Count; i++)
         {

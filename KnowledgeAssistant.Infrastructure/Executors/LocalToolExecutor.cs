@@ -1,7 +1,7 @@
 ﻿using KnowledgeAssistant.Application.Abstraction;
 using KnowledgeAssistant.Contracts.Definitions;
 using KnowledgeAssistant.Contracts.Dto;
-using KnowledgeAssistant.Domain;
+using KnowledgeAssistant.Domain.Entities;
 using KnowledgeAssistant.Infrastructure.Streaming;
 using KnowledgeAssistant.Infrastructure.ToolCallRegistry;
 using Microsoft.Extensions.Logging;

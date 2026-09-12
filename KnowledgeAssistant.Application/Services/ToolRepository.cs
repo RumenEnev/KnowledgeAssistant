@@ -2,6 +2,7 @@ using Dapper;
 using KnowledgeAssistant.Application.Abstraction;
 using KnowledgeAssistant.Contracts.Enums;
 using KnowledgeAssistant.Domain;
+using KnowledgeAssistant.Domain.Entities;
 using Microsoft.Extensions.Configuration;
 using Npgsql;
 

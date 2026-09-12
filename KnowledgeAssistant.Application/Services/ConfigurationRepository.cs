@@ -1,6 +1,8 @@
 ﻿using Dapper;
 using KnowledgeAssistant.Application.Abstraction;
+using KnowledgeAssistant.Contracts.Dto;
 using KnowledgeAssistant.Domain;
+using KnowledgeAssistant.Domain.Entities;
 using Microsoft.Extensions.Configuration;
 using Npgsql;
 
@@ -62,7 +64,7 @@ namespace KnowledgeAssistant.Application.Services
             return await connection.QuerySingleOrDefaultAsync<string?>(query, new { Id = GlobalConfigurationId });
         }
 
-        public async Task<(int ChunkTargetSizeChars, int ChunkOverlapChars)> GetChunkingSettingsAsync(CancellationToken cancellationToken)
+        public async Task<ChunkingSettingsDto> GetChunkingSettingsAsync(CancellationToken cancellationToken)
         {
             await using var connection = new NpgsqlConnection(_connectionString);
             await connection.OpenAsync(cancellationToken);
@@ -70,11 +72,20 @@ namespace KnowledgeAssistant.Application.Services
             var query = "SELECT chunk_target_size_chars AS ChunkTargetSizeChars, chunk_overlap_chars AS ChunkOverlapChars " +
                         "FROM ai_interactions.configuration WHERE id = @Id";
 
-            var row = await connection.QuerySingleOrDefaultAsync<ChunkingSettingsRow>(query, new { Id = GlobalConfigurationId });
-
+            var row = await connection.QuerySingleOrDefaultAsync<ChunkingSettingsEntity>(query, new { Id = GlobalConfigurationId });
             return row is null
-                ? (DefaultChunkTargetSizeChars, DefaultChunkOverlapChars)
-                : (row.ChunkTargetSizeChars, row.ChunkOverlapChars);
+                ? new ChunkingSettingsDto
+                {
+                    EmbeddingModelName = string.Empty,
+                    ChunkTargetSizeChars = DefaultChunkTargetSizeChars,
+                    ChunkOverlapChars = DefaultChunkOverlapChars
+                }
+                : new ChunkingSettingsDto
+                {
+                    EmbeddingModelName = row.ModelName,
+                    ChunkTargetSizeChars = row.ChunkTargetSizeChars,
+                    ChunkOverlapChars = row.ChunkOverlapChars
+                };
         }
 
         public async Task UpsertChunkingSettingsAsync(int chunkTargetSizeChars, int chunkOverlapChars, CancellationToken cancellationToken)
@@ -85,6 +96,7 @@ namespace KnowledgeAssistant.Application.Services
             var updateQuery = "UPDATE ai_interactions.configuration " +
                                "SET chunk_target_size_chars = @ChunkTargetSizeChars, chunk_overlap_chars = @ChunkOverlapChars " +
                                "WHERE id = @Id";
+
             var rowsAffected = await connection.ExecuteAsync(updateQuery, new
             {
                 Id = GlobalConfigurationId,
@@ -96,6 +108,7 @@ namespace KnowledgeAssistant.Application.Services
             {
                 var insertQuery = "INSERT INTO ai_interactions.configuration (id, chunk_target_size_chars, chunk_overlap_chars) " +
                                    "VALUES (@Id, @ChunkTargetSizeChars, @ChunkOverlapChars)";
+
                 await connection.ExecuteAsync(insertQuery, new
                 {
                     Id = GlobalConfigurationId,
@@ -222,13 +235,6 @@ namespace KnowledgeAssistant.Application.Services
             var command = new CommandDefinition(sql, new { Id = id }, cancellationToken: cancellationToken);
             var rows = await connection.ExecuteAsync(command);
             return rows > 0;
-        }
-
-        private sealed class ChunkingSettingsRow
-        {
-            public int ChunkTargetSizeChars { get; set; }
-
-            public int ChunkOverlapChars { get; set; }
         }
     }
 }

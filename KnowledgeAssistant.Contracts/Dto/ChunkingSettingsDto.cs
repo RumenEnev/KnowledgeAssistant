@@ -2,6 +2,8 @@
 {
     public class ChunkingSettingsDto
     {
+        public required string EmbeddingModelName { get; set; }
+
         public int ChunkTargetSizeChars { get; set; }
 
         public int ChunkOverlapChars { get; set; }

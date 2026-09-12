@@ -5,10 +5,16 @@ namespace KnowledgeAssistant.Wpf.Messages.Documents;
 
 public record SaveRetrievalConfigRequest : MessageBase
 {
-    public SaveRetrievalConfigRequest(DocumentRetrievalConfig config)
+    public SaveRetrievalConfigRequest(string modelName, int chunkSize, int chunkOverlap)
     {
-        Config = config;
+        ModelName = modelName;
+        ChunkSize = chunkSize;
+        ChunkOverlap = chunkOverlap;
     }
 
-    public DocumentRetrievalConfig Config { get; }
+    public string ModelName { get; }
+
+    public int ChunkSize { get; }
+
+    public int ChunkOverlap { get; }
 }

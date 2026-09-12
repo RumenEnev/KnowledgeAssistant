@@ -1,5 +1,5 @@
 using KnowledgeAssistant.Contracts.Enums;
-using KnowledgeAssistant.Domain;
+using KnowledgeAssistant.Domain.Entities;
 
 namespace KnowledgeAssistant.Application.Abstraction
 {

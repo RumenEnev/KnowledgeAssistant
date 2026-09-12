@@ -1,4 +1,4 @@
-namespace KnowledgeAssistant.Domain;
+namespace KnowledgeAssistant.Domain.Entities;
 
 public class ToolDefinitionEntity
 {

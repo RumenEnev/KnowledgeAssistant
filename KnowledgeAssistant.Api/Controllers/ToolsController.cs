@@ -1,6 +1,7 @@
 using KnowledgeAssistant.Application.Abstraction;
 using KnowledgeAssistant.Contracts.Enums;
 using KnowledgeAssistant.Contracts.Tools;
+using KnowledgeAssistant.Domain.Entities;
 using Microsoft.AspNetCore.Mvc;
 
 namespace KnowledgeAssistant.Api.Controllers;
@@ -66,6 +67,6 @@ public class ToolsController : ControllerBase
         return deleted ? NoContent() : NotFound();
     }
 
-    private ToolDto ToDto(Domain.ToolDefinitionEntity tool) =>
+    private ToolDto ToDto(ToolDefinitionEntity tool) =>
         new(tool.Id, tool.Name, tool.Description, tool.ParametersJsonSchema, tool.IsEnabled, tool.CreatedAt, tool.UpdatedAt, tool.Scope, tool.Path);
 }
