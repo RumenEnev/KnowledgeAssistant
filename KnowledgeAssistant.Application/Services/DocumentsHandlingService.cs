@@ -1,4 +1,5 @@
 ﻿using KnowledgeAssistant.Application.Abstraction;
+using KnowledgeAssistant.Application.Helper;
 using KnowledgeAssistant.Contracts.Enums;
 using KnowledgeAssistant.Domain.Documents;
 using System.Collections.Concurrent;
@@ -118,7 +119,7 @@ public class DocumentsHandlingService
             allChunks.AddRange(sectionChunks);
         }
 
-        return allChunks;
+        return MarkdownTextStripper.StripAll(allChunks);
     }
 
     private List<string> ChunkSectionByParagraphs(string text, int targetChunkSizeChars, int overlapChars)
