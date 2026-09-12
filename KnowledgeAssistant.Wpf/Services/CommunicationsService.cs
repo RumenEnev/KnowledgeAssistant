@@ -98,7 +98,6 @@ public class CommunicationsService : IMessageServiceSubscriber
         _messageService.Subscribe<GetAvailableProvidersRequest>(this, GetAvailableProvidersReceived);
         _messageService.Subscribe<UpdateSelectedProviderRequest>(this, UpdateSelectedProviderReceived);
         _messageService.Subscribe<UpdateConversationModelSelectionRequest>(this, UpdateConversationModelSelectionReceived);
-        _messageService.Subscribe<SaveRetrievalConfigRequest>(this, SaveRetrievalConfigReceived);
         _messageService.Subscribe<GetEmbeddingsModelsRequest>(this, GetEmbeddingsModelsReceived);
 
         _messageService.SubscribeAsync<GetRepositoriesRequest>(this, GetRepositoriesReceived);
@@ -112,38 +111,12 @@ public class CommunicationsService : IMessageServiceSubscriber
             {
                 var embeddingsModels = await _httpClient.GetFromJsonAsync<List<string>>($"api/models/embeddings", _cancellationToken);
                 var chunkingSettings = await _httpClient.GetFromJsonAsync<ChunkingSettingsDto>($"api/configuration/chunking-settings", _cancellationToken);
-                _messageService.Publish(new EmbeddingsLoadedEvent(embeddingsModels?.ToArray() ?? Array.Empty<string>(), chunkingSettings?.ChunkTargetSizeChars ?? 0, chunkingSettings?.ChunkOverlapChars ?? 0));
+                _messageService.Publish(new EmbeddingsLoadedEvent(embeddingsModels?.ToArray() ?? Array.Empty<string>(), chunkingSettings?.EmbeddingModelName ?? string.Empty,
+                    chunkingSettings?.ChunkTargetSizeChars ?? 0, chunkingSettings?.ChunkOverlapChars ?? 0));
             }
             catch (Exception ex)
             {
                 _messageService.Publish(new UserMessage("Error", $"Error fetching embeddings models: {ex.Message}", MessageType.Error));
-            }
-        }
-    }
-
-    private void SaveRetrievalConfigReceived(MessageBase message)
-    {
-        if (message is SaveRetrievalConfigRequest request)
-        {
-            try
-            {
-                var relativeUrl = $"api/documents/{request.ModelName}/retrieval-config";
-                using var httpRequest = new HttpRequestMessage(HttpMethod.Put, relativeUrl);
-                httpRequest.Content = new StringContent(JsonSerializer.Serialize(new { request.ModelName, request.ChunkSize, request.ChunkOverlap }), Encoding.UTF8, "application/json");
-                using var response = _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, _cancellationToken).Result;
-                if (!response.IsSuccessStatusCode)
-                {
-                    var responseBody = response.Content.ReadAsStringAsync(_cancellationToken).Result;
-                    throw new HttpRequestException($"PUT {relativeUrl} returned " + $"{(int)response.StatusCode} {response.ReasonPhrase}. " + $"Response: {responseBody}");
-                }
-            }
-            catch (OperationCanceledException) when (_cancellationToken.IsCancellationRequested)
-            {
-                // Application is closing.
-            }
-            catch (Exception ex)
-            {
-                _messageService.Publish(new UserMessage("Error", $"Error saving retrieval config: {ex.Message}", MessageType.Error));
             }
         }
     }

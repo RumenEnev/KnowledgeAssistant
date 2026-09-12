@@ -23,7 +23,6 @@ public partial class DocumentsWindow : Window, INotifyPropertyChanged, IMessageS
     private int? _editingDocumentId;
     private bool _isSaving;
     private bool _isSavingRetrievalConfig;
-    private bool _canSaveRetrievalConfig;
     private DocumentType _documentType = DocumentType.PlainText;
     private ObservableCollection<string> _embeddingModels = new ObservableCollection<string>();
 
@@ -173,16 +172,6 @@ public partial class DocumentsWindow : Window, INotifyPropertyChanged, IMessageS
         }
     }
 
-    public bool CanSaveRetrievalConfig
-    {
-        get => _canSaveRetrievalConfig;
-        set
-        {
-            _canSaveRetrievalConfig = value;
-            OnPropertyChanged(nameof(CanSaveRetrievalConfig));
-        }
-    }
-
     public string SaveRetrievalConfigButtonText => _isSavingRetrievalConfig ? "Saving..." : "Save Settings";
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -206,7 +195,7 @@ public partial class DocumentsWindow : Window, INotifyPropertyChanged, IMessageS
             System.Windows.Application.Current.Dispatcher.Invoke(() =>
             {
                 EmbeddingModels = new ObservableCollection<string>(@event.Models);
-                EmbeddingModel = EmbeddingModels.FirstOrDefault();
+                EmbeddingModel = @event.SelectedModel;
                 ChunkOverlap = @event.Overlap;
                 ChunkSize = @event.ChunkSize;
             });
@@ -431,7 +420,6 @@ public partial class DocumentsWindow : Window, INotifyPropertyChanged, IMessageS
         NewTitle = document.Title;
         NewText = document.OriginalText;
         OnPropertyChanged(nameof(IsDocumentSelected));
-        CanSaveRetrievalConfig = true;
         var documentTopics = new HashSet<string>(document.Topics, StringComparer.OrdinalIgnoreCase);
         foreach (var topic in AvailableTopics)
         {
@@ -456,8 +444,6 @@ public partial class DocumentsWindow : Window, INotifyPropertyChanged, IMessageS
                 _documentType = Path.GetExtension(dialog.FileName).Equals(".md", StringComparison.OrdinalIgnoreCase)
                     ? DocumentType.Markdown
                     : DocumentType.PlainText;
-
-                CanSaveRetrievalConfig = true;
             }
             catch (Exception ex)
             {
@@ -497,7 +483,7 @@ public partial class DocumentsWindow : Window, INotifyPropertyChanged, IMessageS
 
         _isSavingRetrievalConfig = true;
         OnPropertyChanged(nameof(SaveRetrievalConfigButtonText));
-        _messageService.Publish(new SaveRetrievalConfigRequest(EmbeddingModel ?? string.Empty, ChunkSize, ChunkOverlap));
+        _messageService.Publish(new UpdateChunkingSettingsRequest(EmbeddingModel ?? string.Empty, ChunkSize, ChunkOverlap));
     }
 
     private void ResetRetrievalConfig_Click(object sender, RoutedEventArgs e)

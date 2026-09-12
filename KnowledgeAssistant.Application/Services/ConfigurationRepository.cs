@@ -69,7 +69,7 @@ namespace KnowledgeAssistant.Application.Services
             await using var connection = new NpgsqlConnection(_connectionString);
             await connection.OpenAsync(cancellationToken);
 
-            var query = "SELECT chunk_target_size_chars AS ChunkTargetSizeChars, chunk_overlap_chars AS ChunkOverlapChars " +
+            var query = "SELECT chunk_target_size_chars AS ChunkTargetSizeChars, chunk_overlap_chars AS ChunkOverlapChars, selected_model_id AS ModelId " +
                         "FROM ai_interactions.configuration WHERE id = @Id";
 
             var row = await connection.QuerySingleOrDefaultAsync<ChunkingSettingsEntity>(query, new { Id = GlobalConfigurationId });
@@ -82,26 +82,26 @@ namespace KnowledgeAssistant.Application.Services
                 }
                 : new ChunkingSettingsDto
                 {
-                    EmbeddingModelName = row.ModelName,
+                    EmbeddingModelName = await _modelRepository.GetModelNameAsync(row.ModelId, cancellationToken) ?? string.Empty,
                     ChunkTargetSizeChars = row.ChunkTargetSizeChars,
                     ChunkOverlapChars = row.ChunkOverlapChars
                 };
         }
 
-        public async Task UpsertChunkingSettingsAsync(int chunkTargetSizeChars, int chunkOverlapChars, CancellationToken cancellationToken)
+        public async Task UpsertChunkingSettingsAsync(Guid modelId, int chunkTargetSizeChars, int chunkOverlapChars, CancellationToken cancellationToken)
         {
             await using var connection = new NpgsqlConnection(_connectionString);
             await connection.OpenAsync(cancellationToken);
-
             var updateQuery = "UPDATE ai_interactions.configuration " +
-                               "SET chunk_target_size_chars = @ChunkTargetSizeChars, chunk_overlap_chars = @ChunkOverlapChars " +
+                               "SET chunk_target_size_chars = @ChunkTargetSizeChars, chunk_overlap_chars = @ChunkOverlapChars, selected_model_id = @ModelId " +
                                "WHERE id = @Id";
 
             var rowsAffected = await connection.ExecuteAsync(updateQuery, new
             {
                 Id = GlobalConfigurationId,
                 ChunkTargetSizeChars = chunkTargetSizeChars,
-                ChunkOverlapChars = chunkOverlapChars
+                ChunkOverlapChars = chunkOverlapChars,
+                ModelId = modelId
             });
 
             if (rowsAffected == 0)

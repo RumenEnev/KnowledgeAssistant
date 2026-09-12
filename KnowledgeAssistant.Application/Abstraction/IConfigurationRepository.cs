@@ -11,7 +11,7 @@ namespace KnowledgeAssistant.Application.Abstraction
 
         Task<ChunkingSettingsDto> GetChunkingSettingsAsync(CancellationToken cancellationToken);
 
-        Task UpsertChunkingSettingsAsync(int chunkTargetSizeChars, int chunkOverlapChars, CancellationToken cancellationToken);
+        Task UpsertChunkingSettingsAsync(Guid modelId, int chunkTargetSizeChars, int chunkOverlapChars, CancellationToken cancellationToken);
 
         Task<Guid> AddRepositoryAsync(string name, string rootPath, string? description, CancellationToken cancellationToken);
 

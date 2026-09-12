@@ -43,7 +43,7 @@ public sealed class ConfigurationController : ControllerBase
         }
 
         var modelId = await _modelRepository.GetOrCreateModelIdAsync(request.EmbeddingModelName, cancellationToken);
-        await _repository.UpsertChunkingSettingsAsync(request.ChunkTargetSizeChars, request.ChunkOverlapChars, cancellationToken);
+        await _repository.UpsertChunkingSettingsAsync(modelId, request.ChunkTargetSizeChars, request.ChunkOverlapChars, cancellationToken);
         return NoContent();
     }
 }

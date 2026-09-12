@@ -2,7 +2,7 @@
 
 public sealed class ChunkingSettingsEntity
 {
-    public string ModelName { get; set; } = string.Empty;
+    public Guid ModelId { get; set; }   
 
     public int ChunkTargetSizeChars { get; set; }
 

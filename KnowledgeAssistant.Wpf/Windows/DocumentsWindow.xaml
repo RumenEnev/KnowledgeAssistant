@@ -202,8 +202,7 @@
                         Margin="8,0,0,0"
                         Padding="10,4"
                         Click="SaveRetrievalConfig_Click"
-                        Content="{Binding SaveRetrievalConfigButtonText}"
-                        IsEnabled="{Binding CanSaveRetrievalConfig}" />
+                        Content="{Binding SaveRetrievalConfigButtonText}" />
                 </StackPanel>
             </StackPanel>
         </GroupBox>
