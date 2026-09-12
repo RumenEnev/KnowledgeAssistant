@@ -91,21 +91,20 @@
         </div>
       </section>
 
-      <section class="chunking-settings-section" [class.disabled-section]="!isRetrievalPanelVisible()">
+      <section class="chunking-settings-section">
         <h4>Retrieval Settings</h4>
         <p class="chunking-settings-hint">
-          Per-document tuning for chunking and retrieval. Select a document above, or load one from a file, to edit.
-          Chunk size/overlap apply on next re-ingest; the rest apply immediately to future queries.
+          Global chunking and embedding settings applied to newly ingested/re-ingested documents.
         </p>
 
-        @if (retrievalConfig(); as config) {
+        @if (chunkingSettings(); as config) {
           <div class="chunking-settings-fields">
             <div class="chunking-settings-field">
               <label class="field-label" for="rc-embedding-model">Embedding model</label>
               <select
                 id="rc-embedding-model"
-                [ngModel]="config.embeddingModel"
-                (ngModelChange)="updateRetrievalField('embeddingModel', $event)">
+                [ngModel]="config.embeddingModelName"
+                (ngModelChange)="updateChunkingField('embeddingModelName', $event)">
                 @for (model of embeddingModels; track model) {
                   <option [value]="model">{{ model }}</option>
                 }
@@ -118,8 +117,8 @@
                 id="rc-chunk-size"
                 type="number"
                 min="1"
-                [ngModel]="config.chunkSize"
-                (ngModelChange)="updateRetrievalField('chunkSize', $event)" />
+                [ngModel]="config.chunkTargetSizeChars"
+                (ngModelChange)="updateChunkingField('chunkTargetSizeChars', $event)" />
             </div>
 
             <div class="chunking-settings-field">
@@ -128,15 +127,15 @@
                 id="rc-chunk-overlap"
                 type="number"
                 min="0"
-                [ngModel]="config.chunkOverlap"
-                (ngModelChange)="updateRetrievalField('chunkOverlap', $event)" />
+                [ngModel]="config.chunkOverlapChars"
+                (ngModelChange)="updateChunkingField('chunkOverlapChars', $event)" />
             </div>
 
             <div class="chunking-settings-actions">
-              <button type="button" [disabled]="!canSaveRetrievalConfig()" (click)="saveRetrievalConfig()">
+              <button type="button" (click)="saveRetrievalConfig()">
                 {{ isSavingRetrievalConfig() ? 'Saving...' : 'Save Settings' }}
               </button>
-              <button type="button" [disabled]="editingDocumentId() === null" (click)="resetRetrievalConfig()">
+              <button type="button" (click)="resetRetrievalConfig()">
                 Reset to Default
               </button>
             </div>

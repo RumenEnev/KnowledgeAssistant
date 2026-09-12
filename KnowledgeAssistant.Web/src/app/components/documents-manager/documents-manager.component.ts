@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { NgTemplateOutlet } from '@angular/common';
 import { DocumentsService } from '../../services/documents.service';
 import { NotificationService } from '../../services/notification.service';
-import { DocumentItem, Topic, DocumentRetrievalConfig, DEFAULT_RETRIEVAL_CONFIG } from '../../models/document';
+import { DocumentItem, Topic, ChunkingSettings, DEFAULT_CHUNKING_SETTINGS } from '../../models/document';
 
 interface TopicNode {
   topic: Topic;
@@ -38,16 +38,12 @@ export class DocumentsManagerComponent implements OnInit {
 
   editingDocumentId = signal<number | null>(null);
 
-  // Per-document retrieval settings (chunking + retrieval tuning), replacing the old global chunking settings.
-  retrievalConfig = signal<DocumentRetrievalConfig | null>(null);
+  // Global chunking/embedding settings, matching the WPF "Retrieval Settings" panel
+  // (`GET`/`PUT` on `/api/configuration/chunking-settings`). Not per-document.
+  chunkingSettings = signal<ChunkingSettings>(DEFAULT_CHUNKING_SETTINGS);
   isSavingRetrievalConfig = signal(false);
 
   embeddingModels: string[] = [];
-
-  /** Panel is visible once there's a document (selected or freshly loaded from file) to configure. */
-  isRetrievalPanelVisible = computed(() => this.editingDocumentId() !== null || this.text().trim().length > 0);
-  /** Save/Reset are only meaningful once the document actually exists (has a real id). */
-  canSaveRetrievalConfig = computed(() => !this.isSavingRetrievalConfig() && this.editingDocumentId() !== null);
 
   /** Tracks which node ids are collapsed, so re-fetching topics doesn't reset the tree's expand state. */
   private collapsedIds = new Set<number>();
@@ -67,7 +63,7 @@ export class DocumentsManagerComponent implements OnInit {
   private overlayMouseDownOnBackdrop = false;
 
   async ngOnInit() {
-    await Promise.all([this.loadDocuments(), this.loadTopics(), this.loadEmbeddingModels()]);
+    await Promise.all([this.loadDocuments(), this.loadTopics(), this.loadEmbeddingModels(), this.loadChunkingSettings()]);
   }
 
   async loadEmbeddingModels() {
@@ -75,6 +71,15 @@ export class DocumentsManagerComponent implements OnInit {
       this.embeddingModels = await this.documentsService.getEmbeddingModels();
     } catch (err) {
       this.notificationService.error(this.toMessage(err, 'Failed to load embedding models.'));
+    }
+  }
+
+  async loadChunkingSettings() {
+    try {
+      const settings = await this.documentsService.getChunkingSettings();
+      this.chunkingSettings.set(settings);
+    } catch (err) {
+      this.notificationService.error(this.toMessage(err, 'Failed to load retrieval settings.'));
     }
   }
 
@@ -99,40 +104,21 @@ export class DocumentsManagerComponent implements OnInit {
     }
   }
 
-  async loadRetrievalConfig(documentId: number) {
-    try {
-      const config = await this.documentsService.getRetrievalConfig(documentId);
-      if (!config.embeddingModel) {
-        config.embeddingModel = this.embeddingModels[0] ?? '';
-      }
-      this.retrievalConfig.set(config);
-    } catch (err) {
-      this.notificationService.error(this.toMessage(err, 'Failed to load retrieval settings.'));
-    }
-  }
-
-  updateRetrievalField<K extends keyof DocumentRetrievalConfig>(key: K, value: DocumentRetrievalConfig[K]): void {
-    const current = this.retrievalConfig();
-    if (!current) {
-      return;
-    }
-    this.retrievalConfig.set({ ...current, [key]: value });
+  updateChunkingField<K extends keyof ChunkingSettings>(key: K, value: ChunkingSettings[K]): void {
+    this.chunkingSettings.update(current => ({ ...current, [key]: value }));
   }
 
   async saveRetrievalConfig() {
-    const config = this.retrievalConfig();
-    if (!config) {
-      return;
-    }
+    const settings = this.chunkingSettings();
 
-    if (config.chunkOverlap < 0 || config.chunkOverlap >= config.chunkSize) {
+    if (settings.chunkOverlapChars < 0 || settings.chunkOverlapChars >= settings.chunkTargetSizeChars) {
       this.notificationService.error('Chunk overlap must be zero or greater, and smaller than chunk size.');
       return;
     }
 
     this.isSavingRetrievalConfig.set(true);
     try {
-      await this.documentsService.saveRetrievalConfig(config);
+      await this.documentsService.saveChunkingSettings(settings);
       this.notificationService.success('Retrieval settings saved.');
     } catch (err) {
       this.notificationService.error(this.toMessage(err, 'Failed to save retrieval settings.'));
@@ -141,19 +127,13 @@ export class DocumentsManagerComponent implements OnInit {
     }
   }
 
-  async resetRetrievalConfig() {
-    const documentId = this.editingDocumentId();
-    if (documentId === null) {
-      return;
-    }
-
-    try {
-      await this.documentsService.resetRetrievalConfig(documentId);
-      await this.loadRetrievalConfig(documentId);
-      this.notificationService.success('Retrieval settings reset to default.');
-    } catch (err) {
-      this.notificationService.error(this.toMessage(err, 'Failed to reset retrieval settings.'));
-    }
+  // Mirrors the WPF "Reset to Default" button: resets the form fields locally, it does not call the API.
+  resetRetrievalConfig(): void {
+    this.chunkingSettings.update(current => ({
+      ...current,
+      chunkTargetSizeChars: DEFAULT_CHUNKING_SETTINGS.chunkTargetSizeChars,
+      chunkOverlapChars: DEFAULT_CHUNKING_SETTINGS.chunkOverlapChars
+    }));
   }
 
   isTopicSelected(name: string): boolean {
@@ -241,12 +221,6 @@ export class DocumentsManagerComponent implements OnInit {
       this.text.set(content);
       const nameWithoutExtension = file.name.replace(/\.[^/.]+$/, '');
       this.title.set(nameWithoutExtension);
-      // No real document yet - show defaults so the panel has something to display;
-      this.retrievalConfig.set({
-        documentId: 0,
-        ...DEFAULT_RETRIEVAL_CONFIG,
-        embeddingModel: DEFAULT_RETRIEVAL_CONFIG.embeddingModel || this.embeddingModels[0] || ''
-      });
     } catch (err) {
       this.notificationService.error(this.toMessage(err, 'Failed to read the file.'));
     } finally {
@@ -259,8 +233,6 @@ export class DocumentsManagerComponent implements OnInit {
     this.title.set(doc.title);
     this.text.set(doc.originalText);
     this.selectedTopicNames.set(new Set(doc.topics));
-    this.retrievalConfig.set(null);
-    this.loadRetrievalConfig(doc.id);
   }
 
   cancelEdit(): void {
@@ -268,7 +240,6 @@ export class DocumentsManagerComponent implements OnInit {
     this.title.set('');
     this.text.set('');
     this.selectedTopicNames.set(new Set());
-    this.retrievalConfig.set(null);
   }
 
   async addDocument() {

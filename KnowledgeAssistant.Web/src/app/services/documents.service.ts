@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { DocumentItem, Topic } from '../models/document';
-import { DocumentRetrievalConfig } from '../models/document';
+import { ChunkingSettings } from '../models/document';
 
 @Injectable({
   providedIn: 'root'
@@ -95,30 +95,24 @@ export class DocumentsService {
     await this.assertOk(response);
   }
 
-  async getRetrievalConfig(documentId: number): Promise<DocumentRetrievalConfig> {
-    const response = await fetch(`${this.baseUrl}/api/documents/${documentId}/retrieval-config`);
-    await this.assertOk(response);
-    return response.json();
-  }
-  
   async getEmbeddingModels(): Promise<string[]> {
     const response = await fetch(`${this.baseUrl}/api/models/embeddings`);
     await this.assertOk(response);
     return response.json();
   }
 
-  async saveRetrievalConfig(config: DocumentRetrievalConfig): Promise<void> {
-    const response = await fetch(`${this.baseUrl}/api/documents/${config.documentId}/retrieval-config`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(config)
-    });
+  /** Global chunking/embedding settings, same endpoint used by the WPF "Retrieval Settings" panel. */
+  async getChunkingSettings(): Promise<ChunkingSettings> {
+    const response = await fetch(`${this.baseUrl}/api/configuration/chunking-settings`);
     await this.assertOk(response);
+    return response.json();
   }
 
-  async resetRetrievalConfig(documentId: number): Promise<void> {
-    const response = await fetch(`${this.baseUrl}/api/documents/${documentId}/retrieval-config`, {
-      method: 'DELETE'
+  async saveChunkingSettings(settings: ChunkingSettings): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/api/configuration/chunking-settings`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settings)
     });
     await this.assertOk(response);
   }

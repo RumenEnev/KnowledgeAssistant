@@ -12,15 +12,18 @@ export interface Topic {
   parentId: number | null;
 }
 
-export interface DocumentRetrievalConfig {
-  documentId: number;
-  embeddingModel: string;
-  chunkSize: number;
-  chunkOverlap: number;
+/**
+ * Global chunking/embedding settings, mirroring the WPF "Retrieval Settings" panel which reads/writes
+ * `/api/configuration/chunking-settings` (not the per-document retrieval-config endpoint).
+ */
+export interface ChunkingSettings {
+  embeddingModelName: string;
+  chunkTargetSizeChars: number;
+  chunkOverlapChars: number;
 }
 
-export const DEFAULT_RETRIEVAL_CONFIG: Omit<DocumentRetrievalConfig, 'documentId'> = {
-  embeddingModel: '',
-  chunkSize: 1200,
-  chunkOverlap: 200,
+export const DEFAULT_CHUNKING_SETTINGS: ChunkingSettings = {
+  embeddingModelName: '',
+  chunkTargetSizeChars: 1200,
+  chunkOverlapChars: 200,
 };
