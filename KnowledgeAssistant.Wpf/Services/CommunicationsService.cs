@@ -99,9 +99,26 @@ namespace KnowledgeAssistant.Wpf.Services
             _messageService.Subscribe<UpdateSelectedProviderRequest>(this, UpdateSelectedProviderReceived);
             _messageService.Subscribe<UpdateConversationModelSelectionRequest>(this, UpdateConversationModelSelectionReceived);
             _messageService.Subscribe<SaveRetrievalConfigRequest>(this, SaveRetrievalConfigReceived);
+            _messageService.Subscribe<GetEmbeddingsModelsRequest>(this, GetEmbeddingsModelsReceived);
 
             _messageService.SubscribeAsync<GetRepositoriesRequest>(this, GetRepositoriesReceived);
             _messageService.SubscribeAsync<GetRetrievalConfigRequest>(this, GetRetrievalConfigReceived);
+        }
+
+        private async void GetEmbeddingsModelsReceived(MessageBase message)
+        {
+            if (message is GetEmbeddingsModelsRequest)
+            {
+                try
+                {
+                    var embeddingsModels = await _httpClient.GetFromJsonAsync<List<string>>($"api/models/embeddings", _cancellationToken);
+                    _messageService.Publish(new EmbeddingsLoadedEvent(embeddingsModels?.ToArray() ?? Array.Empty<string>()));
+                }
+                catch (Exception ex)
+                {
+                    _messageService.Publish(new UserMessage("Error", $"Error fetching embeddings models: {ex.Message}", MessageType.Error));
+                }
+            }
         }
 
         private void SaveRetrievalConfigReceived(MessageBase message)

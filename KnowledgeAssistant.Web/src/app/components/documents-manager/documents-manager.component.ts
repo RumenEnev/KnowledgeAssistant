@@ -42,6 +42,8 @@ export class DocumentsManagerComponent implements OnInit {
   retrievalConfig = signal<DocumentRetrievalConfig | null>(null);
   isSavingRetrievalConfig = signal(false);
 
+  embeddingModels: string[] = [];
+
   /** Panel is visible once there's a document (selected or freshly loaded from file) to configure. */
   isRetrievalPanelVisible = computed(() => this.editingDocumentId() !== null || this.text().trim().length > 0);
   /** Save/Reset are only meaningful once the document actually exists (has a real id). */
@@ -65,7 +67,15 @@ export class DocumentsManagerComponent implements OnInit {
   private overlayMouseDownOnBackdrop = false;
 
   async ngOnInit() {
-    await Promise.all([this.loadDocuments(), this.loadTopics()]);
+    await Promise.all([this.loadDocuments(), this.loadTopics(), this.loadEmbeddingModels()]);
+  }
+
+  async loadEmbeddingModels() {
+    try {
+      this.embeddingModels = await this.documentsService.getEmbeddingModels();
+    } catch (err) {
+      this.notificationService.error(this.toMessage(err, 'Failed to load embedding models.'));
+    }
   }
 
   async loadDocuments() {
@@ -92,6 +102,9 @@ export class DocumentsManagerComponent implements OnInit {
   async loadRetrievalConfig(documentId: number) {
     try {
       const config = await this.documentsService.getRetrievalConfig(documentId);
+      if (!config.embeddingModel) {
+        config.embeddingModel = this.embeddingModels[0] ?? '';
+      }
       this.retrievalConfig.set(config);
     } catch (err) {
       this.notificationService.error(this.toMessage(err, 'Failed to load retrieval settings.'));
@@ -229,7 +242,11 @@ export class DocumentsManagerComponent implements OnInit {
       const nameWithoutExtension = file.name.replace(/\.[^/.]+$/, '');
       this.title.set(nameWithoutExtension);
       // No real document yet - show defaults so the panel has something to display;
-      this.retrievalConfig.set({ documentId: 0, ...DEFAULT_RETRIEVAL_CONFIG });
+      this.retrievalConfig.set({
+        documentId: 0,
+        ...DEFAULT_RETRIEVAL_CONFIG,
+        embeddingModel: DEFAULT_RETRIEVAL_CONFIG.embeddingModel || this.embeddingModels[0] || ''
+      });
     } catch (err) {
       this.notificationService.error(this.toMessage(err, 'Failed to read the file.'));
     } finally {

@@ -749,7 +749,7 @@ namespace KnowledgeAssistant.Wpf
         {
             var window = new DocumentsWindow(_messageService)
             {
-                Owner = this
+                Owner = this,
             };
 
             window.ShowDialog();

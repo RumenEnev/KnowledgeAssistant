@@ -100,6 +100,12 @@ export class DocumentsService {
     await this.assertOk(response);
     return response.json();
   }
+  
+  async getEmbeddingModels(): Promise<string[]> {
+    const response = await fetch(`${this.baseUrl}/api/models/embeddings`);
+    await this.assertOk(response);
+    return response.json();
+  }
 
   async saveRetrievalConfig(config: DocumentRetrievalConfig): Promise<void> {
     const response = await fetch(`${this.baseUrl}/api/documents/${config.documentId}/retrieval-config`, {

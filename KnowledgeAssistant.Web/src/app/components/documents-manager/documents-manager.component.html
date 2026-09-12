@@ -74,12 +74,12 @@
 
         <div class="form-actions">
           <button type="button" class="load-file-btn" (click)="fileInput.click()">
-            Load from .txt file…
+            Load from file…
           </button>
           <input
             #fileInput
             type="file"
-            accept=".txt"
+            accept=".txt, .md"
             class="file-input-hidden"
             (change)="onTextFileSelected($event)" />
           @if (editingDocumentId() !== null) {
@@ -101,6 +101,18 @@
         @if (retrievalConfig(); as config) {
           <div class="chunking-settings-fields">
             <div class="chunking-settings-field">
+              <label class="field-label" for="rc-embedding-model">Embedding model</label>
+              <select
+                id="rc-embedding-model"
+                [ngModel]="config.embeddingModel"
+                (ngModelChange)="updateRetrievalField('embeddingModel', $event)">
+                @for (model of embeddingModels; track model) {
+                  <option [value]="model">{{ model }}</option>
+                }
+              </select>
+            </div>
+
+            <div class="chunking-settings-field">
               <label class="field-label" for="rc-chunk-size">Chunk size (characters)</label>
               <input
                 id="rc-chunk-size"
@@ -109,6 +121,7 @@
                 [ngModel]="config.chunkSize"
                 (ngModelChange)="updateRetrievalField('chunkSize', $event)" />
             </div>
+
             <div class="chunking-settings-field">
               <label class="field-label" for="rc-chunk-overlap">Chunk overlap (characters)</label>
               <input
@@ -118,12 +131,15 @@
                 [ngModel]="config.chunkOverlap"
                 (ngModelChange)="updateRetrievalField('chunkOverlap', $event)" />
             </div>
-            <button type="button" [disabled]="!canSaveRetrievalConfig()" (click)="saveRetrievalConfig()">
-              {{ isSavingRetrievalConfig() ? 'Saving...' : 'Save Settings' }}
-            </button>
-            <button type="button" [disabled]="editingDocumentId() === null" (click)="resetRetrievalConfig()">
-              Reset to Default
-            </button>
+
+            <div class="chunking-settings-actions">
+              <button type="button" [disabled]="!canSaveRetrievalConfig()" (click)="saveRetrievalConfig()">
+                {{ isSavingRetrievalConfig() ? 'Saving...' : 'Save Settings' }}
+              </button>
+              <button type="button" [disabled]="editingDocumentId() === null" (click)="resetRetrievalConfig()">
+                Reset to Default
+              </button>
+            </div>
           </div>
         }
       </section>

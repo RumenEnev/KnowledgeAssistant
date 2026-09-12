@@ -14,11 +14,13 @@ export interface Topic {
 
 export interface DocumentRetrievalConfig {
   documentId: number;
+  embeddingModel: string;
   chunkSize: number;
   chunkOverlap: number;
 }
 
 export const DEFAULT_RETRIEVAL_CONFIG: Omit<DocumentRetrievalConfig, 'documentId'> = {
+  embeddingModel: '',
   chunkSize: 1200,
   chunkOverlap: 200,
 };

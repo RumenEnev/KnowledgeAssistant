@@ -17,6 +17,7 @@ public partial class DocumentsWindow : Window, INotifyPropertyChanged, IMessageS
     private string? _newTitle;
     private string? _newText;
     private string? _statusMessage;
+    private string? _embeddingModel;
     private int? _editingDocumentId;
     private bool _isSaving;
     private bool _isSavingRetrievalConfig;
@@ -30,6 +31,7 @@ public partial class DocumentsWindow : Window, INotifyPropertyChanged, IMessageS
         DataContext = this;
 
         _messageService = messageService;
+        _messageService.Subscribe<EmbeddingsLoadedEvent>(this, EmbeddingsLoadedEventReceived);
         _messageService.Subscribe<DocumentsUpdatedEvent>(this, DocumentsUpdatedEventReceived);
         _messageService.Subscribe<TopicsUpdatedEvent>(this, TopicsUpdatedEventReceived);
         _messageService.Subscribe<DocumentAddedEvent>(this, DocumentAddedEventReceived);
@@ -41,13 +43,25 @@ public partial class DocumentsWindow : Window, INotifyPropertyChanged, IMessageS
 
     public bool IsDocumentSelected => EditingDocumentId is not null;
 
-    public bool IsRetrievalPanelVisible => EditingDocumentId is not null || !string.IsNullOrWhiteSpace(NewText);
+    public bool IsRetrievalPanelVisible => EditingDocumentId is null && !string.IsNullOrWhiteSpace(NewText);
 
     public ObservableCollection<DocumentDisplayModel> Documents { get; } = new ObservableCollection<DocumentDisplayModel>();
 
     public ObservableCollection<TopicSelectionItem> AvailableTopics { get; } = new ObservableCollection<TopicSelectionItem>();
 
     public ObservableCollection<TopicSelectionNode> TopicTree { get; } = new ObservableCollection<TopicSelectionNode>();
+
+    public ObservableCollection<string> EmbeddingModels { get; set; } = new ObservableCollection<string>();
+
+    public string? EmbeddingModel
+    {
+        get => _embeddingModel;
+        set
+        {
+            _embeddingModel = value;
+            OnPropertyChanged(nameof(EmbeddingModel));
+        }
+    }
 
     public string? NewTitle
     {
@@ -182,6 +196,19 @@ public partial class DocumentsWindow : Window, INotifyPropertyChanged, IMessageS
     {
         _messageService.Publish(new GetDocumentsRequest());
         _messageService.Publish(new GetTopicsRequest());
+        _messageService.Publish(new GetEmbeddingsModelsRequest());
+    }
+
+    private void EmbeddingsLoadedEventReceived(MessageBase message)
+    {
+        if (message is EmbeddingsLoadedEvent @event)
+        {
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            {
+                EmbeddingModels = new ObservableCollection<string>(@event.Models);
+                EmbeddingModel = EmbeddingModels.FirstOrDefault();
+            });
+        }
     }
 
     private void DocumentsUpdatedEventReceived(MessageBase message)

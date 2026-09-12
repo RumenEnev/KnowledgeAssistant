@@ -149,19 +149,11 @@
   gap: 4px;
 }
 
-.chunking-settings-field input {
-  width: 140px;
-  padding: 8px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 14px;
-  font-family: inherit;
-}
-
 .chunking-settings-fields button {
   padding: 8px 16px;
   border: none;
   border-radius: 6px;
+  margin:2px;
   background: #2a2a2a;
   color: #fff;
   cursor: pointer;
@@ -341,4 +333,14 @@
 .add-document-section button:disabled {
   background: #999;
   cursor: not-allowed;
+}
+
+.chunking-settings-field input,
+.chunking-settings-field select {
+  box-sizing: border-box;
+  height: 2.25rem; /* match whatever your inputs currently render at */
+  padding: 0 0.5rem;
+  font-size: 0.75rem;
+  line-height: 2.25rem;
+  border-radius: 6px;
 }

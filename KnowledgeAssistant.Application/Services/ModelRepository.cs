@@ -48,9 +48,19 @@ public class ModelRepository : IModelRepository
     {
         await using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
-
         var query = "SELECT name FROM ai_interactions.models WHERE \"Id\" = @Id";
+        
         return await connection.QuerySingleOrDefaultAsync<string?>(query, new { Id = modelId });
+    }
+
+    public async Task<IReadOnlyCollection<string>> GetEmbeddingModelsAsync(CancellationToken cancellationToken)
+    {
+        await using var connection = new NpgsqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+        var query = "SELECT name FROM ai_interactions.models WHERE internal_use_only = true";
+        var embeddingModels = await connection.QueryAsync<string>(query);
+        
+        return embeddingModels.ToArray();
     }
 
     public async Task<ModelFlagsDto> GetModelFlagsAsync(Guid modelId, CancellationToken cancellationToken)

@@ -23,6 +23,13 @@ public sealed class ModelsController : ControllerBase
         return Ok(_providerRegistry.Providers);
     }
 
+    [HttpGet("embeddings")]
+    public async Task<ActionResult<IReadOnlyCollection<string>>> GetEmbeddingModels(CancellationToken cancellationToken)
+    {
+        var models = await _modelRepository.GetEmbeddingModelsAsync(cancellationToken);
+        return Ok(models);
+    }
+
     [HttpGet]
     public async Task<ActionResult<IReadOnlyCollection<ModelInfoDto>>> Get([FromQuery] string provider, CancellationToken cancellationToken)
     {

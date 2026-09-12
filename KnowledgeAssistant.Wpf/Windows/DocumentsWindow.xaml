@@ -172,6 +172,13 @@
                     Width="200"
                     Margin="2"
                     HorizontalAlignment="Left">
+                    <TextBlock FontWeight="Bold" Text="Embedding Model" />
+                    <ComboBox ItemsSource="{Binding EmbeddingModels}" SelectedItem="{Binding EmbeddingModel, UpdateSourceTrigger=PropertyChanged}" />
+                </StackPanel>
+                <StackPanel
+                    Width="200"
+                    Margin="2"
+                    HorizontalAlignment="Left">
                     <TextBlock FontWeight="Bold" Text="Chunk size (chars)" />
                     <TextBox Text="{Binding ChunkSize, UpdateSourceTrigger=PropertyChanged}" />
                 </StackPanel>

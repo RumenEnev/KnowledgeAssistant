@@ -10,5 +10,7 @@ public interface IModelRepository
 
     Task<ModelFlagsDto> GetModelFlagsAsync(Guid modelId, CancellationToken cancellationToken);
 
+    Task<IReadOnlyCollection<string>> GetEmbeddingModelsAsync(CancellationToken cancellationToken);
+
     Task UpdateModelFlagsAsync(Guid modelId, bool internalUseOnly, bool canCallTools, bool isFavorite, CancellationToken cancellationToken);
 }
