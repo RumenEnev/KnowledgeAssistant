@@ -338,18 +338,68 @@ public class DocumentsHandlingService
 
     public async Task<SelectedContextChunks?> SelectRelevantChunksAsync(string model, string? classifiedTopic, string userMessage, string embeddingModel, CancellationToken cancellationToken)
     {
+        var context = await ResolveTopicDocumentsAsync(classifiedTopic, cancellationToken);
+        if (context is null)
+        {
+            return null;
+        }
+
+        var queryEmbedding = await _modelGateway.GetEmbeddingAsync(embeddingModel, userMessage, cancellationToken);
+        var allCandidates = new List<DocumentChunk>();
+
+        foreach (var docId in context.DocumentIds)
+        {
+            var config = context.ConfigByDocument[docId];
+            var docCandidates = await _documentRepository.SearchChunksByDocumentAsync(
+                docId, queryEmbedding, userMessage,
+                config.CandidatePoolSize, config.CandidateFanout, config.RrfK, cancellationToken);
+            allCandidates.AddRange(docCandidates);
+        }
+
+        return await BuildSelectionAsync(model, allCandidates, context.ConfigByDocument, cancellationToken);
+    }
+
+    /// <summary>
+    /// Same retrieval flow as <see cref="SelectRelevantChunksAsync"/>, but scoped to a specific embedding
+    /// model: the query embedding and every candidate chunk's vector both come from that model's dedicated
+    /// rag.chunk_embeddings_* table (see <see cref="IDocumentRepository.SearchChunksByDocumentAndModelAsync"/>).
+    /// Documents that have no embeddings for the chosen model simply contribute no candidates. Used by the
+    /// RAG evaluation tool so a run can target either embedding model independently of what's actually wired
+    /// into the live chat pipeline.
+    /// </summary>
+    public async Task<SelectedContextChunks?> SelectRelevantChunksForModelAsync(string model, string embeddingModel, string? classifiedTopic, string userMessage, CancellationToken cancellationToken)
+    {
+        var context = await ResolveTopicDocumentsAsync(classifiedTopic, cancellationToken);
+        if (context is null)
+        {
+            return null;
+        }
+
+        var queryEmbedding = await _modelGateway.GetEmbeddingAsync(embeddingModel, userMessage, cancellationToken);
+        var allCandidates = new List<DocumentChunk>();
+
+        foreach (var docId in context.DocumentIds)
+        {
+            var config = context.ConfigByDocument[docId];
+            var docCandidates = await _documentRepository.SearchChunksByDocumentAndModelAsync(
+                docId, embeddingModel, queryEmbedding, userMessage,
+                config.CandidatePoolSize, config.CandidateFanout, config.RrfK, cancellationToken);
+            allCandidates.AddRange(docCandidates);
+        }
+
+        return await BuildSelectionAsync(model, allCandidates, context.ConfigByDocument, cancellationToken);
+    }
+
+    private sealed record TopicDocumentContext(List<int> DocumentIds, Dictionary<int, DocumentRetrievalConfig> ConfigByDocument);
+
+    private async Task<TopicDocumentContext?> ResolveTopicDocumentsAsync(string? classifiedTopic, CancellationToken cancellationToken)
+    {
         if (string.IsNullOrWhiteSpace(classifiedTopic))
         {
             return null;
         }
 
         var allTopics = await _documentRepository.GetAllTopicsAsync(cancellationToken);
-        if (!allTopics.Select(topic => topic.Name).Contains(classifiedTopic))
-        {
-            return null;
-        }
-
-        var queryEmbedding = await _modelGateway.GetEmbeddingAsync(embeddingModel, userMessage, cancellationToken);
         var topicId = allTopics.FirstOrDefault(t => t.Name == classifiedTopic)?.Id;
         if (topicId is null)
         {
@@ -363,20 +413,15 @@ public class DocumentsHandlingService
         }
 
         var savedConfigs = await _documentRepository.GetRetrievalConfigsAsync(documentIds, cancellationToken);
-        var configByDocument = new Dictionary<int, DocumentRetrievalConfig>();
-        var allCandidates = new List<DocumentChunk>();
+        var configByDocument = documentIds.ToDictionary(
+            id => id,
+            id => savedConfigs.TryGetValue(id, out var saved) ? saved : DocumentRetrievalConfig.Default(id));
 
-        foreach (var docId in documentIds)
-        {
-            var config = savedConfigs.TryGetValue(docId, out var saved) ? saved : DocumentRetrievalConfig.Default(docId);
-            configByDocument[docId] = config;
+        return new TopicDocumentContext(documentIds, configByDocument);
+    }
 
-            var docCandidates = await _documentRepository.SearchChunksByDocumentAsync(
-                docId, queryEmbedding, userMessage,
-                config.CandidatePoolSize, config.CandidateFanout, config.RrfK, cancellationToken);
-            allCandidates.AddRange(docCandidates);
-        }
-
+    private async Task<SelectedContextChunks?> BuildSelectionAsync(string model, List<DocumentChunk> allCandidates, Dictionary<int, DocumentRetrievalConfig> configByDocument, CancellationToken cancellationToken)
+    {
         var candidateList = allCandidates.OrderBy(c => c.Distance).ToList();
         if (candidateList.Count == 0)
         {

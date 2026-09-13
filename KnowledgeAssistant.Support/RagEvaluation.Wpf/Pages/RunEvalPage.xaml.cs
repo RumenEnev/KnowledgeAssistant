@@ -11,6 +11,12 @@ namespace RagEvaluation.Desktop.Pages;
 
 public partial class RunEvalPage : Page
 {
+    private static readonly string[] EmbeddingModels =
+    [
+        "nomic-embed-text:latest",
+        "mxbai-embed-large:latest"
+    ];
+
     private readonly EvaluationService _evaluationService;
     private readonly IDocumentRepository _documentRepository;
     private readonly IModelProviderRegistry _providerRegistry;
@@ -37,7 +43,11 @@ public partial class RunEvalPage : Page
 
         InitializeComponent();
 
-        EmbeddingModelBox.Text = _configuration["Llm:EmbeddingModel"] ?? string.Empty;
+        EmbeddingModelSelector.ItemsSource = EmbeddingModels;
+        var configuredEmbeddingModel = _configuration["Llm:EmbeddingModel"];
+        EmbeddingModelSelector.SelectedItem = configuredEmbeddingModel is not null && EmbeddingModels.Contains(configuredEmbeddingModel)
+            ? configuredEmbeddingModel
+            : EmbeddingModels.FirstOrDefault();
 
         ChatProviderSelector.ItemsSource = _providerRegistry.Providers;
         ChatProviderSelector.SelectedItem = _providerRegistry.Providers.FirstOrDefault();
@@ -219,10 +229,12 @@ public partial class RunEvalPage : Page
         var chatModel = ChatModelSelector.SelectedItem as string;
         var judgeProvider = JudgeProviderSelector.SelectedItem as string;
         var judgeModel = JudgeModelSelector.SelectedItem as string;
+        var embeddingModel = EmbeddingModelSelector.SelectedItem as string;
         if (string.IsNullOrWhiteSpace(chatProvider) || string.IsNullOrWhiteSpace(chatModel) ||
-            string.IsNullOrWhiteSpace(judgeProvider) || string.IsNullOrWhiteSpace(judgeModel))
+            string.IsNullOrWhiteSpace(judgeProvider) || string.IsNullOrWhiteSpace(judgeModel) ||
+            string.IsNullOrWhiteSpace(embeddingModel))
         {
-            ResultText.Text = "Select a chat provider/model and a judge provider/model before running.";
+            ResultText.Text = "Select a chat provider/model, a judge provider/model, and an embedding model before running.";
             return;
         }
 
@@ -235,7 +247,6 @@ public partial class RunEvalPage : Page
         var runName = string.IsNullOrWhiteSpace(RunNameBox.Text)
             ? $"run-{DateTime.UtcNow:yyyyMMdd-HHmmss}"
             : RunNameBox.Text.Trim();
-        var embeddingModel = EmbeddingModelBox.Text.Trim();
 
         var selectedDocument = DocumentSelector.SelectedItem as Document;
         int? documentId = selectedDocument is null || selectedDocument.Id == 0 ? null : selectedDocument.Id;

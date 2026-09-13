@@ -40,7 +40,11 @@
                         <ComboBox x:Name="ChatModelSelector" Margin="0,0,0,12" />
 
                         <TextBlock Margin="0,0,0,4" Text="Embedding model" />
-                        <ui:TextBox x:Name="EmbeddingModelBox" Margin="0,0,0,12" />
+                        <ComboBox
+                            x:Name="EmbeddingModelSelector"
+                            MinWidth="200"
+                            Margin="0,0,0,12"
+                            HorizontalAlignment="Stretch" />
 
                         <TextBlock Margin="0,0,0,4" Text="Judge provider" />
                         <ComboBox

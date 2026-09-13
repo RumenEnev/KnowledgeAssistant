@@ -24,6 +24,16 @@ public class DocumentRepository : IDocumentRepository
         return true;
     }
 
+    private static string ResolveEmbeddingsTable(string embeddingModel)
+    {
+        return embeddingModel.ToLowerInvariant() switch
+        {
+            "mxbai-embed-large:latest" => "rag.chunk_embeddings_mxbai_embed_large",
+            "nomic-embed-text:latest" => "rag.chunk_embeddings_nomic_embed_text",
+            _ => throw new InvalidOperationException($"Unsupported embedding model: {embeddingModel}")
+        };
+    }
+
     public async Task<IEnumerable<Topic>> GetAllTopicsAsync(CancellationToken cancellationToken)
     {
         await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
@@ -148,12 +158,7 @@ public class DocumentRepository : IDocumentRepository
 
     public async Task UpsertChunkEmbeddingAsync(int chunkId, float[] embedding, string embeddingModel, CancellationToken cancellationToken)
     {
-        var embeddingsTable = embeddingModel.ToLowerInvariant() switch
-        {
-            "mxbai-embed-large:latest" => "rag.chunk_embeddings_mxbai_embed_large",
-            "nomic-embed-text:latest" => "rag.chunk_embeddings_nomic_embed_text",
-            _ => throw new InvalidOperationException($"Unsupported embedding model: {embeddingModel}")
-        };
+        var embeddingsTable = ResolveEmbeddingsTable(embeddingModel);
 
         await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
         var query = $"""
@@ -504,6 +509,70 @@ public class DocumentRepository : IDocumentRepository
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error searching chunks by document ID {DocumentId}", documentId);
+            throw;
+        }
+    }
+
+    public async Task<IEnumerable<DocumentChunk>> SearchChunksByDocumentAndModelAsync(
+        int documentId, string embeddingModel, float[] queryEmbedding, string queryText,
+        int candidatePoolSize, int candidateFanout, int rrfK, CancellationToken cancellationToken)
+    {
+        var embeddingsTable = ResolveEmbeddingsTable(embeddingModel);
+
+        try
+        {
+            await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+
+            var query = $"""
+                        WITH vector_ranked AS (
+                            SELECT c.id,
+                                   ce.embedding <=> @QueryEmbedding AS distance,
+                                   ROW_NUMBER() OVER (ORDER BY ce.embedding <=> @QueryEmbedding) AS vec_rank
+                            FROM rag.chunks c
+                            INNER JOIN {embeddingsTable} ce ON ce.chunk_id = c.id
+                            WHERE c.document_id = @DocumentId
+                            ORDER BY ce.embedding <=> @QueryEmbedding
+                            LIMIT @CandidateFanout
+                        ),
+                        fts_ranked AS (
+                            SELECT c.id,
+                                   ROW_NUMBER() OVER (ORDER BY ts_rank_cd(c.chunk_text_tsv, plainto_tsquery('english', @QueryText)) DESC) AS fts_rank
+                            FROM rag.chunks c
+                            INNER JOIN {embeddingsTable} ce ON ce.chunk_id = c.id
+                            WHERE c.document_id = @DocumentId
+                              AND c.chunk_text_tsv @@ plainto_tsquery('english', @QueryText)
+                            ORDER BY ts_rank_cd(c.chunk_text_tsv, plainto_tsquery('english', @QueryText)) DESC
+                            LIMIT @CandidateFanout
+                        ),
+                        fused AS (
+                            SELECT
+                                COALESCE(v.id, f.id) AS id,
+                                COALESCE(1.0 / (@RrfK + v.vec_rank), 0) + COALESCE(1.0 / (@RrfK + f.fts_rank), 0) AS fused_score,
+                                v.distance
+                            FROM vector_ranked v
+                            FULL OUTER JOIN fts_ranked f ON v.id = f.id
+                        )
+                        SELECT c.id, c.document_id AS DocumentId, c.chunk_index AS ChunkIndex, c.chunk_text AS ChunkText,
+                               fused.distance AS Distance, fused.fused_score AS FusedScore
+                        FROM fused
+                        INNER JOIN rag.chunks c ON c.id = fused.id
+                        ORDER BY fused.fused_score DESC
+                        LIMIT @CandidatePoolSize;
+                     """;
+
+            return await connection.QueryAsync<DocumentChunk>(query, new
+            {
+                DocumentId = documentId,
+                QueryEmbedding = new Pgvector.Vector(queryEmbedding),
+                QueryText = queryText,
+                CandidateFanout = candidateFanout,
+                RrfK = rrfK,
+                CandidatePoolSize = candidatePoolSize
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error searching chunks by document ID {DocumentId} and embedding model {EmbeddingModel}", documentId, embeddingModel);
             throw;
         }
     }

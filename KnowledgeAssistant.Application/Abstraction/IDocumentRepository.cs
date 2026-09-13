@@ -52,6 +52,8 @@ public interface IDocumentRepository
 
     Task<IEnumerable<DocumentChunk>> SearchChunksByDocumentAsync(int documentId, float[] queryEmbedding, string queryText, int candidatePoolSize, int candidateFanout, int rrfK, CancellationToken cancellationToken);
 
+    Task<IEnumerable<DocumentChunk>> SearchChunksByDocumentAndModelAsync(int documentId, string embeddingModel, float[] queryEmbedding, string queryText, int candidatePoolSize, int candidateFanout, int rrfK, CancellationToken cancellationToken);
+
     Task<DocumentRetrievalConfig?> GetRetrievalConfigAsync(int documentId, CancellationToken cancellationToken);
 
     Task DeleteRetrievalConfigAsync(int documentId, CancellationToken cancellationToken);
