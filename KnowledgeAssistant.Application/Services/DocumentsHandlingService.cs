@@ -18,7 +18,6 @@ public class DocumentsHandlingService
     private readonly int _fallbackContextWindowTokens;
     private readonly ModelCatalogService _modelCatalogService;
 
-    private const string EmbeddingModel = "nomic-embed-text";
     private const double TargetInjectionFraction = 0.30;
     private const double MaxInjectionFraction = 0.50;
     private const int CharsPerTokenApprox = 4;
@@ -37,7 +36,7 @@ public class DocumentsHandlingService
         _fallbackContextWindowTokens = 4096;
     }
 
-    public async Task<(int, int)> IngestDocumentAsync(string title, string originalText, DocumentType documentType, IReadOnlyList<string> topicNames, CancellationToken cancellationToken)
+    public async Task<(int, int)> IngestDocumentAsync(string title, string originalText, string embeddingModel, DocumentType documentType, IReadOnlyList<string> topicNames, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(originalText))
         {
@@ -52,12 +51,12 @@ public class DocumentsHandlingService
         var topicIds = await ResolveTopicIdsAsync(topicNames, cancellationToken);
         var documentId = await _documentRepository.CreateDocumentAsync(title, originalText, cancellationToken);
         await _documentRepository.LinkDocumentTopicsAsync(documentId, topicIds, cancellationToken);
-        var chunksCount = await ReplaceChunksAsync(documentId, originalText, documentType, cancellationToken);
+        var chunksCount = await ReplaceChunksAsync(documentId, embeddingModel, originalText, documentType, cancellationToken);
 
         return (documentId, chunksCount);
     }
 
-    public async Task UpdateDocumentAsync(int documentId, string title, string originalText, DocumentType documentType, IReadOnlyList<string> topicNames, CancellationToken cancellationToken)
+    public async Task UpdateDocumentAsync(int documentId, string title, string embeddingModel, string originalText, DocumentType documentType, IReadOnlyList<string> topicNames, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(originalText))
         {
@@ -72,7 +71,7 @@ public class DocumentsHandlingService
         var topicIds = await ResolveTopicIdsAsync(topicNames, cancellationToken);
         await _documentRepository.UpdateDocumentAsync(documentId, title, originalText, cancellationToken);
         await _documentRepository.ReplaceDocumentTopicsAsync(documentId, topicIds, cancellationToken);
-        await ReplaceChunksAsync(documentId, originalText, documentType, cancellationToken);
+        await ReplaceChunksAsync(documentId, embeddingModel, originalText, documentType, cancellationToken);
     }
 
     private async Task<List<int>> ResolveTopicIdsAsync(IReadOnlyList<string> topicNames, CancellationToken cancellationToken)
@@ -92,7 +91,7 @@ public class DocumentsHandlingService
         return topicIds;
     }
 
-    private async Task<int> ReplaceChunksAsync(int documentId, string originalText, DocumentType documentType, CancellationToken cancellationToken)
+    private async Task<int> ReplaceChunksAsync(int documentId, string embeddingModel, string originalText, DocumentType documentType, CancellationToken cancellationToken)
     {
         await _documentRepository.DeleteChunksByDocumentAsync(documentId, cancellationToken);
         var chunkingSettings = await _configurationRepository.GetChunkingSettingsAsync(cancellationToken);
@@ -102,8 +101,8 @@ public class DocumentsHandlingService
 
         for (int i = 0; i < chunks.Count; i++)
         {
-            var embedding = await _modelGateway.GetEmbeddingAsync(EmbeddingModel, chunks[i], cancellationToken);
-            await _documentRepository.AddChunkAsync(documentId, i, chunks[i], embedding, cancellationToken);
+            var embedding = await _modelGateway.GetEmbeddingAsync(embeddingModel, chunks[i], cancellationToken);
+            await _documentRepository.AddChunkAsync(documentId, i, chunks[i], embedding, embeddingModel, cancellationToken);
         }
 
         return chunks.Count;
@@ -303,9 +302,9 @@ public class DocumentsHandlingService
         return chunks;
     }
 
-    public async Task<string?> GetRelevantContextAsync(string model, string? classifiedTopic, string userMessage, CancellationToken cancellationToken)
+    public async Task<string?> GetRelevantContextAsync(string model, string? classifiedTopic, string userMessage, string embeddingModel, CancellationToken cancellationToken)
     {
-        var selection = await SelectRelevantChunksAsync(model, classifiedTopic, userMessage, cancellationToken);
+        var selection = await SelectRelevantChunksAsync(model, classifiedTopic, userMessage, embeddingModel, cancellationToken);
         if (selection is null)
         {
             return null;
@@ -321,7 +320,7 @@ public class DocumentsHandlingService
             : null;
     }
 
-    public async Task<SelectedContextChunks?> SelectRelevantChunksAsync(string model, string? classifiedTopic, string userMessage, CancellationToken cancellationToken)
+    public async Task<SelectedContextChunks?> SelectRelevantChunksAsync(string model, string? classifiedTopic, string userMessage, string embeddingModel, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(classifiedTopic))
         {
@@ -334,7 +333,7 @@ public class DocumentsHandlingService
             return null;
         }
 
-        var queryEmbedding = await _modelGateway.GetEmbeddingAsync(EmbeddingModel, userMessage, cancellationToken);
+        var queryEmbedding = await _modelGateway.GetEmbeddingAsync(embeddingModel, userMessage, cancellationToken);
         var topicId = allTopics.FirstOrDefault(t => t.Name == classifiedTopic)?.Id;
         if (topicId is null)
         {

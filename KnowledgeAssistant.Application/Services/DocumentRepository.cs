@@ -129,23 +129,39 @@ public class DocumentRepository : IDocumentRepository
         }
     }
 
-    public async Task AddChunkAsync(int documentId, int chunkIndex, string chunkText, float[] embedding, CancellationToken cancellationToken)
+    public async Task AddChunkAsync(int documentId, int chunkIndex, string chunkText, float[] embedding, string embeddingModel, CancellationToken cancellationToken)
     {
         await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
         var query = """
-            INSERT INTO rag.chunks (document_id, chunk_index, chunk_text, embedding)
-            VALUES (@DocumentId, @ChunkIndex, @ChunkText, @Embedding);
+            INSERT INTO rag.chunks (document_id, chunk_index, chunk_text)
+            VALUES (@DocumentId, @ChunkIndex, @ChunkText)
+            RETURNING id;
             """;
 
-        // Requires dataSourceBuilder.UseVector() to have been called when the
-        // NpgsqlDataSource singleton was built in Program.cs, so Npgsql recognizes Pgvector.Vector.
-        await connection.ExecuteAsync(query, new
+        var newID = await connection.ExecuteScalarAsync<int>(query, new
         {
             DocumentId = documentId,
             ChunkIndex = chunkIndex,
             ChunkText = chunkText,
-            Embedding = new Pgvector.Vector(embedding)
         });
+
+        //var embeddingsTable = embeddingModel.ToLowerInvariant() switch
+        //{
+        //    "mxbai-embed-large:latest" => "rag.chunk_embeddings_mxbai_embed_large",
+        //    "nomic-embed-text:latest" => "rag.chunk_embeddings_nomic_embed_text",
+        //    _ => throw new InvalidOperationException($"Unsupported embedding model: {embeddingModel}")
+        //};
+
+        //query = $"""
+        //    INSERT INTO {embeddingsTable} (chunk_id, embedding)
+        //    VALUES (@ChunkId, @Embedding);
+        //    """;
+
+        //await connection.ExecuteAsync(query, new
+        //{
+        //    ChunkId = newID,
+        //    Embedding = new Pgvector.Vector(embedding)
+        //});
     }
 
     public async Task<IEnumerable<DocumentChunk>> SearchChunksByTopicAsync(int topicId, float[] queryEmbedding, string queryText, int maxResults, CancellationToken cancellationToken)
@@ -157,41 +173,41 @@ public class DocumentRepository : IDocumentRepository
             // RRF combines two independently-ranked candidate lists (vector similarity and keyword/FTS match)
             // into a single fused ranking, without needing to normalize distance scores against ts_rank scores.
             var query = """
-        WITH vector_ranked AS (
-            SELECT c.id,
-                   c.embedding <=> @QueryEmbedding AS distance,
-                   ROW_NUMBER() OVER (ORDER BY c.embedding <=> @QueryEmbedding) AS vec_rank
-            FROM rag.chunks c
-            INNER JOIN rag.document_topics dt ON dt.document_id = c.document_id
-            WHERE dt.topic_id = @TopicId
-            ORDER BY c.embedding <=> @QueryEmbedding
-            LIMIT @CandidateFanout
-        ),
-        fts_ranked AS (
-            SELECT c.id,
-                   ROW_NUMBER() OVER (ORDER BY ts_rank_cd(c.chunk_text_tsv, plainto_tsquery('english', @QueryText)) DESC) AS fts_rank
-            FROM rag.chunks c
-            INNER JOIN rag.document_topics dt ON dt.document_id = c.document_id
-            WHERE dt.topic_id = @TopicId
-              AND c.chunk_text_tsv @@ plainto_tsquery('english', @QueryText)
-            ORDER BY ts_rank_cd(c.chunk_text_tsv, plainto_tsquery('english', @QueryText)) DESC
-            LIMIT @CandidateFanout
-        ),
-        fused AS (
-            SELECT
-                COALESCE(v.id, f.id) AS id,
-                COALESCE(1.0 / (@RrfK + v.vec_rank), 0) + COALESCE(1.0 / (@RrfK + f.fts_rank), 0) AS fused_score,
-                v.distance
-            FROM vector_ranked v
-            FULL OUTER JOIN fts_ranked f ON v.id = f.id
-        )
-        SELECT c.id, c.document_id AS DocumentId, c.chunk_index AS ChunkIndex, c.chunk_text AS ChunkText,
-               fused.distance AS Distance, fused.fused_score AS FusedScore
-        FROM fused
-        INNER JOIN rag.chunks c ON c.id = fused.id
-        ORDER BY fused.fused_score DESC
-        LIMIT @MaxResults;
-        """;
+                WITH vector_ranked AS (
+                    SELECT c.id,
+                           c.embedding <=> @QueryEmbedding AS distance,
+                           ROW_NUMBER() OVER (ORDER BY c.embedding <=> @QueryEmbedding) AS vec_rank
+                    FROM rag.chunks c
+                    INNER JOIN rag.document_topics dt ON dt.document_id = c.document_id
+                    WHERE dt.topic_id = @TopicId
+                    ORDER BY c.embedding <=> @QueryEmbedding
+                    LIMIT @CandidateFanout
+                ),
+                fts_ranked AS (
+                    SELECT c.id,
+                           ROW_NUMBER() OVER (ORDER BY ts_rank_cd(c.chunk_text_tsv, plainto_tsquery('english', @QueryText)) DESC) AS fts_rank
+                    FROM rag.chunks c
+                    INNER JOIN rag.document_topics dt ON dt.document_id = c.document_id
+                    WHERE dt.topic_id = @TopicId
+                      AND c.chunk_text_tsv @@ plainto_tsquery('english', @QueryText)
+                    ORDER BY ts_rank_cd(c.chunk_text_tsv, plainto_tsquery('english', @QueryText)) DESC
+                    LIMIT @CandidateFanout
+                ),
+                fused AS (
+                    SELECT
+                        COALESCE(v.id, f.id) AS id,
+                        COALESCE(1.0 / (@RrfK + v.vec_rank), 0) + COALESCE(1.0 / (@RrfK + f.fts_rank), 0) AS fused_score,
+                        v.distance
+                    FROM vector_ranked v
+                    FULL OUTER JOIN fts_ranked f ON v.id = f.id
+                )
+                SELECT c.id, c.document_id AS DocumentId, c.chunk_index AS ChunkIndex, c.chunk_text AS ChunkText,
+                       fused.distance AS Distance, fused.fused_score AS FusedScore
+                FROM fused
+                INNER JOIN rag.chunks c ON c.id = fused.id
+                ORDER BY fused.fused_score DESC
+                LIMIT @MaxResults;
+                """;
 
             var result = await connection.QueryAsync<DocumentChunk>(query, new
             {

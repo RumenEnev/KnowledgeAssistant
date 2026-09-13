@@ -12,6 +12,8 @@ public class ChatRequestDto
 
     public required string Model { get; set; }
 
+    public string? EmbeddingModel { get; set; }
+    
     public required string Provider { get; set; }
 
     public double? Temperature { get; set; }

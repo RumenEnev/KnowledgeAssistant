@@ -381,11 +381,11 @@ public partial class DocumentsWindow : Window, INotifyPropertyChanged, IMessageS
         IsSaving = true;
         if (EditingDocumentId is int documentId)
         {
-            _messageService.Publish(new UpdateDocumentRequest(documentId, title, text, _documentType, topics));
+            _messageService.Publish(new UpdateDocumentRequest(documentId, title, text, EmbeddingModel, _documentType, topics));
         }
         else
         {
-            _messageService.Publish(new AddDocumentRequest(title, text, _documentType, topics));
+            _messageService.Publish(new AddDocumentRequest(title, text, EmbeddingModel, _documentType, topics));
         }
     }
 

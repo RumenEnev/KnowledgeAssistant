@@ -8,6 +8,8 @@ namespace KnowledgeAssistant.Contracts.Dto
 
         public string Text { get; set; } = string.Empty;
 
+        public required string EmbeddingModel { get; set; }
+
         public DocumentType DocumentType { get; set; } = DocumentType.PlainText;
 
         public List<string> Topics { get; set; } = new();

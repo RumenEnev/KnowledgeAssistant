@@ -1,23 +1,26 @@
 ﻿using KnowledgeAssistant.Contracts.Enums;
 using MessageServices;
 
-namespace KnowledgeAssistant.Wpf.Messages.Documents
+namespace KnowledgeAssistant.Wpf.Messages.Documents;
+
+public record AddDocumentRequest : MessageBase
 {
-    public record AddDocumentRequest : MessageBase
+    public AddDocumentRequest(string title, string text, string embeddingModel, DocumentType documentType, IEnumerable<string> topics)
     {
-        public AddDocumentRequest(string title, string text, DocumentType documentType, IEnumerable<string> topics)
-        {
-            Title = title;
-            Text = text;
-            DocumentType = documentType;
-            Topics = topics;
-        }
-
-        public string Title { get; }
-
-        public string Text { get; }
-        public DocumentType DocumentType { get; }
-
-        public IEnumerable<string> Topics { get; }
+        Title = title;
+        Text = text;
+        EmbeddingModel = embeddingModel;
+        DocumentType = documentType;
+        Topics = topics;
     }
+
+    public string Title { get; }
+
+    public string Text { get; }
+
+    public string EmbeddingModel { get; }
+
+    public DocumentType DocumentType { get; }
+
+    public IEnumerable<string> Topics { get; }
 }

@@ -366,6 +366,7 @@ public class CommunicationsService : IMessageServiceSubscriber
                 {
                     Title = request.Title,
                     Text = request.Text,
+                    EmbeddingModel = request.EmbeddingModel,
                     DocumentType = request.DocumentType,
                     Topics = request.Topics.ToList()
                 };
@@ -399,6 +400,7 @@ public class CommunicationsService : IMessageServiceSubscriber
                 {
                     Title = request.Title,
                     Text = request.Text,
+                    EmbeddingModel = request.EmbeddingModel,
                     DocumentType = request.DocumentType,
                     Topics = request.Topics.ToList()
                 };

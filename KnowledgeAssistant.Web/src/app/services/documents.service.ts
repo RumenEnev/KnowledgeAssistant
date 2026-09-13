@@ -78,10 +78,11 @@ export class DocumentsService {
   }
 
   async ingestText(title: string, text: string, topics: string[]): Promise<void> {
+    const embeddingModel = 'nomic-embed-text:latest'
     const response = await fetch(`${this.baseUrl}/api/documents`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, text, topics })
+      body: JSON.stringify({ title, text, topics, embeddingModel })
     });
     await this.assertOk(response);
   }

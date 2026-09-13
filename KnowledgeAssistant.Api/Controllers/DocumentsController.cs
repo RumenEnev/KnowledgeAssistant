@@ -39,48 +39,7 @@ public class DocumentsController : ControllerBase
 
         try
         {
-            var (documentId, chunksCount) = await _ingestionService.IngestDocumentAsync(request.Title, request.Text, request.DocumentType, request.Topics, cancellationToken);
-            return Ok(new AddDocumentResultDto { DocumentId = documentId, ChunksCount = chunksCount });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(ex.Message);
-        }
-    }
-
-    [HttpPost("upload")]
-    public async Task<IActionResult> IngestFile(IFormFile file, [FromForm] string title, [FromForm] string topics, CancellationToken cancellationToken)
-    {
-        if (file is null || file.Length == 0)
-        {
-            return BadRequest("A .txt file is required.");
-        }
-
-        if (!file.FileName.EndsWith(".txt", StringComparison.OrdinalIgnoreCase))
-        {
-            return BadRequest("Only .txt files are supported.");
-        }
-
-        if (string.IsNullOrWhiteSpace(title))
-        {
-            return BadRequest("Title is required.");
-        }
-
-        var topicNames = (topics ?? string.Empty)
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .ToList();
-
-        if (topicNames.Count == 0)
-        {
-            return BadRequest("At least one topic is required.");
-        }
-
-        using var reader = new StreamReader(file.OpenReadStream());
-        string text = await reader.ReadToEndAsync(cancellationToken);
-        try
-        {
-            var documentType = file.FileName.EndsWith(".md") ? DocumentType.Markdown : DocumentType.PlainText;
-            var (documentId, chunksCount) = await _ingestionService.IngestDocumentAsync(title, text, documentType, topicNames, cancellationToken);
+            var (documentId, chunksCount) = await _ingestionService.IngestDocumentAsync(request.Title, request.Text, request.EmbeddingModel, request.DocumentType, request.Topics, cancellationToken);
             return Ok(new AddDocumentResultDto { DocumentId = documentId, ChunksCount = chunksCount });
         }
         catch (InvalidOperationException ex)
@@ -109,7 +68,7 @@ public class DocumentsController : ControllerBase
 
         try
         {
-            await _ingestionService.UpdateDocumentAsync(id, request.Title, request.Text, request.DocumentType, request.Topics, cancellationToken);
+            await _ingestionService.UpdateDocumentAsync(id, request.Title, request.Text, request.EmbeddingModel, request.DocumentType, request.Topics, cancellationToken);
             return Ok(new AddDocumentResultDto { DocumentId = id, ChunksCount = 0 });
         }
         catch (InvalidOperationException ex)

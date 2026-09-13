@@ -18,7 +18,7 @@ public interface IDocumentRepository
 
     Task LinkDocumentTopicsAsync(int documentId, IEnumerable<int> topicIds, CancellationToken cancellationToken);
 
-    Task AddChunkAsync(int documentId, int chunkIndex, string chunkText, float[] embedding, CancellationToken cancellationToken);
+    Task AddChunkAsync(int documentId, int chunkIndex, string chunkText, float[] embedding, string embeddingModel, CancellationToken cancellationToken);
 
     Task<IEnumerable<Document>> GetAllDocumentsAsync(CancellationToken cancellationToken);
 

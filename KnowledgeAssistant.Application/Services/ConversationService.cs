@@ -47,7 +47,7 @@ public class ConversationService
         _logger = logger;
     }
 
-    public async Task<string> GenerateTitleAsync(Guid conversationId,string userMessage, string model, CancellationToken cancellationToken)
+    public async Task<string> GenerateTitleAsync(Guid conversationId, string userMessage, string model, CancellationToken cancellationToken)
     {
         var modelGateway = await GetModelGatewayAsync(conversationId, cancellationToken);
         return await GenerateTitleAsync(modelGateway, userMessage, model, cancellationToken);
@@ -140,7 +140,7 @@ public class ConversationService
         await _repository.CreateMessageAsync(conversationId, message, cancellationToken);
     }
 
-    public async IAsyncEnumerable<string> GenerateAssistantMessageAsync(Guid conversationId, string message, string provider, string model, MessageSource source, [EnumeratorCancellation] CancellationToken cancellationToken)
+    public async IAsyncEnumerable<string> GenerateAssistantMessageAsync(Guid conversationId, string message, string provider, string model, string? embeddingModel, MessageSource source, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var conversation = await _repository.GetAsync(conversationId, cancellationToken);
         if (conversation is null)
@@ -158,7 +158,12 @@ public class ConversationService
 
         _logger.LogInformation("Generating assistant message for conversation {ConversationId} from {Source} client.", conversationId, source);
         var modelGateway = await GetModelGatewayAsync(conversationId, cancellationToken);
-        var relevantContext = await _documentsHandlingService.GetRelevantContextAsync(model, conversation.Topic, message, cancellationToken);
+        string? relevantContext = null;
+        if (!string.IsNullOrEmpty(embeddingModel))
+        {
+            relevantContext = await _documentsHandlingService.GetRelevantContextAsync(model, conversation.Topic, message, embeddingModel, cancellationToken);
+        }
+
         var userMessage = new ChatMessage
         {
             Id = Guid.NewGuid(),
