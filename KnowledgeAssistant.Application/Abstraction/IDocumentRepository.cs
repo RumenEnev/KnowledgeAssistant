@@ -20,6 +20,8 @@ public interface IDocumentRepository
 
     Task AddChunkAsync(int documentId, int chunkIndex, string chunkText, float[] embedding, string embeddingModel, CancellationToken cancellationToken);
 
+    Task UpsertChunkEmbeddingAsync(int chunkId, float[] embedding, string embeddingModel, CancellationToken cancellationToken);
+
     Task<IEnumerable<Document>> GetAllDocumentsAsync(CancellationToken cancellationToken);
 
     Task DeleteDocumentAsync(int documentId, CancellationToken cancellationToken);

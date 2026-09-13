@@ -144,24 +144,29 @@ public class DocumentRepository : IDocumentRepository
             ChunkIndex = chunkIndex,
             ChunkText = chunkText,
         });
+    }
 
-        //var embeddingsTable = embeddingModel.ToLowerInvariant() switch
-        //{
-        //    "mxbai-embed-large:latest" => "rag.chunk_embeddings_mxbai_embed_large",
-        //    "nomic-embed-text:latest" => "rag.chunk_embeddings_nomic_embed_text",
-        //    _ => throw new InvalidOperationException($"Unsupported embedding model: {embeddingModel}")
-        //};
+    public async Task UpsertChunkEmbeddingAsync(int chunkId, float[] embedding, string embeddingModel, CancellationToken cancellationToken)
+    {
+        var embeddingsTable = embeddingModel.ToLowerInvariant() switch
+        {
+            "mxbai-embed-large:latest" => "rag.chunk_embeddings_mxbai_embed_large",
+            "nomic-embed-text:latest" => "rag.chunk_embeddings_nomic_embed_text",
+            _ => throw new InvalidOperationException($"Unsupported embedding model: {embeddingModel}")
+        };
 
-        //query = $"""
-        //    INSERT INTO {embeddingsTable} (chunk_id, embedding)
-        //    VALUES (@ChunkId, @Embedding);
-        //    """;
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        var query = $"""
+            INSERT INTO {embeddingsTable} (chunk_id, embedding)
+            VALUES (@ChunkId, @Embedding)
+            ON CONFLICT (chunk_id) DO UPDATE SET embedding = EXCLUDED.embedding;
+            """;
 
-        //await connection.ExecuteAsync(query, new
-        //{
-        //    ChunkId = newID,
-        //    Embedding = new Pgvector.Vector(embedding)
-        //});
+        await connection.ExecuteAsync(query, new
+        {
+            ChunkId = chunkId,
+            Embedding = new Pgvector.Vector(embedding)
+        });
     }
 
     public async Task<IEnumerable<DocumentChunk>> SearchChunksByTopicAsync(int topicId, float[] queryEmbedding, string queryText, int maxResults, CancellationToken cancellationToken)

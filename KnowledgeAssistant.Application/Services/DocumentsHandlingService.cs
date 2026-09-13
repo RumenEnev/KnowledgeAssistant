@@ -74,6 +74,22 @@ public class DocumentsHandlingService
         await ReplaceChunksAsync(documentId, embeddingModel, originalText, documentType, cancellationToken);
     }
 
+    public async Task<int> GenerateChunkVectorsAsync(int documentId, string embeddingModel, IProgress<(int Done, int Total)>? progress, CancellationToken cancellationToken)
+    {
+        var chunks = (await _documentRepository.GetChunksByDocumentIdAsync(documentId, cancellationToken))
+            .OrderBy(c => c.ChunkIndex)
+            .ToList();
+
+        for (int i = 0; i < chunks.Count; i++)
+        {
+            var embedding = await _modelGateway.GetEmbeddingAsync(embeddingModel, chunks[i].ChunkText, cancellationToken);
+            await _documentRepository.UpsertChunkEmbeddingAsync(chunks[i].Id, embedding, embeddingModel, cancellationToken);
+            progress?.Report((i + 1, chunks.Count));
+        }
+
+        return chunks.Count;
+    }
+
     private async Task<List<int>> ResolveTopicIdsAsync(IReadOnlyList<string> topicNames, CancellationToken cancellationToken)
     {
         var topicIds = new List<int>();

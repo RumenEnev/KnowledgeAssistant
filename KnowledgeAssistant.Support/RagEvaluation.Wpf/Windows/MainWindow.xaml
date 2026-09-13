@@ -28,6 +28,15 @@
             <ui:NavigationView.MenuItems>
                 <ui:NavigationViewItem
                     xmlns:local="clr-namespace:RagEvaluation.Desktop.Pages"
+                    Content="Generate Vectors"
+                    Tag="generate-vectors"
+                    TargetPageType="{x:Type local:GenerateVectorsPage}">
+                    <ui:NavigationViewItem.Icon>
+                        <ui:SymbolIcon Symbol="BracesVariable24" />
+                    </ui:NavigationViewItem.Icon>
+                </ui:NavigationViewItem>
+                <ui:NavigationViewItem
+                    xmlns:local="clr-namespace:RagEvaluation.Desktop.Pages"
                     Content="Generate Test Set"
                     Tag="generate-testset"
                     TargetPageType="{x:Type local:GenerateTestSetPage}">

@@ -58,6 +58,7 @@ public partial class App : Application
         Program.ConfigureServices(services, config);
         services.AddLogging(builder => builder.AddSerilog());
         services.AddSingleton<Windows.MainWindow>();
+        services.AddTransient<Pages.GenerateVectorsPage>();
         services.AddTransient<Pages.GenerateTestSetPage>();
         services.AddTransient<Pages.RunEvalPage>();
         services.AddTransient<Pages.RunsPage>();
