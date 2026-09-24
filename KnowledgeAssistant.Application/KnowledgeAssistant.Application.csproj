@@ -20,6 +20,7 @@
   <ItemGroup>
     <ProjectReference Include="..\KnowledgeAssistant.Contracts\KnowledgeAssistant.Contracts.csproj" />
     <ProjectReference Include="..\KnowledgeAssistant.Domain\KnowledgeAssistant.Domain.csproj" />
+    <ProjectReference Include="..\KnowledgeAssistant.Shared\Helper\Helper\Helper.csproj" />
   </ItemGroup>
 
 </Project>

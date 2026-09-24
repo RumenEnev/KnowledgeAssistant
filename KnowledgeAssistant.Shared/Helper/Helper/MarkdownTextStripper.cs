@@ -4,7 +4,7 @@ using Markdig.Syntax.Inlines;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace KnowledgeAssistant.Application.Helper;
+namespace Helper;
 
 public static class MarkdownTextStripper
 {
