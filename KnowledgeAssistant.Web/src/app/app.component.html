@@ -41,7 +41,7 @@
           }
       </select>
       <label class="hide-tool-models-label">
-        <input type="checkbox" [(ngModel)]="showOnlyToolCallingModels" />
+        <input type="checkbox" [ngModel]="showOnlyToolCallingModels()" (ngModelChange)="showOnlyToolCallingModels.set($event)" />
         Show only can-call-tools models
       </label>
     </div>
@@ -60,12 +60,25 @@
     <textarea
       class="prompt-input"
       placeholder="Type your message here..."
-      [(ngModel)]="userPrompt"
+      [ngModel]="userPrompt()"
+      (ngModelChange)="userPrompt.set($event)"
       (keydown.enter)="onPromptEnter($event)">
     </textarea>
+    @if (isListening()) {
+      <div class="listening-indicator">Listening&hellip; {{ interimTranscript() }}</div>
+    }
 
     <div class="send-button">
-      <button (click)="send()" [disabled]="isStreaming()">Send</button>
+      <button (click)="send()" [disabled]="isStreaming()" class="send-btn">Send</button>
+      @if (micSupported) {
+        <button
+          class="mic-btn"
+          [class.listening]="isListening()"
+          [title]="isListening() ? 'Stop listening' : 'Speak your message'"
+          (click)="toggleVoiceInput()">
+          <span class="material-icons">{{ isListening() ? 'mic' : 'mic_none' }}</span>
+        </button>
+      }
     </div>
   </div>
 </div>

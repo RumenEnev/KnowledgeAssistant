@@ -1,5 +1,6 @@
 ﻿using CommunicationsClients;
 using KnowledgeAssistant.Wpf.Services;
+using KnowledgeAssistant.Wpf.Services.Speech;
 using MessageServices;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -31,6 +32,8 @@ namespace KnowledgeAssistant.Wpf
                             services.AddSingleton<CommunicationsService>();
                             services.AddSingleton<ConversationsService>();
                             services.AddSingleton<ToolsExecutionService>();
+                            services.AddSingleton<SystemSpeechToTextService>();
+                            services.AddSingleton<SystemTextToSpeechService>();
                         })
                         .Build();
         }
@@ -61,6 +64,7 @@ namespace KnowledgeAssistant.Wpf
         protected override void OnExit(ExitEventArgs e)
         {
             AppHost!.StopAsync();
+            AppHost!.Dispose();
             base.OnExit(e);
         }
 
@@ -69,6 +73,8 @@ namespace KnowledgeAssistant.Wpf
             AppHost!.Services.GetRequiredService<CommunicationsService>();
             AppHost!.Services.GetRequiredService<ConversationsService>();
             AppHost!.Services.GetRequiredService<ToolsExecutionService>();
+            AppHost!.Services.GetRequiredService<SystemSpeechToTextService>();
+            AppHost!.Services.GetRequiredService<SystemTextToSpeechService>();
         }
     }
 }

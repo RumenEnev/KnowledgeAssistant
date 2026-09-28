@@ -130,16 +130,41 @@
   min-height: 100px;
 }
 
+.mic-btn:hover {
+  background: #e2e2e2;
+}
+
+.mic-btn.listening {
+  background: #ffdede;
+  border-color: #e08a8a;
+  color: #c0392b;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.listening-indicator {
+  margin: 0 2px 2px;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: #c0392b;
+  font-style: italic;
+}
+
 .send-button {
   display: flex;
   align-items: center;
   padding: 0 20% 16px;
 }
 
-.send-button button {
-  width: 100%;
+.send-button .send-btn {
+  flex: 1;
   margin: 2px;
   padding: 10px;
+  height: 44px;
   border: none;
   border-radius: 8px;
   background: #f0f0f0;
@@ -149,6 +174,21 @@
   cursor: pointer;
 }
 
-.send-button button:hover {
+.send-button .send-btn:hover {
   background: #e2e2e2;
+}
+
+.mic-btn {
+  flex-shrink: 0;
+  width: 44px;
+  margin: 2px;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #f0f0f0;
+  color: #444;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }

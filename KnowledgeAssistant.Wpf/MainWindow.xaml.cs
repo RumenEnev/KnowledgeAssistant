@@ -5,6 +5,7 @@ using KnowledgeAssistant.Wpf.Messages;
 using KnowledgeAssistant.Wpf.Messages.Conversations;
 using KnowledgeAssistant.Wpf.Messages.Documentation;
 using KnowledgeAssistant.Wpf.Messages.ModelsManagement;
+using KnowledgeAssistant.Wpf.Messages.SpeechToText;
 using KnowledgeAssistant.Wpf.UserControls;
 using KnowledgeAssistant.Wpf.Views;
 using KnowledgeAssistant.Wpf.Windows;
@@ -35,6 +36,8 @@ namespace KnowledgeAssistant.Wpf
         private string? _selectedProvider;
         private string? _userPrompt;
         private string? _statusMessage;
+
+        public string? _voiceInputBaseText { get; set; }
         private Thickness _chatMessageMargin;
         private Conversation? _selectedConversation;
         private Guid? _lastConversationId;
@@ -43,6 +46,7 @@ namespace KnowledgeAssistant.Wpf
         private ObservableCollection<string> _providers = new ObservableCollection<string>();
         private List<AvailableModelInfo> _allModels = new List<AvailableModelInfo>();
         private bool _showOnlyToolCallingModels;
+        private bool _isListening;
         private ObservableCollection<Conversation> _conversations = new ObservableCollection<Conversation>();
         private ObservableCollection<UCChatMessage> _chatMessages = new ObservableCollection<UCChatMessage>();
 
@@ -66,7 +70,13 @@ namespace KnowledgeAssistant.Wpf
             _messageService.Subscribe<ConversationDeletedEvent>(this, ConversationDeletedEventReceived);
             _messageService.Subscribe<DocumentationReadyEvent>(this, DocumentationReadyEventReceived);
             _messageService.Subscribe<AvailableProvidersUpdatedEvent>(this, AvailableProvidersUpdatedEventReceived);
+            _messageService.Subscribe<SpeechToTextErrorRequest>(this, SpeechToTextErrorReceived);
+            _messageService.Subscribe<SpeechToTextListeningStoppedReceived>(this, SpeechToTextListeningStoppedReceived);
+            _messageService.Subscribe<SpeechToTextResultRequest>(this, SpeechToText_ResultReceived);
+
+            Closed += MainWindow_Closed;
         }
+
 
         public string? SelectedProvider
         {
@@ -114,6 +124,21 @@ namespace KnowledgeAssistant.Wpf
                 {
                     _userPrompt = value;
                     OnPropertyChanged(nameof(UserPrompt));
+                }
+            }
+        }
+
+       // public bool MicSupported => _speechToText.IsSupported;
+
+        public bool IsListening
+        {
+            get => _isListening;
+            private set
+            {
+                if (_isListening != value)
+                {
+                    _isListening = value;
+                    OnPropertyChanged(nameof(IsListening));
                 }
             }
         }
@@ -664,6 +689,8 @@ namespace KnowledgeAssistant.Wpf
         {
             if (!string.IsNullOrWhiteSpace(UserPrompt))
             {
+                _messageService.Publish(new SpeachToTextStopRequest());
+                _messageService.Publish(new TextToSpeechStopRequest());
                 var userMessage = new UCChatMessage(null)
                 {
                     Message = UserPrompt,
@@ -685,6 +712,60 @@ namespace KnowledgeAssistant.Wpf
                 e.Handled = true;
                 Send_Click(sender, e);
             }
+        }
+
+        private void ToggleVoiceInput_Click(object sender, RoutedEventArgs e)
+        {
+            if (IsListening)
+            {
+                _messageService.Publish(new SpeachToTextStopRequest());
+                return;
+            }
+
+            //if (!MicSupported)
+            //{
+            //    return;
+            //}
+
+            _messageService.Publish(new TextToSpeechStopRequest());
+            _voiceInputBaseText = UserPrompt ?? string.Empty;
+            _messageService.Publish(new SpeachToTextStartRequest());
+            IsListening = true;
+        }
+
+        private void SpeechToText_ResultReceived(MessageBase message)
+        {
+            if (message is SpeechToTextResultRequest request)
+            {
+                var separator = request.VoiceInputBaseText.Length > 0 && !request.VoiceInputBaseText.EndsWith(' ') ? " " : string.Empty;
+                UserPrompt = request.VoiceInputBaseText + separator + request.Transcript;
+                if (request.IsFinal)
+                {
+                    _voiceInputBaseText = UserPrompt;
+                }
+            }
+        }
+
+        private void SpeechToTextErrorReceived(MessageBase message)
+        {
+           if (message is SpeechToTextErrorRequest errorMessage)
+            {
+                StatusMessage = errorMessage.ErrorMessage;
+            }
+        }
+
+        private void SpeechToTextListeningStoppedReceived(MessageBase message)
+        {
+            if (message is SpeechToTextListeningStoppedReceived)
+            {
+                IsListening = false;
+            }   
+        }
+
+        private void MainWindow_Closed(object? sender, EventArgs e)
+        {
+            _messageService.Publish(new SpeachToTextStopRequest());
+            _messageService.Publish(new TextToSpeechStopRequest());
         }
 
         private async void CreateConversation_Click(object sender, RoutedEventArgs e)

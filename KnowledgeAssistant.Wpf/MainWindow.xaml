@@ -4,6 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:converters="clr-namespace:KnowledgeAssistant.Wpf.Converters"
     xmlns:local="clr-namespace:KnowledgeAssistant.Wpf.UserControls"
+    xmlns:system="clr-namespace:System.Windows.Controls;assembly=PresentationFramework"
     Title="Knowledge Assistant"
     Width="800"
     Height="500"
@@ -12,6 +13,7 @@
 
     <Window.Resources>
         <converters:FavoriteModelDisplayConverter x:Key="FavoriteModelDisplayConverter" />
+        <system:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
     </Window.Resources>
 
     <Grid>
@@ -24,9 +26,9 @@
             <RowDefinition Height="30" />
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="80*" />
-            <ColumnDefinition Width="103*" />
-            <ColumnDefinition Width="217*" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="5*" />
+            <ColumnDefinition Width="30" />
         </Grid.ColumnDefinitions>
 
         <Menu
@@ -192,21 +194,49 @@
             </ListView.ItemContainerStyle>
         </ListView>
 
-        <TextBox
+        <Grid
             Grid.Row="3"
             Grid.Column="1"
             Grid.ColumnSpan="2"
-            Margin="2,2,2,2"
-            KeyDown="UserPrompt_KeyDown"
-            Text="{Binding UserPrompt, UpdateSourceTrigger=PropertyChanged}" />
+            Margin="2,2,2,2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBox
+                Grid.Column="0"
+                KeyDown="UserPrompt_KeyDown"
+                Text="{Binding UserPrompt, UpdateSourceTrigger=PropertyChanged}" />
+        </Grid>
 
         <Button
             Grid.Row="4"
             Grid.Column="1"
-            Grid.ColumnSpan="2"
-            Margin="2,2,2,2"
+            Margin="2"
             Click="Send_Click"
             Content="Send" />
+
+        <Button
+            Grid.Row="4"
+            Grid.Column="2"
+            Margin="2"
+            Click="ToggleVoiceInput_Click"
+            ToolTip="Speak your message"
+            Visibility="{Binding MicSupported, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <Button.Style>
+                <Style TargetType="Button">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsListening}" Value="True">
+                            <Setter Property="Background" Value="#FFDEDE" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Button.Style>
+            <TextBlock
+                FontFamily="Segoe MDL2 Assets"
+                FontSize="14"
+                Text="&#xE720;" />
+        </Button>
 
         <StatusBar
             Grid.Row="5"

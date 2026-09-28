@@ -1,6 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { MessageComponent } from './message.component';
+import { TextToSpeechService } from '../../services/speech/text-to-speech.service';
+import { WebTextToSpeechService } from '../../services/speech/web-text-to-speech.service';
 
 describe('MessageComponent', () => {
   let component: MessageComponent;
@@ -8,7 +10,10 @@ describe('MessageComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [MessageComponent]
+      imports: [MessageComponent],
+      providers: [
+        { provide: TextToSpeechService, useClass: WebTextToSpeechService }
+      ]
     })
     .compileComponents();
     

@@ -1,7 +1,21 @@
 <span class="message-text markdown-body" [innerHTML]="renderedHtml"></span>
 @if (msg.role === 'assistant') {
-  <button class="copy-btn" (click)="copyMessage(msg.text)">
-    <span class="material-icons">content_copy</span>
-    <span class="tooltip">Copy to clipboard</span>
-  </button>
+  <div class="message-actions">
+    @if (speechSupported) {
+      <button class="action-btn" (click)="toggleSpeech()">
+        <span class="material-icons">{{ isSpeaking() && !isPaused() ? 'pause' : 'volume_up' }}</span>
+        <span class="tooltip">{{ isSpeaking() && !isPaused() ? 'Pause' : (isPaused() ? 'Resume' : 'Read aloud') }}</span>
+      </button>
+      @if (isSpeaking()) {
+        <button class="action-btn" (click)="stopSpeech()">
+          <span class="material-icons">stop</span>
+          <span class="tooltip">Stop</span>
+        </button>
+      }
+    }
+    <button class="action-btn" (click)="copyMessage(msg.text)">
+      <span class="material-icons">content_copy</span>
+      <span class="tooltip">Copy to clipboard</span>
+    </button>
+  </div>
 }

@@ -101,10 +101,16 @@
   color: #2a5db0;
 }
 
-.copy-btn {
+.message-actions {
   position: absolute;
   top: 6px;
   right: 6px;
+  display: flex;
+  gap: 2px;
+}
+
+.action-btn {
+  position: relative;
   width: 24px;
   height: 24px;
   padding: 0;
@@ -118,15 +124,15 @@
   color: #666;
 }
 
-.copy-btn:hover {
+.action-btn:hover {
   background: #f0f0f0;
 }
 
-.copy-btn .material-icons {
+.action-btn .material-icons {
   font-size: 16px;
 }
 
-.copy-btn .tooltip {
+.action-btn .tooltip {
   position: absolute;
   top: 28px;
   right: 0;
@@ -141,6 +147,6 @@
   transition: opacity 0.15s;
 }
 
-.copy-btn:hover .tooltip {
+.action-btn:hover .tooltip {
   opacity: 1;
 }

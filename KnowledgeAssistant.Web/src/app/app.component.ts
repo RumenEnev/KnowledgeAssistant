@@ -1,4 +1,4 @@
-import { Component, computed, effect, ElementRef, inject, NgZone, OnInit, signal, ViewChild } from '@angular/core';
+import { Component, computed, effect, ElementRef, inject, NgZone, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
 import { ChatResponseChunk } from './models/chat-response-chunk';
 import { Conversation } from './models/conversation';
 import { ModelInfo } from './models/model-info';
@@ -16,6 +16,8 @@ import { DocumentsManagerComponent } from './components/documents-manager/docume
 import { ModelContextWindowsManagerComponent } from './components/model-context-windows-manager/model-context-windows-manager.component';
 import { TopicsManagerComponent } from './components/topics-manager/topics-manager.component';
 import { ManageToolsComponent } from './components/manage-tools/manage-tools.component';
+import { SpeechToTextService } from './services/speech/speech-to-text.service';
+import { TextToSpeechService } from './services/speech/text-to-speech.service';
 
 
 @Component({
@@ -27,11 +29,14 @@ import { ManageToolsComponent } from './components/manage-tools/manage-tools.com
   templateUrl: './app.component.html',
   styleUrl: './app.component.css'
 })
-export class AppComponent implements OnInit {
+export class AppComponent implements OnInit, OnDestroy {
   private chatService = inject(ChatService);
   private documentsService = inject(DocumentsService);
   private notificationService = inject(NotificationService);
   private ngZone = inject(NgZone);
+  private speechToText = inject(SpeechToTextService);
+  private textToSpeech = inject(TextToSpeechService);
+  private voiceInputBaseText = '';
 
   @ViewChild('messageList') private messageListRef!: ElementRef<HTMLElement>;
 
@@ -63,6 +68,10 @@ export class AppComponent implements OnInit {
   showModelContextWindowsManager = signal(false);
   showTopicsManager = signal(false);
   showManageTools = signal(false);
+
+  micSupported = this.speechToText.isSupported;
+  isListening = this.speechToText.isListening;
+  interimTranscript = this.speechToText.interimTranscript;
 
   constructor() {
     effect(() => {
@@ -101,6 +110,11 @@ export class AppComponent implements OnInit {
     } catch (err) {
       this.notificationService.error(this.toMessage(err, 'Failed to load initial data.'));
     }
+  }
+
+  ngOnDestroy(): void {
+    this.speechToText.stop();
+    this.textToSpeech.stop();
   }
 
   private async loadModelsForProvider(provider: string): Promise<void> {
@@ -267,6 +281,38 @@ export class AppComponent implements OnInit {
     window.close();
   }
 
+  toggleVoiceInput(): void {
+    if (this.isListening()) {
+      this.speechToText.stop();
+    } else {
+      this.startVoiceInput();
+    }
+  }
+
+  private startVoiceInput(): void {
+    if (!this.micSupported) {
+      return;
+    }
+
+    this.textToSpeech.stop();
+    this.voiceInputBaseText = this.userPrompt();
+
+    this.speechToText.start({
+      onResult: (result) => {
+        const separator = this.voiceInputBaseText && !this.voiceInputBaseText.endsWith(' ') ? ' ' : '';
+        this.userPrompt.set(this.voiceInputBaseText + separator + result.transcript);
+        if (result.isFinal) {
+          this.voiceInputBaseText = this.userPrompt();
+        }
+      },
+      onError: (message) => {
+        if (message) {
+          this.notificationService.error(message);
+        }
+      }
+    });
+  }
+
   private async attachNewConversation(conversationId: string) {
     try {
       const conversation = await this.chatService.getConversation(conversationId);
@@ -307,6 +353,9 @@ export class AppComponent implements OnInit {
     if (!text || this.isStreaming()) {
       return;
     }
+
+    this.speechToText.stop();
+    this.textToSpeech.stop();
 
     const isNewConversation = !this.selectedConversation();
     const conversationId = this.selectedConversation()?.id;

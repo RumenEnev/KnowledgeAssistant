@@ -20,6 +20,7 @@
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.9" />
     <PackageReference Include="Serilog" Version="4.3.1" />
     <PackageReference Include="Serilog.Extensions.Hosting" Version="10.0.0" />
+    <PackageReference Include="System.Speech" Version="10.0.9" />
     <PackageReference Include="UI" Version="16.1.80" />
     <PackageReference Include="WpfMath" Version="2.1.0" />
   </ItemGroup>

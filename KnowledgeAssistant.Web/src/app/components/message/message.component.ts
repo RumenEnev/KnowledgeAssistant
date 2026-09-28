@@ -1,17 +1,10 @@
-import { Component, HostBinding, Input } from '@angular/core';
+import { Component, HostBinding, inject, Input, OnDestroy, signal } from '@angular/core';
 import { marked } from 'marked';
 import markedKatex from 'marked-katex-extension';
+import { TextToSpeechService } from '../../services/speech/text-to-speech.service';
 
 marked.use(markedKatex({ throwOnError: false, output: 'html' }));
 
-/**
- * Many LLMs (including Ollama models) emit LaTeX math using the
- * "\( ... \)" (inline) and "\[ ... \]" (block) delimiter conventions
- * instead of the "$...$" / "$$...$$" delimiters that marked-katex-extension
- * recognizes by default. This rewrites the former into the latter so KaTeX
- * can find and render the formulas. Content inside fenced/inline code blocks
- * is left untouched.
- */
 function normalizeMathDelimiters(markdown: string): string {
   if (!markdown) {
     return markdown ?? '';
@@ -43,8 +36,13 @@ function normalizeMathDelimiters(markdown: string): string {
   templateUrl: './message.component.html',
   styleUrls: ['./message.component.css']
 })
-export class MessageComponent {
+export class MessageComponent implements OnDestroy {
   @Input() msg!: { role: string; text: string };
+
+  private textToSpeech = inject(TextToSpeechService);
+  speechSupported = this.textToSpeech.isSupported;
+  isSpeaking = signal(false);
+  isPaused = signal(false);
 
   @HostBinding('class.user') get isUser() { return this.msg?.role === 'user'; }
   @HostBinding('class.assistant') get isAssistant() { return this.msg?.role === 'assistant'; }
@@ -57,5 +55,43 @@ export class MessageComponent {
 
   copyMessage(text: string) {
     navigator.clipboard.writeText(text);
+  }
+
+  toggleSpeech(): void {
+    if (this.isSpeaking()) {
+      if (this.isPaused()) {
+        this.textToSpeech.resume();
+        this.isPaused.set(false);
+      } else {
+        this.textToSpeech.pause();
+        this.isPaused.set(true);
+      }
+      return;
+    }
+
+    this.textToSpeech.speak(this.msg?.text ?? '', {
+      onEnd: () => {
+        this.isSpeaking.set(false);
+        this.isPaused.set(false);
+      },
+      onError: () => {
+        this.isSpeaking.set(false);
+        this.isPaused.set(false);
+      }
+    });
+    this.isSpeaking.set(true);
+    this.isPaused.set(false);
+  }
+
+  stopSpeech(): void {
+    this.textToSpeech.stop();
+    this.isSpeaking.set(false);
+    this.isPaused.set(false);
+  }
+
+  ngOnDestroy(): void {
+    if (this.isSpeaking()) {
+      this.textToSpeech.stop();
+    }
   }
 }
