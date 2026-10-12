@@ -56,6 +56,7 @@ public partial class App : Application
 
         var services = new ServiceCollection();
         Program.ConfigureServices(services, config);
+
         services.AddLogging(builder => builder.AddSerilog());
         services.AddSingleton<Windows.MainWindow>();
         services.AddTransient<Pages.DocumentsPage>();
@@ -68,7 +69,11 @@ public partial class App : Application
         services.AddSingleton<DocumentsViewModel>();
         services.AddSingleton<ShellViewModel>();
         services.AddSingleton<TestSetViewModel>();
+        services.AddSingleton<RunViewModel>();
+        services.AddSingleton<RunsViewModel>();
+        services.AddSingleton<MetricsViewModel>();
         services.AddSingleton<LlmCatalogService>();
+        services.AddScoped<TestSetHealthService>();
 
         _serviceProvider = services.BuildServiceProvider();
         var mainWindow = _serviceProvider.GetRequiredService<Windows.MainWindow>();

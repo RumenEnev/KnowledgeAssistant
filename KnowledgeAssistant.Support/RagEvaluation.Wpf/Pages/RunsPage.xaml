@@ -7,51 +7,77 @@
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
     Title="Runs"
     d:DesignHeight="700"
-    d:DesignWidth="900"
+    d:DesignWidth="1100"
     mc:Ignorable="d">
 
-    <Grid Margin="24">
+    <Page.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+    </Page.Resources>
+
+    <Grid Margin="24,16,24,16">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <TextBlock
-            Grid.Row="0"
-            Margin="0,0,0,16"
-            FontSize="24"
-            FontWeight="SemiBold"
-            Text="Evaluation Runs" />
+        <StackPanel Grid.Row="0" Margin="0,0,0,12">
+            <TextBlock
+                FontSize="24"
+                FontWeight="SemiBold"
+                Text="Runs" />
+            <TextBlock
+                Margin="0,4,0,0"
+                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                Text="Every evaluation run so far. Select a run to see its summary."
+                TextWrapping="Wrap" />
+        </StackPanel>
 
-        <StackPanel
-            Grid.Row="1"
-            Margin="0,0,0,12"
-            HorizontalAlignment="Left"
-            Orientation="Horizontal">
+        <WrapPanel Grid.Row="1" Margin="0,0,0,4">
             <ui:Button
-                x:Name="RefreshButton"
+                Margin="0,0,8,8"
                 Padding="12,6"
-                Click="RefreshButton_Click"
+                Command="{Binding RefreshCommand}"
                 Content="Refresh"
-                Icon="{ui:SymbolIcon ArrowSync24}" />
+                Icon="{ui:SymbolIcon ArrowSync24}"
+                IsEnabled="{Binding IsIdle}" />
             <ui:Button
-                x:Name="CleanDatabaseButton"
-                Margin="8,0,0,0"
+                Margin="0,0,8,8"
                 Padding="12,6"
                 Appearance="Danger"
                 Click="CleanDatabaseButton_Click"
-                Content="Clean Database"
-                Icon="{ui:SymbolIcon Delete24}" />
-        </StackPanel>
+                Content="Clean database"
+                Icon="{ui:SymbolIcon Delete24}"
+                IsEnabled="{Binding IsIdle}" />
+            <ui:Button
+                Margin="0,0,8,8"
+                Padding="12,6"
+                Command="{Binding CancelOperationCommand}"
+                Content="Cancel"
+                Icon="{ui:SymbolIcon Dismiss24}"
+                Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}" />
+        </WrapPanel>
+
+        <TextBlock
+            Grid.Row="2"
+            Margin="0,0,0,8"
+            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+            Text="{Binding SummaryText}"
+            TextWrapping="Wrap" />
 
         <DataGrid
-            x:Name="RunsGrid"
-            Grid.Row="2"
+            Grid.Row="3"
             AutoGenerateColumns="False"
+            CanUserAddRows="False"
+            CanUserDeleteRows="False"
+            GridLinesVisibility="Horizontal"
+            HeadersVisibility="Column"
             IsReadOnly="True"
-            MouseDoubleClick="RunsGrid_MouseDoubleClick"
+            ItemsSource="{Binding Runs}"
+            SelectedItem="{Binding SelectedRun, Mode=TwoWay}"
             SelectionMode="Single">
             <DataGrid.Columns>
                 <DataGridTextColumn
@@ -59,25 +85,25 @@
                     Binding="{Binding Id}"
                     Header="Id" />
                 <DataGridTextColumn
-                    Width="180"
+                    Width="2*"
                     Binding="{Binding RunName}"
-                    Header="Run Name" />
+                    Header="Run name" />
                 <DataGridTextColumn
                     Width="110"
                     Binding="{Binding ChatProvider}"
-                    Header="Chat Provider" />
+                    Header="Chat provider" />
                 <DataGridTextColumn
-                    Width="150"
+                    Width="*"
                     Binding="{Binding ChatModel}"
-                    Header="Chat Model" />
+                    Header="Chat model" />
                 <DataGridTextColumn
                     Width="110"
                     Binding="{Binding JudgeProvider}"
-                    Header="Judge Provider" />
+                    Header="Judge provider" />
                 <DataGridTextColumn
-                    Width="150"
+                    Width="*"
                     Binding="{Binding JudgeModel}"
-                    Header="Judge Model" />
+                    Header="Judge model" />
                 <DataGridTextColumn
                     Width="160"
                     Binding="{Binding CreatedAt}"
@@ -86,11 +112,19 @@
         </DataGrid>
 
         <TextBlock
-            x:Name="SummaryText"
-            Grid.Row="3"
-            Margin="0,16,0,0"
+            Grid.Row="4"
+            Margin="0,12,0,0"
             FontFamily="Consolas"
-            Text="Double-click a run to view its summary."
+            Text="{Binding DetailText}"
             TextWrapping="Wrap" />
+
+        <StackPanel Grid.Row="5" Margin="0,12,0,0">
+            <ProgressBar
+                Margin="0,0,0,6"
+                Maximum="{Binding ProgressMax}"
+                Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}"
+                Value="{Binding ProgressValue, Mode=OneWay}" />
+            <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap" />
+        </StackPanel>
     </Grid>
 </Page>

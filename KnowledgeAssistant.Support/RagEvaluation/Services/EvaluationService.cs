@@ -3,26 +3,18 @@ using KnowledgeAssistant.Application.Services;
 using KnowledgeAssistant.Domain.Conversation;
 using KnowledgeAssistant.Eval.Core;
 using Microsoft.Extensions.Logging;
+using RagEvaluation.Enums;
 using RagEvaluation.Interfaces;
 using RagEvaluation.Models;
 
 namespace RagEvaluation.Services;
 
-public sealed record EvalRunOutcome(RunSummary Summary, int SkippedQueries);
-
-public enum EvalPhase
-{
-    Retrieval,
-    Generation,
-    Judging,
-    Skipped,
-    Failed
-}
-
 public sealed record EvalProgress(int Done, int Total, EvalPhase Phase, string QueryText);
 
 public sealed class EvaluationService
 {
+    public const string RetrievalOnlyMarker = "(retrieval only)";
+
     private readonly IDocumentRepository _documentRepository;
     private readonly DocumentsHandlingService _documentsHandlingService;
     private readonly IExperimentRepository _experimentRepository;
@@ -47,9 +39,9 @@ public sealed class EvaluationService
     }
 
     public async Task<EvalRunOutcome> RunEvalAsync(
-        IModelGateway chatGateway,
+        IModelGateway? chatGateway,
         string chatProvider,
-        IModelGateway judgeGateway,
+        IModelGateway? judgeGateway,
         string judgeProvider,
         string runName,
         string chatModel,
@@ -57,8 +49,14 @@ public sealed class EvaluationService
         string judgeModel,
         int? documentId = null,
         IProgress<EvalProgress>? progress = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        bool retrievalOnly = false)
     {
+        if (!retrievalOnly && (chatGateway is null || judgeGateway is null))
+        {
+            throw new ArgumentException("A full run needs both a chat gateway and a judge gateway.");
+        }
+
         var testQueries = await _experimentRepository.LoadTestQueriesAsync(documentId, ct);
         if (testQueries.Count == 0)
         {
@@ -69,16 +67,19 @@ public sealed class EvaluationService
         var topicNameById = allTopics.ToDictionary(t => t.Id, t => t.Name);
         var run = await _experimentRepository.SaveRunAsync(new ExperimentRun
         {
-            Id = 0, // ignored on insert, SaveRunAsync returns the DB-assigned id
+            Id = 0,
             RunName = runName,
             ChatModel = chatModel,
             EmbeddingModel = embeddingModel,
-            JudgeModel = judgeModel,
+            JudgeModel = retrievalOnly ? RetrievalOnlyMarker : judgeModel,
             ChatProvider = chatProvider,
-            JudgeProvider = judgeProvider
+            JudgeProvider = retrievalOnly ? RetrievalOnlyMarker : judgeProvider
         }, ct);
 
-        var skipped = 0;
+        var topicMissing = 0;
+        var noCandidates = 0;
+        var nothingIncluded = 0;
+        var failed = 0;
         var i = 0;
         foreach (var query in testQueries)
         {
@@ -86,7 +87,7 @@ public sealed class EvaluationService
             i++;
             if (!topicNameById.TryGetValue(query.TopicId, out var topicName))
             {
-                skipped++; // topic was deleted since test-set generation - can't evaluate this query
+                topicMissing++;
                 progress?.Report(new EvalProgress(i, testQueries.Count, EvalPhase.Skipped, query.QueryText));
                 continue;
             }
@@ -97,13 +98,18 @@ public sealed class EvaluationService
                 var selection = await _documentsHandlingService.SelectRelevantChunksForModelAsync(chatModel, embeddingModel, topicName, query.QueryText, ct);
                 if (selection is null || selection.Chunks.Count == 0)
                 {
-                    skipped++; // no candidates at all under this topic - nothing to score
+                    noCandidates++;
                     progress?.Report(new EvalProgress(i, testQueries.Count, EvalPhase.Skipped, query.QueryText));
                     continue;
                 }
 
                 var retrievalMetrics = _metricsCalculator.Compute(query, selection.Chunks);
                 await _experimentRepository.SaveRetrievalResultAsync(run.Id, query.Id, selection.Chunks, retrievalMetrics, ct);
+                if (retrievalOnly)
+                {
+                    continue;
+                }
+
                 var includedIds = selection.Chunks
                     .Where(c => c.IncludedInBudget)
                     .OrderBy(c => c.Rank)
@@ -112,7 +118,7 @@ public sealed class EvaluationService
 
                 if (includedIds.Count == 0)
                 {
-                    skipped++;
+                    nothingIncluded++;
                     progress?.Report(new EvalProgress(i, testQueries.Count, EvalPhase.Skipped, query.QueryText));
                     continue;
                 }
@@ -126,11 +132,12 @@ public sealed class EvaluationService
                 var systemMessage = new ChatMessage
                 {
                     Role = "system",
-                    Content = "Content = Answer the user's question using ONLY the provided context. Be thorough: " +
+                    Content = "Answer the user's question using ONLY the provided context. Be thorough: " +
                     "include all relevant facts, factors, or perspectives mentioned in the context that address the question, " +
                     "not just the first one you find. If the context presents multiple sides, causes, or examples relevant to the question, " +
                     "mention all of them. If the context doesn't contain the answer, say so explicitly."
                 };
+
                 var userMessage = new ChatMessage
                 {
                     Role = "user",
@@ -138,7 +145,7 @@ public sealed class EvaluationService
                 };
 
                 progress?.Report(new EvalProgress(i, testQueries.Count, EvalPhase.Generation, query.QueryText));
-                var answer = await chatGateway.GenerateAsync(chatModel, userMessage, systemMessage, ct);
+                var answer = await chatGateway!.GenerateAsync(chatModel, userMessage, systemMessage, ct);
                 var generationResult = new GenerationResult
                 {
                     QueryId = query.Id,
@@ -148,10 +155,8 @@ public sealed class EvaluationService
                 };
 
                 progress?.Report(new EvalProgress(i, testQueries.Count, EvalPhase.Judging, query.QueryText));
-                var generationMetrics = await _judge.ScoreAsync(judgeGateway, judgeModel, query, generationResult, contextChunks, ct);
-                await _experimentRepository.SaveGenerationResultAsync(
-                    generationResult, generationMetrics, KnowledgeAssistant.Eval.Core.Judging.LlmJudge.JudgePromptVersion, judgeModel, ct);
-
+                var generationMetrics = await _judge.ScoreAsync(judgeGateway!, judgeModel, query, generationResult, contextChunks, ct);
+                await _experimentRepository.SaveGenerationResultAsync(generationResult, generationMetrics, KnowledgeAssistant.Eval.Core.Judging.LlmJudge.JudgePromptVersion, judgeModel, ct);
                 progress?.Report(new EvalProgress(i, testQueries.Count, EvalPhase.Judging, query.QueryText));
             }
             catch (OperationCanceledException)
@@ -161,13 +166,14 @@ public sealed class EvaluationService
             catch (Exception ex)
             {
                 _logger?.LogError(ex, "Query {QueryId} failed - skipping. Query text: {QueryText}", query.Id, query.QueryText);
-                skipped++;
+                failed++;
                 progress?.Report(new EvalProgress(i, testQueries.Count, EvalPhase.Failed, query.QueryText));
             }
         }
 
         var summary = await _experimentRepository.GetRunSummaryAsync(run.Id, ct);
-        return new EvalRunOutcome(summary, skipped);
+        var skipped = topicMissing + noCandidates + nothingIncluded + failed;
+        return new EvalRunOutcome(summary, skipped, testQueries.Count, topicMissing, noCandidates, nothingIncluded, failed);
     }
 
     public async Task<QueryGenerationDetail?> GetQueryGenerationDetailAsync(int runId, int queryId, CancellationToken ct = default)
@@ -175,7 +181,7 @@ public sealed class EvaluationService
         var record = await _experimentRepository.GetGenerationResultAsync(runId, queryId, ct);
         if (record is null)
         {
-            return null; // query was skipped during this run - nothing to show
+            return null;
         }
 
         var chunks = (await _documentRepository.GetChunksByIdsAsync(record.ContextChunkIds, ct)).ToList();

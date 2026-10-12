@@ -8,12 +8,14 @@
     Title="Metrics"
     d:DesignHeight="800"
     d:DesignWidth="1100"
-    ScrollViewer.CanContentScroll="False"
     mc:Ignorable="d">
 
-    <Grid Margin="24">
+    <Page.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+    </Page.Resources>
+
+    <Grid Margin="24,16,24,16">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -21,172 +23,144 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <TextBlock
-            Grid.Row="0"
-            Margin="0,0,0,16"
-            FontSize="24"
-            FontWeight="SemiBold"
-            Text="Retrieval &amp; Generation Metrics" />
-
-        <StackPanel
-            Grid.Row="1"
-            Margin="0,0,0,8"
-            HorizontalAlignment="Left"
-            Orientation="Horizontal">
+        <StackPanel Grid.Row="0" Margin="0,0,0,12">
             <TextBlock
-                Margin="0,0,8,0"
+                FontSize="24"
+                FontWeight="SemiBold"
+                Text="Metrics" />
+            <TextBlock
+                Margin="0,4,0,0"
+                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                Text="Mean retrieval and answer scores for a run, and the score of every question."
+                TextWrapping="Wrap" />
+        </StackPanel>
+
+        <WrapPanel Grid.Row="1" Margin="0,0,0,4">
+            <TextBlock
+                Margin="0,0,8,8"
                 VerticalAlignment="Center"
-                Text="Run:" />
+                Text="Run" />
             <ComboBox
-                x:Name="RunSelector"
                 Width="320"
+                Margin="0,0,24,8"
                 DisplayMemberPath="RunName"
-                SelectionChanged="RunSelector_SelectionChanged" />
+                IsEnabled="{Binding IsIdle}"
+                ItemsSource="{Binding Runs}"
+                SelectedItem="{Binding SelectedRun}" />
             <ui:Button
-                x:Name="RefreshButton"
-                Margin="8,0,0,0"
+                Margin="0,0,8,8"
                 Padding="12,6"
-                Click="RefreshButton_Click"
+                Command="{Binding RefreshCommand}"
                 Content="Refresh"
-                Icon="{ui:SymbolIcon ArrowSync24}" />
+                Icon="{ui:SymbolIcon ArrowSync24}"
+                IsEnabled="{Binding IsIdle}" />
             <ui:Button
-                x:Name="ExportButton"
-                Margin="8,0,0,0"
+                Margin="0,0,8,8"
                 Padding="12,6"
                 Click="ExportButton_Click"
                 Content="Export CSV"
-                Icon="{ui:SymbolIcon ArrowExport24}" />
+                Icon="{ui:SymbolIcon ArrowExport24}"
+                IsEnabled="{Binding CanExport}" />
             <ui:Button
-                x:Name="ExportSummaryButton"
-                Margin="8,0,0,0"
+                Margin="0,0,8,8"
                 Padding="12,6"
                 Click="ExportSummaryButton_Click"
-                Content="Export Summary"
-                Icon="{ui:SymbolIcon ArrowExport24}" />
-        </StackPanel>
+                Content="Export summary"
+                Icon="{ui:SymbolIcon ArrowExport24}"
+                IsEnabled="{Binding CanExport}" />
+        </WrapPanel>
 
-        <ProgressBar
-            x:Name="LoadingIndicator"
+        <DataGrid
             Grid.Row="2"
-            Height="3"
-            Margin="0,0,0,16"
-            IsIndeterminate="True"
-            Visibility="Collapsed" />
+            MaxHeight="240"
+            Margin="0,0,0,12"
+            AutoGenerateColumns="False"
+            CanUserAddRows="False"
+            CanUserDeleteRows="False"
+            CanUserSortColumns="False"
+            GridLinesVisibility="Horizontal"
+            HeadersVisibility="Column"
+            IsReadOnly="True"
+            ItemsSource="{Binding Summary}">
+            <DataGrid.Columns>
+                <DataGridTextColumn
+                    Width="*"
+                    Binding="{Binding Metric}"
+                    Header="Metric (mean for the run)" />
+                <DataGridTextColumn
+                    Width="150"
+                    Binding="{Binding Value}"
+                    Header="Value" />
+            </DataGrid.Columns>
+        </DataGrid>
 
-        <ui:Card
+        <DataGrid
+            x:Name="QueryMetricsGrid"
             Grid.Row="3"
-            Margin="0,0,0,16"
-            Padding="16">
-            <StackPanel>
-                <TextBlock
-                    Margin="0,0,0,8"
-                    FontWeight="SemiBold"
-                    Text="Mean Scores for Selected Run" />
-                <DataGrid
-                    x:Name="SummaryGrid"
-                    AutoGenerateColumns="False"
-                    CanUserAddRows="False"
-                    CanUserDeleteRows="False"
-                    CanUserSortColumns="False"
-                    GridLinesVisibility="Horizontal"
-                    HeadersVisibility="Column"
-                    IsReadOnly="True">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn
-                            Width="*"
-                            Binding="{Binding Metric}"
-                            Header="Metric" />
-                        <DataGridTextColumn
-                            Width="150"
-                            Binding="{Binding Value}"
-                            Header="Mean Value" />
-                    </DataGrid.Columns>
-                </DataGrid>
-            </StackPanel>
-        </ui:Card>
+            AutoGenerateColumns="False"
+            CanUserAddRows="False"
+            CanUserDeleteRows="False"
+            EnableColumnVirtualization="True"
+            EnableRowVirtualization="True"
+            GridLinesVisibility="Horizontal"
+            HeadersVisibility="Column"
+            IsReadOnly="True"
+            ItemsSource="{Binding QueryMetrics}"
+            MouseDoubleClick="QueryMetricsGrid_MouseDoubleClick"
+            SelectionMode="Single"
+            VirtualizingPanel.IsVirtualizing="True"
+            VirtualizingPanel.ScrollUnit="Pixel"
+            VirtualizingPanel.VirtualizationMode="Recycling">
+            <DataGrid.Columns>
+                <DataGridTextColumn
+                    Width="3*"
+                    Binding="{Binding QueryText}"
+                    Header="Question">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="TextWrapping" Value="Wrap" />
+                            <Setter Property="ToolTip" Value="{Binding QueryText}" />
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+                <DataGridTextColumn
+                    Width="*"
+                    Binding="{Binding PrecisionAtK, StringFormat={}{0:F3}}"
+                    Header="Precision" />
+                <DataGridTextColumn
+                    Width="*"
+                    Binding="{Binding RecallAtK, StringFormat={}{0:F3}}"
+                    Header="Recall" />
+                <DataGridTextColumn
+                    Width="*"
+                    Binding="{Binding ReciprocalRank, StringFormat={}{0:F3}}"
+                    Header="MRR" />
+                <DataGridTextColumn
+                    Width="*"
+                    Binding="{Binding NdcgAtK, StringFormat={}{0:F3}}"
+                    Header="NDCG" />
+                <DataGridTextColumn
+                    Width="*"
+                    Binding="{Binding FaithfulnessScore, StringFormat={}{0:F2}}"
+                    Header="Faithfulness" />
+                <DataGridTextColumn
+                    Width="*"
+                    Binding="{Binding RelevanceScore, StringFormat={}{0:F2}}"
+                    Header="Relevance" />
+                <DataGridTextColumn
+                    Width="*"
+                    Binding="{Binding CompletenessScore, StringFormat={}{0:F2}}"
+                    Header="Completeness" />
+            </DataGrid.Columns>
+        </DataGrid>
 
-        <ui:Card
-            Grid.Row="4"
-            Margin="0,0,0,16"
-            Padding="16">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="*" />
-                </Grid.RowDefinitions>
-
-                <TextBlock
-                    Grid.Row="0"
-                    Margin="0,0,0,8"
-                    FontWeight="SemiBold"
-                    Text="Per-Query Metrics (Retrieval + Generation) - double-click a row for full detail" />
-
-                <DataGrid
-                    x:Name="QueryMetricsGrid"
-                    Grid.Row="1"
-                    AutoGenerateColumns="False"
-                    CanUserAddRows="False"
-                    CanUserDeleteRows="False"
-                    CanUserSortColumns="True"
-                    EnableColumnVirtualization="True"
-                    EnableRowVirtualization="True"
-                    GridLinesVisibility="Horizontal"
-                    HeadersVisibility="Column"
-                    IsReadOnly="True"
-                    MouseDoubleClick="QueryMetricsGrid_MouseDoubleClick"
-                    VirtualizingPanel.IsVirtualizing="True"
-                    VirtualizingPanel.ScrollUnit="Pixel"
-                    VirtualizingPanel.VirtualizationMode="Recycling">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn
-                            Width="3*"
-                            Binding="{Binding QueryText}"
-                            Header="Query">
-                            <DataGridTextColumn.ElementStyle>
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="TextWrapping" Value="Wrap" />
-                                    <Setter Property="ToolTip" Value="{Binding QueryText}" />
-                                </Style>
-                            </DataGridTextColumn.ElementStyle>
-                        </DataGridTextColumn>
-                        <DataGridTextColumn
-                            Width="*"
-                            Binding="{Binding PrecisionAtK, StringFormat={}{0:F3}}"
-                            Header="Precision" />
-                        <DataGridTextColumn
-                            Width="*"
-                            Binding="{Binding RecallAtK, StringFormat={}{0:F3}}"
-                            Header="Recall" />
-                        <DataGridTextColumn
-                            Width="*"
-                            Binding="{Binding ReciprocalRank, StringFormat={}{0:F3}}"
-                            Header="MRR" />
-                        <DataGridTextColumn
-                            Width="*"
-                            Binding="{Binding NdcgAtK, StringFormat={}{0:F3}}"
-                            Header="NDCG" />
-                        <DataGridTextColumn
-                            Width="*"
-                            Binding="{Binding FaithfulnessScore, StringFormat={}{0:F2}}"
-                            Header="Faithfulness" />
-                        <DataGridTextColumn
-                            Width="*"
-                            Binding="{Binding RelevanceScore, StringFormat={}{0:F2}}"
-                            Header="Relevance" />
-                        <DataGridTextColumn
-                            Width="*"
-                            Binding="{Binding CompletenessScore, StringFormat={}{0:F2}}"
-                            Header="Completeness" />
-                    </DataGrid.Columns>
-                </DataGrid>
-            </Grid>
-        </ui:Card>
-
-        <TextBlock
-            x:Name="StatusText"
-            Grid.Row="5"
-            Margin="0,0,0,0"
-            Foreground="Gray"
-            TextWrapping="Wrap" />
+        <StackPanel Grid.Row="4" Margin="0,12,0,0">
+            <ProgressBar
+                Height="3"
+                Margin="0,0,0,6"
+                IsIndeterminate="True"
+                Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}" />
+            <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap" />
+        </StackPanel>
     </Grid>
 </Page>

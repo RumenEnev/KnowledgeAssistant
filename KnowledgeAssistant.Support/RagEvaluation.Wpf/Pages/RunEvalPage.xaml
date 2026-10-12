@@ -5,150 +5,251 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-    Title="Run Evaluation"
-    d:DesignHeight="700"
-    d:DesignWidth="800"
+    Title="Run"
+    d:DesignHeight="800"
+    d:DesignWidth="1100"
     mc:Ignorable="d">
 
-    <ScrollViewer Padding="24" VerticalScrollBarVisibility="Auto">
-        <StackPanel MaxWidth="700" HorizontalAlignment="Left">
+    <Page.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+    </Page.Resources>
+
+    <Grid Margin="24,16,24,16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,12">
             <TextBlock
-                Margin="0,0,0,16"
                 FontSize="24"
                 FontWeight="SemiBold"
-                Text="Run Evaluation" />
+                Text="Run" />
+            <TextBlock
+                Margin="0,4,0,0"
+                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                Text="Score retrieval (and optionally the generated answers) against the test set. Check the list below before you start."
+                TextWrapping="Wrap" />
+        </StackPanel>
 
-            <StackPanel Margin="0,0,0,16" Orientation="Horizontal">
-                <ui:Card
-                    Width="340"
-                    Padding="16"
-                    VerticalAlignment="Top">
-                    <StackPanel>
-                        <TextBlock Margin="0,0,0,4" Text="Run name" />
-                        <ui:TextBox
-                            x:Name="RunNameBox"
-                            Margin="0,0,0,12"
-                            PlaceholderText="run-YYYYMMDD-HHmmss (leave blank to auto-generate)" />
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <WrapPanel Margin="0,0,0,8">
+                    <TextBlock
+                        Margin="0,0,8,8"
+                        VerticalAlignment="Center"
+                        Text="Mode" />
+                    <RadioButton
+                        Margin="0,0,8,8"
+                        Content="Retrieval only"
+                        GroupName="RunMode"
+                        IsChecked="{Binding IsRetrievalOnly, Mode=TwoWay}"
+                        IsEnabled="{Binding IsIdle}" />
+                    <RadioButton
+                        Margin="0,0,24,8"
+                        Content="Full (answers + judge)"
+                        GroupName="RunMode"
+                        IsEnabled="{Binding IsIdle}" />
 
-                        <TextBlock Margin="0,0,0,4" Text="Chat provider" />
+                    <TextBlock
+                        Margin="0,0,8,8"
+                        VerticalAlignment="Center"
+                        Text="Scope" />
+                    <ComboBox
+                        MinWidth="220"
+                        Margin="0,0,24,8"
+                        DisplayMemberPath="Title"
+                        IsEnabled="{Binding IsIdle}"
+                        ItemsSource="{Binding Scopes}"
+                        SelectedItem="{Binding SelectedScope}" />
+
+                    <TextBlock
+                        Margin="0,0,8,8"
+                        VerticalAlignment="Center"
+                        Text="Embedding model" />
+                    <ComboBox
+                        MinWidth="200"
+                        Margin="0,0,8,8"
+                        IsEnabled="{Binding IsIdle}"
+                        ItemsSource="{Binding EmbeddingModels}"
+                        SelectedItem="{Binding SelectedEmbeddingModel}" />
+                </WrapPanel>
+
+                <WrapPanel Margin="0,0,0,8">
+                    <TextBlock
+                        Margin="0,0,8,8"
+                        VerticalAlignment="Center"
+                        Text="Chat" />
+                    <ComboBox
+                        MinWidth="140"
+                        Margin="0,0,8,8"
+                        IsEnabled="{Binding IsIdle}"
+                        ItemsSource="{Binding Providers}"
+                        SelectedItem="{Binding SelectedChatProvider}" />
+                    <ComboBox
+                        MinWidth="220"
+                        Margin="0,0,24,8"
+                        IsEnabled="{Binding IsIdle}"
+                        ItemsSource="{Binding ChatModels}"
+                        SelectedItem="{Binding SelectedChatModel}" />
+
+                    <StackPanel Orientation="Horizontal" Visibility="{Binding IsFullMode, Converter={StaticResource BoolToVisibility}}">
+                        <TextBlock
+                            Margin="0,0,8,8"
+                            VerticalAlignment="Center"
+                            Text="Judge" />
                         <ComboBox
-                            x:Name="ChatProviderSelector"
-                            Margin="0,0,0,12"
-                            SelectionChanged="ChatProviderSelector_SelectionChanged" />
-
-                        <TextBlock Margin="0,0,0,4" Text="Chat model" />
-                        <ComboBox x:Name="ChatModelSelector" Margin="0,0,0,12" />
-
-                        <TextBlock Margin="0,0,0,4" Text="Embedding model" />
+                            MinWidth="140"
+                            Margin="0,0,8,8"
+                            IsEnabled="{Binding IsIdle}"
+                            ItemsSource="{Binding Providers}"
+                            SelectedItem="{Binding SelectedJudgeProvider}" />
                         <ComboBox
-                            x:Name="EmbeddingModelSelector"
-                            MinWidth="200"
-                            Margin="0,0,0,12"
-                            HorizontalAlignment="Stretch" />
-
-                        <TextBlock Margin="0,0,0,4" Text="Judge provider" />
-                        <ComboBox
-                            x:Name="JudgeProviderSelector"
-                            Margin="0,0,0,12"
-                            SelectionChanged="JudgeProviderSelector_SelectionChanged" />
-
-                        <TextBlock Margin="0,0,0,4" Text="Judge model" />
-                        <ComboBox x:Name="JudgeModelSelector" Margin="0,0,0,12" />
-
-                        <TextBlock Margin="0,0,0,4" Text="Document (optional - leave as 'All Documents' to run the full test set)" />
-                        <ComboBox
-                            x:Name="DocumentSelector"
-                            Margin="0,0,0,12"
-                            DisplayMemberPath="Title"
-                            SelectionChanged="DocumentSelector_SelectionChanged" />
+                            MinWidth="220"
+                            Margin="0,0,8,8"
+                            IsEnabled="{Binding IsIdle}"
+                            ItemsSource="{Binding JudgeModels}"
+                            SelectedItem="{Binding SelectedJudgeModel}" />
                     </StackPanel>
-                </ui:Card>
+                </WrapPanel>
 
-                <ui:Card
-                    x:Name="RetrievalSettingsCard"
-                    Width="340"
-                    Margin="16,0,0,0"
-                    Padding="16"
-                    VerticalAlignment="Top"
-                    Visibility="Collapsed">
+                <ui:Card Margin="0,0,0,12" Padding="16">
                     <StackPanel>
                         <TextBlock
                             Margin="0,0,0,4"
                             FontWeight="SemiBold"
-                            Text="Retrieval Settings (this document)" />
+                            Text="Retrieval settings" />
                         <TextBlock
                             Margin="0,0,0,12"
-                            FontSize="12"
                             Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                            Text="Applies immediately to the next eval run for this document. Chunk size/overlap are managed in the Documents app." />
-
-                        <TextBlock Margin="0,0,0,4" Text="Candidate pool size" />
-                        <ui:NumberBox x:Name="PoolSizeBox" Margin="0,0,0,12" />
-
-                        <TextBlock Margin="0,0,0,4" Text="Candidate fanout" />
-                        <ui:NumberBox x:Name="FanoutBox" Margin="0,0,0,12" />
-
-                        <TextBlock Margin="0,0,0,4" Text="Max distance threshold" />
-                        <ui:NumberBox x:Name="DistanceThresholdBox" Margin="0,0,0,12" />
-
-                        <TextBlock Margin="0,0,0,4" Text="RRF k" />
-                        <ui:NumberBox x:Name="RrfKBox" Margin="0,0,0,12" />
-
-                        <TextBlock Margin="0,0,0,4" Text="Target injection fraction" />
-                        <ui:NumberBox x:Name="TargetFractionBox" Margin="0,0,0,12" />
-
-                        <TextBlock Margin="0,0,0,4" Text="Max injection fraction" />
-                        <ui:NumberBox x:Name="MaxFractionBox" Margin="0,0,0,12" />
-
-                        <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
-                            <ui:Button
-                                x:Name="ResetRetrievalConfigButton"
-                                Margin="0,0,8,0"
-                                Padding="12,6"
-                                Click="ResetRetrievalConfigButton_Click"
-                                Content="Reset to Default" />
-                            <ui:Button
-                                x:Name="SaveRetrievalConfigButton"
-                                Padding="12,6"
-                                Appearance="Secondary"
-                                Click="SaveRetrievalConfigButton_Click"
-                                Content="Save Settings" />
-                        </StackPanel>
-
-                        <TextBlock
-                            x:Name="RetrievalConfigStatusText"
-                            Margin="0,8,0,0"
-                            FontSize="12"
-                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            Text="Applied to all documents when the run starts, so every run is scored under the same settings."
+                            TextWrapping="Wrap" />
+                        <WrapPanel>
+                            <StackPanel Margin="0,0,16,0">
+                                <TextBlock Margin="0,0,0,4" Text="Candidate pool size" />
+                                <ui:NumberBox
+                                    Width="150"
+                                    IsEnabled="{Binding IsIdle}"
+                                    Value="{Binding PoolSize, Mode=TwoWay}" />
+                            </StackPanel>
+                            <StackPanel Margin="0,0,16,0">
+                                <TextBlock Margin="0,0,0,4" Text="Candidate fan-out" />
+                                <ui:NumberBox
+                                    Width="150"
+                                    IsEnabled="{Binding IsIdle}"
+                                    Value="{Binding Fanout, Mode=TwoWay}" />
+                            </StackPanel>
+                            <StackPanel Margin="0,0,16,0">
+                                <TextBlock Margin="0,0,0,4" Text="Max distance threshold" />
+                                <ui:NumberBox
+                                    Width="150"
+                                    IsEnabled="{Binding IsIdle}"
+                                    Value="{Binding DistanceThreshold, Mode=TwoWay}" />
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Margin="0,0,0,4" Text="RRF k" />
+                                <ui:NumberBox
+                                    Width="150"
+                                    IsEnabled="{Binding IsIdle}"
+                                    Value="{Binding RrfK, Mode=TwoWay}" />
+                            </StackPanel>
+                        </WrapPanel>
                     </StackPanel>
                 </ui:Card>
+
+                <ItemsControl Margin="0,0,0,12" ItemsSource="{Binding Preflight}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Margin="0,0,0,4" Orientation="Horizontal">
+                                <TextBlock
+                                    Width="20"
+                                    FontWeight="SemiBold"
+                                    Text="{Binding Icon}" />
+                                <TextBlock
+                                    MaxWidth="900"
+                                    Text="{Binding Text}"
+                                    TextWrapping="Wrap" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <WrapPanel Margin="0,0,0,12">
+                    <TextBlock
+                        Margin="0,0,8,8"
+                        VerticalAlignment="Center"
+                        Text="Run name" />
+                    <ui:TextBox
+                        Width="320"
+                        Margin="0,0,24,8"
+                        IsEnabled="{Binding IsIdle}"
+                        PlaceholderText="Leave blank to generate a name"
+                        Text="{Binding RunName, UpdateSourceTrigger=PropertyChanged}" />
+                    <ui:Button
+                        Margin="0,0,8,8"
+                        Padding="12,6"
+                        Appearance="Primary"
+                        Click="StartButton_Click"
+                        Content="Start run"
+                        Icon="{ui:SymbolIcon Play24}"
+                        IsEnabled="{Binding CanStart}" />
+                    <ui:Button
+                        Margin="0,0,8,8"
+                        Padding="12,6"
+                        Command="{Binding CancelOperationCommand}"
+                        Content="Cancel"
+                        Icon="{ui:SymbolIcon Dismiss24}"
+                        Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}" />
+                </WrapPanel>
+
+                <StackPanel Visibility="{Binding HasResult, Converter={StaticResource BoolToVisibility}}">
+                    <TextBlock
+                        Margin="0,0,0,8"
+                        FontWeight="SemiBold"
+                        Text="{Binding ResultTitle}" />
+                    <ItemsControl ItemsSource="{Binding ResultTiles}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <ui:Card
+                                    MinWidth="110"
+                                    Margin="0,0,8,8"
+                                    Padding="12,8"
+                                    ToolTip="{Binding ToolTip}">
+                                    <StackPanel>
+                                        <TextBlock
+                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                            Text="{Binding Label}" />
+                                        <TextBlock
+                                            FontSize="20"
+                                            FontWeight="SemiBold"
+                                            Text="{Binding Value}" />
+                                    </StackPanel>
+                                </ui:Card>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock
+                        Margin="0,4,0,0"
+                        Text="{Binding ResultWarning}"
+                        TextWrapping="Wrap"
+                        Visibility="{Binding HasResultWarning, Converter={StaticResource BoolToVisibility}}" />
+                </StackPanel>
             </StackPanel>
+        </ScrollViewer>
 
-            <ui:Button
-                x:Name="RunButton"
-                Padding="16,8"
-                HorizontalAlignment="Left"
-                Appearance="Primary"
-                Click="RunButton_Click"
-                Content="Run Evaluation" />
-
+        <StackPanel Grid.Row="2" Margin="0,12,0,0">
             <ProgressBar
-                x:Name="ProgressBarControl"
-                Margin="0,16,0,0"
-                Maximum="1"
-                Visibility="Collapsed" />
-
-            <TextBlock
-                x:Name="ProgressText"
-                Margin="0,4,0,0"
-                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                TextTrimming="CharacterEllipsis" />
-
-            <TextBlock
-                x:Name="ResultText"
-                Margin="0,16,0,0"
-                FontFamily="Consolas"
-                TextWrapping="Wrap" />
+                Margin="0,0,0,6"
+                Maximum="{Binding ProgressMax}"
+                Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}"
+                Value="{Binding ProgressValue, Mode=OneWay}" />
+            <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap" />
         </StackPanel>
-    </ScrollViewer>
+    </Grid>
 </Page>
