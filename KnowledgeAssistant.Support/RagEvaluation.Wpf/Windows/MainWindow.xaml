@@ -85,7 +85,7 @@
                 <ui:NavigationViewItem
                     Content="Documents"
                     Tag="documents"
-                    TargetPageType="{x:Type pages:ChunkDocumentPage}">
+                    TargetPageType="{x:Type pages:DocumentsPage}">
                     <ui:NavigationViewItem.Icon>
                         <ui:SymbolIcon Symbol="DocumentSplitHint24" />
                     </ui:NavigationViewItem.Icon>
@@ -118,22 +118,6 @@
                 </ui:NavigationViewItem>
 
                 <ui:NavigationViewItemHeader Text="LEGACY (BEING REPLACED)" />
-                <ui:NavigationViewItem
-                    Content="Generate vectors"
-                    Tag="legacy-vectors"
-                    TargetPageType="{x:Type pages:GenerateVectorsPage}">
-                    <ui:NavigationViewItem.Icon>
-                        <ui:SymbolIcon Symbol="BracesVariable24" />
-                    </ui:NavigationViewItem.Icon>
-                </ui:NavigationViewItem>
-                <ui:NavigationViewItem
-                    Content="Chunks"
-                    Tag="legacy-chunks"
-                    TargetPageType="{x:Type pages:ChunksPage}">
-                    <ui:NavigationViewItem.Icon>
-                        <ui:SymbolIcon Symbol="DocumentBulletList24" />
-                    </ui:NavigationViewItem.Icon>
-                </ui:NavigationViewItem>
                 <ui:NavigationViewItem
                     Content="Runs"
                     Tag="legacy-runs"

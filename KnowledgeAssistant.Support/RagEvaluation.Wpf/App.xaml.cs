@@ -7,10 +7,12 @@ using RagEvaluation.Desktop.Services;
 using RagEvaluation.Desktop.ViewModels;
 using Serilog;
 using System.IO;
+using System.Runtime.Versioning;
 using System.Windows;
 
 namespace RagEvaluation.Desktop;
 
+[SupportedOSPlatform("windows7.0")]
 public partial class App : Application
 {
     private ServiceProvider? _serviceProvider;
@@ -55,14 +57,13 @@ public partial class App : Application
         Program.ConfigureServices(services, config);
         services.AddLogging(builder => builder.AddSerilog());
         services.AddSingleton<Windows.MainWindow>();
-        services.AddTransient<Pages.ChunkDocumentPage>();
-        services.AddTransient<Pages.GenerateVectorsPage>();
+        services.AddTransient<Pages.DocumentsPage>();
         services.AddTransient<Pages.GenerateTestSetPage>();
         services.AddTransient<Pages.RunEvalPage>();
         services.AddTransient<Pages.RunsPage>();
         services.AddTransient<Pages.MetricsPage>();
-        services.AddTransient<Pages.ChunksPage>();
         services.AddSingleton<PipelineStatusService>();
+        services.AddSingleton<DocumentsViewModel>();
         services.AddSingleton<ShellViewModel>();
 
         _serviceProvider = services.BuildServiceProvider();

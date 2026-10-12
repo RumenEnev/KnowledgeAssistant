@@ -18,7 +18,7 @@ public partial class MainWindow : FluentWindow
         StatusStrip.DataContext = shell;
         RootNavigation.SetServiceProvider(serviceProvider);
         RootNavigation.Navigated += async (_, _) => await _shell.RefreshAsync();
-        Loaded += (_, _) => RootNavigation.Navigate(typeof(Pages.ChunkDocumentPage));
+        Loaded += (_, _) => RootNavigation.Navigate(typeof(Pages.DocumentsPage));
     }
 
     private async void RefreshStatusButton_Click(object sender, RoutedEventArgs e)
