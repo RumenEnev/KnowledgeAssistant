@@ -22,6 +22,8 @@ public interface IExperimentRepository
 
     Task CleanDatabaseAsync(CancellationToken ct = default);
 
+    Task DeleteRunAsync(int runId, CancellationToken ct = default);
+
     Task<List<QueryMetricsRow>> GetQueryMetricsAsync(int runId, CancellationToken ct = default);
 
     Task<GenerationResultRecord?> GetGenerationResultAsync(int runId, int queryId, CancellationToken ct = default);

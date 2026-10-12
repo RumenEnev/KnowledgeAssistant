@@ -36,6 +36,25 @@ public partial class MetricsPage : Page
         new GenerationDetailWindow(detail) { Owner = Window.GetWindow(this) }.ShowDialog();
     }
 
+    private async void DeleteButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel.SelectedRun is not { } run)
+        {
+            return;
+        }
+
+        var answer = MessageBox.Show(
+            $"Delete run '{run.RunName}' and all of its retrieval and answer metrics? This cannot be undone.",
+            "Delete run",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+
+        if (answer == MessageBoxResult.Yes)
+        {
+            await _viewModel.DeleteSelectedRunAsync();
+        }
+    }
+
     private void ExportButton_Click(object sender, RoutedEventArgs e) => Export(summaryOnly: false);
 
     private void ExportSummaryButton_Click(object sender, RoutedEventArgs e) => Export(summaryOnly: true);

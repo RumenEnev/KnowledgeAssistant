@@ -217,6 +217,9 @@ public sealed class EvaluationService
     public Task CleanDatabaseAsync(CancellationToken ct = default)
         => _experimentRepository.CleanDatabaseAsync(ct);
 
+    public Task DeleteRunAsync(int runId, CancellationToken ct = default)
+        => _experimentRepository.DeleteRunAsync(runId, ct);
+
     public Task<List<QueryMetricsRow>> GetQueryMetricsAsync(int runId, CancellationToken ct = default)
         => _experimentRepository.GetQueryMetricsAsync(runId, ct);
 

@@ -68,6 +68,14 @@
                 Content="Export summary"
                 Icon="{ui:SymbolIcon ArrowExport24}"
                 IsEnabled="{Binding CanExport}" />
+            <ui:Button
+                Margin="0,0,8,8"
+                Padding="12,6"
+                Appearance="Danger"
+                Click="DeleteButton_Click"
+                Content="Delete run"
+                Icon="{ui:SymbolIcon Delete24}"
+                IsEnabled="{Binding CanExport}" />
         </WrapPanel>
 
         <DataGrid

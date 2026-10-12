@@ -307,6 +307,16 @@ public sealed class EvalRepository : IExperimentRepository
         await connection.ExecuteAsync(new CommandDefinition(sql, cancellationToken: ct));
     }
 
+    public async Task DeleteRunAsync(int runId, CancellationToken ct = default)
+    {
+        await using var connection = await _dataSource.OpenConnectionAsync(ct);
+
+        // Retrieval/generation results and metrics are removed by ON DELETE CASCADE.
+        const string sql = "DELETE FROM rag.eval_runs WHERE id = @RunId;";
+
+        await connection.ExecuteAsync(new CommandDefinition(sql, new { RunId = runId }, cancellationToken: ct));
+    }
+
     public async Task<List<QueryMetricsRow>> GetQueryMetricsAsync(int runId, CancellationToken ct = default)
     {
         await using var connection = await _dataSource.OpenConnectionAsync(ct);

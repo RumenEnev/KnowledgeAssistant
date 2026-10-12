@@ -13,16 +13,41 @@ namespace RagEvaluation.Desktop.ViewModels;
 public sealed partial class MetricsViewModel : OperationViewModelBase
 {
     private readonly EvaluationService _evaluationService;
+    private readonly ShellViewModel _shell;
     private readonly ILogger<MetricsViewModel> _logger;
 
     private RunSummary? _currentSummary;
     private bool _suppressSelection;
     private CancellationTokenSource? _loadCts;
 
-    public MetricsViewModel(EvaluationService evaluationService, ILogger<MetricsViewModel> logger) : base(logger)
+    public MetricsViewModel(EvaluationService evaluationService, ShellViewModel shell, ILogger<MetricsViewModel> logger) : base(logger)
     {
         _evaluationService = evaluationService;
+        _shell = shell;
         _logger = logger;
+    }
+
+    protected override async Task OnOperationFinishedAsync()
+    {
+        await ReloadRunsAsync();
+        await _shell.RefreshAsync();
+    }
+
+    public Task DeleteSelectedRunAsync()
+    {
+        var run = SelectedRun;
+        if (run is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        return RunOperationAsync(
+            "Deleting the run…",
+            async ct =>
+            {
+                await _evaluationService.DeleteRunAsync(run.Id, ct);
+                return $"Deleted run '{run.RunName}' and its metrics.";
+            });
     }
 
     public ObservableCollection<ExperimentRun> Runs { get; } = new();
