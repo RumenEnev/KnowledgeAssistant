@@ -3,17 +3,14 @@ using KnowledgeAssistant.Application.Services;
 using KnowledgeAssistant.Eval;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using RagEvaluation.Services;
+using RagEvaluation.Desktop.Services;
+using RagEvaluation.Desktop.ViewModels;
 using Serilog;
 using System.IO;
 using System.Windows;
-using System.Windows.Threading;
 
 namespace RagEvaluation.Desktop;
 
-/// <summary>
-/// Interaction logic for App.xaml
-/// </summary>
 public partial class App : Application
 {
     private ServiceProvider? _serviceProvider;
@@ -35,13 +32,13 @@ public partial class App : Application
                 shared: true)
             .CreateLogger();
 
-        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
-            Log.Fatal(args.ExceptionObject as Exception, "Unhandled AppDomain exception");
+        AppDomain.CurrentDomain.UnhandledException += (_, args) => Log.Fatal(args.ExceptionObject as Exception, "Unhandled AppDomain exception");
         DispatcherUnhandledException += (_, args) =>
         {
             Log.Error(args.Exception, "Unhandled UI dispatcher exception");
         };
-        System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (_, args) =>
+
+        TaskScheduler.UnobservedTaskException += (_, args) =>
         {
             Log.Error(args.Exception, "Unobserved task exception");
             args.SetObserved();
@@ -65,9 +62,10 @@ public partial class App : Application
         services.AddTransient<Pages.RunsPage>();
         services.AddTransient<Pages.MetricsPage>();
         services.AddTransient<Pages.ChunksPage>();
+        services.AddSingleton<PipelineStatusService>();
+        services.AddSingleton<ShellViewModel>();
 
         _serviceProvider = services.BuildServiceProvider();
-
         var mainWindow = _serviceProvider.GetRequiredService<Windows.MainWindow>();
         mainWindow.Show();
     }
@@ -79,4 +77,3 @@ public partial class App : Application
         base.OnExit(e);
     }
 }
-
