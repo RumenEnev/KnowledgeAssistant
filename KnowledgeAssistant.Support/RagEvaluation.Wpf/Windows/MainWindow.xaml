@@ -117,16 +117,6 @@
                     </ui:NavigationViewItem.Icon>
                 </ui:NavigationViewItem>
 
-                <ui:NavigationViewItemHeader Text="LEGACY (BEING REPLACED)" />
-                <ui:NavigationViewItem
-                    Content="Runs"
-                    Tag="legacy-runs"
-                    TargetPageType="{x:Type pages:RunsPage}">
-                    <ui:NavigationViewItem.Icon>
-                        <ui:SymbolIcon Symbol="List24" />
-                    </ui:NavigationViewItem.Icon>
-                </ui:NavigationViewItem>
-
             </ui:NavigationView.MenuItems>
             <ui:NavigationView.ContentOverlay>
                 <Grid>

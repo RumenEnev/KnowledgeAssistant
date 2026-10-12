@@ -62,7 +62,6 @@ public partial class App : Application
         services.AddTransient<Pages.DocumentsPage>();
         services.AddTransient<Pages.TestSetPage>();
         services.AddTransient<Pages.RunEvalPage>();
-        services.AddTransient<Pages.RunsPage>();
         services.AddTransient<Pages.MetricsPage>();
         services.AddTransient<Pages.TestSetPage>();
         services.AddSingleton<PipelineStatusService>();
@@ -70,7 +69,6 @@ public partial class App : Application
         services.AddSingleton<ShellViewModel>();
         services.AddSingleton<TestSetViewModel>();
         services.AddSingleton<RunViewModel>();
-        services.AddSingleton<RunsViewModel>();
         services.AddSingleton<MetricsViewModel>();
         services.AddSingleton<LlmCatalogService>();
         services.AddScoped<TestSetHealthService>();
