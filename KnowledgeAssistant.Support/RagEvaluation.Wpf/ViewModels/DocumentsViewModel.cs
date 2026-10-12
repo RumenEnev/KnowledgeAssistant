@@ -6,12 +6,13 @@ using KnowledgeAssistant.Contracts.Enums;
 using Microsoft.Extensions.Logging;
 using RagEvaluation.Desktop.Models;
 using RagEvaluation.Interfaces;
+using RagEvaluation.Models;
 using System.Collections.ObjectModel;
 using System.IO;
 
 namespace RagEvaluation.Desktop.ViewModels;
 
-public sealed partial class DocumentsViewModel : ObservableObject
+public sealed partial class DocumentsViewModel : OperationViewModelBase
 {
     private static readonly string[] FallbackEmbeddingModels =
     [
@@ -27,8 +28,6 @@ public sealed partial class DocumentsViewModel : ObservableObject
     private readonly ShellViewModel _shell;
     private readonly ILogger<DocumentsViewModel> _logger;
 
-    private CancellationTokenSource? _operationCts;
-
     public DocumentsViewModel(
         DocumentsHandlingService documentsHandlingService,
         IDocumentRepository documentRepository,
@@ -37,6 +36,7 @@ public sealed partial class DocumentsViewModel : ObservableObject
         IModelRepository modelRepository,
         ShellViewModel shell,
         ILogger<DocumentsViewModel> logger)
+        : base(logger)
     {
         _documentsHandlingService = documentsHandlingService;
         _documentRepository = documentRepository;
@@ -71,24 +71,20 @@ public sealed partial class DocumentsViewModel : ObservableObject
     [ObservableProperty]
     private string _chunkingSummary = string.Empty;
 
-    [ObservableProperty]
-    private string _statusText = string.Empty;
-
-    [ObservableProperty]
-    private double _progressValue;
-
-    [ObservableProperty]
-    private double _progressMax = 1;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsIdle))]
-    [NotifyPropertyChangedFor(nameof(CanActOnSelection))]
-    [NotifyPropertyChangedFor(nameof(CanActOnChunk))]
-    private bool _isBusy;
-
-    public bool IsIdle => !IsBusy;
     public bool CanActOnSelection => !IsBusy && SelectedDocument is not null;
     public bool CanActOnChunk => !IsBusy && SelectedChunk is not null;
+
+    protected override void OnBusyChanged()
+    {
+        OnPropertyChanged(nameof(CanActOnSelection));
+        OnPropertyChanged(nameof(CanActOnChunk));
+    }
+
+    protected override async Task OnOperationFinishedAsync()
+    {
+        await ReloadAsync();
+        await _shell.RefreshAsync();
+    }
 
     partial void OnSelectedDocumentChanged(DocumentRow? value) => _ = LoadSelectedDocumentAsync(value);
 
@@ -96,7 +92,7 @@ public sealed partial class DocumentsViewModel : ObservableObject
     {
         if (IsBusy)
         {
-            return; 
+            return;
         }
 
         await LoadModelsAndSettingsAsync();
@@ -165,6 +161,7 @@ public sealed partial class DocumentsViewModel : ObservableObject
             }
 
             SelectedDocument = rows.FirstOrDefault(r => r.Id == previousId) ?? rows.FirstOrDefault();
+
             if (rows.Count == 0 && string.IsNullOrEmpty(StatusText))
             {
                 StatusText = "No documents yet. Use Import to add markdown or text files.";
@@ -195,7 +192,7 @@ public sealed partial class DocumentsViewModel : ObservableObject
 
             if (SelectedDocument?.Id != document.Id)
             {
-                return; 
+                return;
             }
 
             foreach (var chunk in chunks)
@@ -235,56 +232,6 @@ public sealed partial class DocumentsViewModel : ObservableObject
             return (-1, -1);
         }
     }
-
-    private async Task RunOperationAsync(string startText, Func<CancellationToken, Task<string>> work)
-    {
-        if (IsBusy)
-        {
-            return;
-        }
-
-        _operationCts = new CancellationTokenSource();
-        var ct = _operationCts.Token;
-        IsBusy = true;
-        ProgressValue = 0;
-        ProgressMax = 1;
-        StatusText = startText;
-
-        try
-        {
-            StatusText = await work(ct);
-        }
-        catch (OperationCanceledException)
-        {
-            StatusText = "Cancelled.";
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Documents operation failed: {Operation}", startText);
-            StatusText = $"Error: {ex.Message}";
-        }
-        finally
-        {
-            try
-            {
-                await ReloadAsync();
-                await _shell.RefreshAsync();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Reload after operation failed");
-            }
-            finally
-            {
-                _operationCts?.Dispose();
-                _operationCts = null;
-                IsBusy = false;
-            }
-        }
-    }
-
-    [RelayCommand]
-    private void CancelOperation() => _operationCts?.Cancel();
 
     [RelayCommand]
     private async Task RefreshAsync()
@@ -344,7 +291,6 @@ public sealed partial class DocumentsViewModel : ObservableObject
         });
     }
 
-
     public Task ImportAsync(IReadOnlyList<string> files, IngestOptions options)
         => RunOperationAsync("Importing…", async ct =>
         {
@@ -367,7 +313,7 @@ public sealed partial class DocumentsViewModel : ObservableObject
 
                 if (!existingTitles.Add(title))
                 {
-                    skipped++; 
+                    skipped++;
                     continue;
                 }
 

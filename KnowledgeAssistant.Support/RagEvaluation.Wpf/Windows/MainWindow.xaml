@@ -93,7 +93,7 @@
                 <ui:NavigationViewItem
                     Content="Test set"
                     Tag="test-set"
-                    TargetPageType="{x:Type pages:GenerateTestSetPage}">
+                    TargetPageType="{x:Type pages:TestSetPage}">
                     <ui:NavigationViewItem.Icon>
                         <ui:SymbolIcon Symbol="DocumentAdd24" />
                     </ui:NavigationViewItem.Icon>

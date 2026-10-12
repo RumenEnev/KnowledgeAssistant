@@ -2,6 +2,7 @@
 using Microsoft.Win32;
 using RagEvaluation.Desktop.Enums;
 using RagEvaluation.Desktop.Models;
+using RagEvaluation.Models;
 using System.IO;
 using System.Windows;
 using Wpf.Ui.Controls;

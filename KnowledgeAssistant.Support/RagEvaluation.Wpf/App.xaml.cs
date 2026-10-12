@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using RagEvaluation.Desktop.Services;
 using RagEvaluation.Desktop.ViewModels;
+using RagEvaluation.Services;
 using Serilog;
 using System.IO;
 using System.Runtime.Versioning;
@@ -58,13 +59,16 @@ public partial class App : Application
         services.AddLogging(builder => builder.AddSerilog());
         services.AddSingleton<Windows.MainWindow>();
         services.AddTransient<Pages.DocumentsPage>();
-        services.AddTransient<Pages.GenerateTestSetPage>();
+        services.AddTransient<Pages.TestSetPage>();
         services.AddTransient<Pages.RunEvalPage>();
         services.AddTransient<Pages.RunsPage>();
         services.AddTransient<Pages.MetricsPage>();
+        services.AddTransient<Pages.TestSetPage>();
         services.AddSingleton<PipelineStatusService>();
         services.AddSingleton<DocumentsViewModel>();
         services.AddSingleton<ShellViewModel>();
+        services.AddSingleton<TestSetViewModel>();
+        services.AddSingleton<LlmCatalogService>();
 
         _serviceProvider = services.BuildServiceProvider();
         var mainWindow = _serviceProvider.GetRequiredService<Windows.MainWindow>();

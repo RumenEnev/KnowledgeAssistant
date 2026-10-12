@@ -1,11 +1,10 @@
 ﻿using KnowledgeAssistant.Application.Abstraction;
 using Microsoft.Extensions.Logging;
-using RagEvaluation.Desktop.Models;
 using RagEvaluation.Interfaces;
-using RagEvaluation.Services;
+using RagEvaluation.Models;
 using System.Globalization;
 
-namespace RagEvaluation.Desktop.Services;
+namespace RagEvaluation.Services;
 
 public sealed class PipelineStatusService
 {

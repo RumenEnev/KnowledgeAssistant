@@ -434,4 +434,31 @@ public sealed class EvalRepository : IExperimentRepository
 
         await tx.CommitAsync(ct);
     }
+
+    public async Task DeleteTestQueriesAsync(IEnumerable<int> queryIds, CancellationToken ct)
+    {
+        var ids = queryIds.ToArray();
+        if (ids.Length == 0)
+        {
+            return;
+        }
+
+        await using var connection = await _dataSource.OpenConnectionAsync(ct);
+        await using var tx = await connection.BeginTransactionAsync(ct);
+
+        const string deleteExpected = """
+                                        DELETE FROM rag.eval_query_expected_chunks
+                                        WHERE query_id = ANY(@QueryIds);
+                                        """;
+
+        const string deleteQueries = """
+                                    DELETE FROM rag.eval_queries
+                                    WHERE id = ANY(@QueryIds);
+                                    """;
+
+        await connection.ExecuteAsync(deleteExpected, new { QueryIds = ids }, tx);
+        await connection.ExecuteAsync(deleteQueries, new { QueryIds = ids }, tx);
+
+        await tx.CommitAsync(ct);
+    }
 }

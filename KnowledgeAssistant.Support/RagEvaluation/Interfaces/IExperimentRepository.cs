@@ -29,4 +29,6 @@ public interface IExperimentRepository
     Task<List<TestQuery>> LoadTestQueriesAsync(int? documentId, CancellationToken ct);
 
     Task DeleteTestQueriesByDocumentIdsAsync(IEnumerable<int> documentIds, CancellationToken ct = default);
+
+    Task DeleteTestQueriesAsync(IEnumerable<int> queryIds, CancellationToken ct);
 }

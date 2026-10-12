@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
-using RagEvaluation.Desktop.Models;
-using RagEvaluation.Desktop.Services;
+using RagEvaluation.Models;
+using RagEvaluation.Services;
 using System.ComponentModel;
 using System.Globalization;
 using System.Runtime.CompilerServices;
